@@ -1,0 +1,152 @@
+/*
+ * Aiven Kafka GCS Connector
+ * Copyright (c) 2019 Aiven Ltd
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+plugins {
+    // https://docs.gradle.org/current/userguide/java_library_plugin.html
+    id 'java-library'
+
+    // https://docs.gradle.org/current/userguide/distribution_plugin.html
+    id 'distribution'
+
+    // https://docs.gradle.org/current/userguide/checkstyle_plugin.html
+    id 'checkstyle'
+
+    // https://docs.gradle.org/current/userguide/idea_plugin.html
+    id 'idea'
+}
+
+repositories {
+    jcenter()
+}
+
+sourceCompatibility = "8"
+targetCompatibility = "8"
+
+ext {
+    kafkaVersion = "1.0.2"
+
+    testcontainersVersion = "1.11.1"
+
+    buildVersionFileName = "aiven-kafka-connect-gcs-version.properties"
+}
+
+distributions {
+    main {
+        contents {
+            from jar
+            from configurations.runtimeClasspath
+        }
+    }
+}
+
+sourceSets {
+    integrationTest {
+        java.srcDir file('src/integration-test/java')
+        resources.srcDir file('src/integration-test/resources')
+        compileClasspath += sourceSets.main.output + configurations.testRuntime
+        runtimeClasspath += output + compileClasspath
+    }
+}
+
+idea {
+    module {
+        testSourceDirs += project.sourceSets.integrationTest.java.srcDirs
+        testSourceDirs += project.sourceSets.integrationTest.resources.srcDirs
+    }
+}
+
+configurations {
+    integrationTestImplementation.extendsFrom testImplementation
+    integrationTestRuntime.extendsFrom testRuntime
+}
+
+dependencies {
+    compileOnly "org.apache.kafka:connect-api:$kafkaVersion"
+
+    implementation "com.google.cloud:google-cloud-storage:1.64.0"
+
+    implementation "org.slf4j:slf4j-api:1.7.25"
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.4.1'
+    testImplementation "org.apache.kafka:connect-api:$kafkaVersion"
+    testImplementation 'com.google.cloud:google-cloud-nio:0.84.0-alpha'
+    testRuntime 'ch.qos.logback:logback-classic:1.2.3'
+
+    integrationTestImplementation "org.apache.kafka:connect-api:$kafkaVersion"
+    integrationTestImplementation "org.apache.kafka:connect-runtime:$kafkaVersion"
+    integrationTestImplementation "org.apache.kafka:connect-json:$kafkaVersion"
+    integrationTestImplementation "org.apache.kafka:connect-transforms:$kafkaVersion"
+
+    integrationTestImplementation "org.testcontainers:junit-jupiter:$testcontainersVersion"
+    integrationTestImplementation "org.testcontainers:kafka:$testcontainersVersion" // this is not Kafka version
+    // Make test utils from 'test' available in 'integration-test'
+    integrationTestImplementation sourceSets.test.output
+}
+
+task createVersionFile {
+    def receiptFile = file("$buildDir/$buildVersionFileName")
+
+    outputs.file receiptFile
+    outputs.upToDateWhen { false }
+
+    doLast {
+        receiptFile.parentFile.mkdirs()
+        receiptFile.setText("version=$version")
+    }
+}
+
+task integrationTest(type: Test) {
+    description = 'Runs the integration tests.'
+    group = 'verification'
+    testClassesDirs = sourceSets.integrationTest.output.classesDirs
+    classpath = sourceSets.integrationTest.runtimeClasspath
+    
+    dependsOn test, distTar
+
+    useJUnitPlatform()
+
+    // Run always.
+    outputs.upToDateWhen { false }
+
+    // Pass the GCS bucket name to the tests.
+    systemProperty("integration-test.gcs.bucket", project.findProperty('testGcsBucket'))
+    // Pass the distribution file path to the tests.
+    systemProperty("integration-test.distribution.file.path", distTar.archiveFile.get().asFile.path)
+
+    doFirst {
+        assert project.findProperty('testGcsBucket') != null
+        assert !(project.findProperty('testGcsBucket').allWhitespace)
+    }
+}
+
+test {
+    useJUnitPlatform()
+}
+
+jar {
+    dependsOn createVersionFile
+    from("$buildDir") {
+        include "$buildVersionFileName"
+    }
+
+    manifest {
+        attributes(
+                'Version': "${version}"
+        )
+    }
+}
