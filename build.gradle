@@ -102,6 +102,12 @@ dependencies {
     integrationTestImplementation sourceSets.test.output
 }
 
+checkstyle {
+    configProperties = [
+            rootDir: "$rootDir"
+    ]
+}
+
 task createVersionFile {
     def receiptFile = file("$buildDir/$buildVersionFileName")
 

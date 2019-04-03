@@ -27,7 +27,7 @@
     <!-- See http://checkstyle.sourceforge.net/config_header.html#Header -->
     <module name="Header">
         <property name="fileExtensions" value="java"/>
-        <property name="headerFile" value="config/checkstyle/header.java" />
+        <property name="headerFile" value="${rootDir}/config/checkstyle/header.java" />
     </module>
 
     <!-- See http://checkstyle.sourceforge.net/config_whitespace.html#FileTabCharacter -->
