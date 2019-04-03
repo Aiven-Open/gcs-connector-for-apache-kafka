@@ -19,13 +19,12 @@
 package io.aiven.kafka.connect.gcs.config;
 
 import com.google.auth.oauth2.GoogleCredentials;
+import io.aiven.kafka.connect.gcs.gcs.GoogleCredentialsBuilder;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigException;
 
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -148,19 +147,11 @@ public final class GcsSinkConfig extends AbstractConfig {
     }
 
     public final GoogleCredentials getCredentials() {
-        final String credentialsPath = getString(GCS_CREDENTIALS_PATH_CONFIG);
-        if (credentialsPath != null) {
-            try (final InputStream stream = new FileInputStream(credentialsPath)) {
-                return GoogleCredentials.fromStream(stream);
-            } catch (final IOException e) {
-                throw new ConfigException("Failed to read GCS credentials from " + credentialsPath + ": " + e);
-            }
-        } else {
-            try {
-                return GoogleCredentials.getApplicationDefault();
-            } catch (final IOException e) {
-                throw new ConfigException("Failed to create GCS credentials");
-            }
+        try {
+            final String credentialsPath = getString(GCS_CREDENTIALS_PATH_CONFIG);
+            return GoogleCredentialsBuilder.build(credentialsPath);
+        } catch (final IOException e) {
+            throw new ConfigException("Failed to create GCS credentials: " + e.getMessage());
         }
     }
 
