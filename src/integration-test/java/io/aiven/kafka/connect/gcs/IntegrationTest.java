@@ -20,6 +20,7 @@ package io.aiven.kafka.connect.gcs;
 
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
+import io.aiven.kafka.connect.gcs.gcs.GoogleCredentialsBuilder;
 import io.aiven.kafka.connect.gcs.testutils.BlobAccessor;
 import io.aiven.kafka.connect.gcs.testutils.BucketAccessor;
 import org.apache.kafka.clients.admin.AdminClient;
@@ -69,6 +70,8 @@ import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 final class IntegrationTest {
     private static final Logger log = LoggerFactory.getLogger(IntegrationTest.class);
 
+    private static String gcsCredentialsPath;
+
     private static final String TEST_TOPIC = "test-topic";
     private static final boolean COMPRESS = true;
 
@@ -93,9 +96,14 @@ final class IntegrationTest {
 
     @BeforeAll
     static void setUpAll() throws IOException, InterruptedException {
+        gcsCredentialsPath = System.getProperty("integration-test.gcs.credentials.path");
+
         testBucketName = System.getProperty("integration-test.gcs.bucket");
 
-        storage = StorageOptions.getDefaultInstance().getService();
+        storage = StorageOptions.newBuilder()
+                .setCredentials(GoogleCredentialsBuilder.build(gcsCredentialsPath))
+                .build()
+                .getService();
         testBucketAccessor = new BucketAccessor(storage, testBucketName);
         testBucketAccessor.ensureWorking();
 
@@ -256,6 +264,9 @@ final class IntegrationTest {
             connectorProps.put("key.converter", "org.apache.kafka.connect.converters.ByteArrayConverter");
             connectorProps.put("value.converter", "org.apache.kafka.connect.converters.ByteArrayConverter");
             connectorProps.put("tasks.max", "1");
+            if (gcsCredentialsPath != null) {
+                connectorProps.put("gcs.credentials.path", gcsCredentialsPath);
+            }
             connectorProps.put("gcs.bucket.name", testBucketName);
             connectorProps.put("format.output.fields", "key,value");
             connectorProps.put("topics", TEST_TOPIC);

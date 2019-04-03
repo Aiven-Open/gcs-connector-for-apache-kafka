@@ -123,6 +123,10 @@ task integrationTest(type: Test) {
     // Run always.
     outputs.upToDateWhen { false }
 
+    // Pass the GCS credentials path to the tests.
+    if (project.hasProperty('gcsCredentialsPath')) {
+        systemProperty("integration-test.gcs.credentials.path", project.findProperty('gcsCredentialsPath'))
+    }
     // Pass the GCS bucket name to the tests.
     systemProperty("integration-test.gcs.bucket", project.findProperty('testGcsBucket'))
     // Pass the distribution file path to the tests.

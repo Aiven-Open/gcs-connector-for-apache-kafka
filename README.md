@@ -122,8 +122,19 @@ directory:
 
 where `PtestGcsBucket` is the name of the GCS bucket to use.
 
-Also, instead of a Gradle CLI parameter, you can set an environment
-variable `ORG_GRADLE_PROJECT_testGcsBucket=test-bucket-name`.
+It is also possible to specify GCS credentials path using
+`gcsCredentialsPath` property:
+
+```bash
+./gradlew clean integrationTest -PtestGcsBucket=test-bucket-name \
+    -PgcsCredentialsPath=/path/to/credentials.json
+```
+
+Gralde allows to set properties using environment variables, for
+example, `ORG_GRADLE_PROJECT_testGcsBucket=test-bucket-name`.
+
+See more about the ways to set properties
+[here](https://docs.gradle.org/current/userguide/build_environment.html#sec:project_properties).
 
 ### Releasing
 
