@@ -1,5 +1,7 @@
 # Aiven Kafka GCS Connector
 
+[![Build Status](https://travis-ci.org/aiven/aiven-kafka-connect-gcs.svg?branch=master)](https://travis-ci.org/aiven/aiven-kafka-connect-gcs)
+
 This is a sink
 [Kafka Connect](https://kafka.apache.org/documentation/#connect)
 connector that stores Kafka messages in a
