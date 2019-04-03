@@ -67,7 +67,10 @@ public final class GcsSinkTask extends SinkTask {
         Objects.requireNonNull(props);
 
         this.config = new GcsSinkConfig(props);
-        this.storage = StorageOptions.getDefaultInstance().getService();
+        this.storage = StorageOptions.newBuilder()
+                .setCredentials(config.getCredentials())
+                .build()
+                .getService();
         outputWriter = OutputWriter.builder().addFields(config.getOutputFields()).build();
     }
 
