@@ -82,10 +82,25 @@ topics=topic1,topic2
 # Required.
 gcs.bucket.name=my-gcs-bucket
 
+## The following two options are used to specify GCP credentials.
+## See the overview of GCP authentication:
+##  - https://cloud.google.com/docs/authentication/
+##  - https://cloud.google.com/docs/authentication/production
+## If they both are not present, the connector will try to detect
+## the credentials automatically.
+## If only one is present, the connector will use it to get the credentials.
+## If both are present, this is an error.
+
 # The path to a GCP credentials file.
-# If not provided, the connector will try to detect the credentials automatically.
-# Optional, the default is empty.
+# Optional, the default is null.
 gcs.credentials.path=/some/path/google_credentials.json
+
+# GCP credentials as a JSON string.
+# Optional, the default is null.
+gcs.credentials.json={"type":"...", ...}
+
+##
+
 
 # The set of the fields that are to be output, comma separated.
 # Supported values are: `key`, `value`, `offset`, and `timestamp`.
@@ -122,18 +137,31 @@ directory:
 
 where `PtestGcsBucket` is the name of the GCS bucket to use.
 
-It is also possible to specify GCS credentials path using
-`gcsCredentialsPath` property:
+The default GCP credentials will be used during the test (see [the GCP
+documentation](https://cloud.google.com/docs/authentication/getting-started)
+and
+[the comment in GCP SDK code](https://github.com/googleapis/google-auth-library-java/blob/6698b3f6b5ab6017e28f68971406ca765807e169/oauth2_http/java/com/google/auth/oauth2/GoogleCredentials.java#L68)).
+This can be overridden either by seting the path to the GCP credentials
+file or by setting the credentials JSON string explicitly. (See
+[Configuration section](#configuration) for details). 
+
+To specify the GCS credentials path, use `gcsCredentialsPath` property:
 
 ```bash
 ./gradlew clean integrationTest -PtestGcsBucket=test-bucket-name \
     -PgcsCredentialsPath=/path/to/credentials.json
 ```
 
-Gralde allows to set properties using environment variables, for
-example, `ORG_GRADLE_PROJECT_testGcsBucket=test-bucket-name`.
+To specify the GCS credentials JSON, use `gcsCredentialsJson` property:
 
-See more about the ways to set properties
+```bash
+./gradlew clean integrationTest -PtestGcsBucket=test-bucket-name \
+    -PgcsCredentialsJson='{type":"...", ...}'
+```
+
+Gralde allows to set properties using environment variables, for
+example, `ORG_GRADLE_PROJECT_testGcsBucket=test-bucket-name`. See more
+about the ways to set properties
 [here](https://docs.gradle.org/current/userguide/build_environment.html#sec:project_properties).
 
 ### Releasing

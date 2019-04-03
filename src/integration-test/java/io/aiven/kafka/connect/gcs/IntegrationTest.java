@@ -71,6 +71,7 @@ final class IntegrationTest {
     private static final Logger log = LoggerFactory.getLogger(IntegrationTest.class);
 
     private static String gcsCredentialsPath;
+    private static String gcsCredentialsJson;
 
     private static final String TEST_TOPIC = "test-topic";
     private static final boolean COMPRESS = true;
@@ -97,11 +98,12 @@ final class IntegrationTest {
     @BeforeAll
     static void setUpAll() throws IOException, InterruptedException {
         gcsCredentialsPath = System.getProperty("integration-test.gcs.credentials.path");
+        gcsCredentialsJson = System.getProperty("integration-test.gcs.credentials.json");
 
         testBucketName = System.getProperty("integration-test.gcs.bucket");
 
         storage = StorageOptions.newBuilder()
-                .setCredentials(GoogleCredentialsBuilder.build(gcsCredentialsPath))
+                .setCredentials(GoogleCredentialsBuilder.build(gcsCredentialsPath, gcsCredentialsJson))
                 .build()
                 .getService();
         testBucketAccessor = new BucketAccessor(storage, testBucketName);
@@ -266,6 +268,9 @@ final class IntegrationTest {
             connectorProps.put("tasks.max", "1");
             if (gcsCredentialsPath != null) {
                 connectorProps.put("gcs.credentials.path", gcsCredentialsPath);
+            }
+            if (gcsCredentialsJson != null) {
+                connectorProps.put("gcs.credentials.json", gcsCredentialsJson);
             }
             connectorProps.put("gcs.bucket.name", testBucketName);
             connectorProps.put("format.output.fields", "key,value");

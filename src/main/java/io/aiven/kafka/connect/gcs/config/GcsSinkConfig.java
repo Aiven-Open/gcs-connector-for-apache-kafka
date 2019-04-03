@@ -24,13 +24,13 @@ import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigException;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 public final class GcsSinkConfig extends AbstractConfig {
     public static final String GCS_CREDENTIALS_PATH_CONFIG = "gcs.credentials.path";
+    public static final String GCS_CREDENTIALS_JSON_CONFIG = "gcs.credentials.json";
     public static final String GCS_BUCKET_NAME_CONFIG = "gcs.bucket.name";
 
     public static final String FILE_COMPRESSION_TYPE_CONFIG = "file.compression.type";
@@ -48,7 +48,18 @@ public final class GcsSinkConfig extends AbstractConfig {
                 null,
                 ConfigDef.Importance.LOW,
                 "The path to a GCP credentials file. " +
-                        "If not provided, the connector will try to detect the credentials automatically."
+                        "If not provided, the connector will try to detect the credentials automatically. " +
+                        "Cannot be set together with \"" + GCS_CREDENTIALS_JSON_CONFIG + "\""
+        );
+
+        configDef.define(
+                GCS_CREDENTIALS_JSON_CONFIG,
+                ConfigDef.Type.STRING,
+                null,
+                ConfigDef.Importance.LOW,
+                "GCP credentials as a JSON string. " +
+                        "If not provided, the connector will try to detect the credentials automatically. " +
+                        "Cannot be set together with \"" + GCS_CREDENTIALS_PATH_CONFIG + "\""
         );
 
         configDef.define(
@@ -144,13 +155,26 @@ public final class GcsSinkConfig extends AbstractConfig {
 
     public GcsSinkConfig(final Map<String, String> properties) {
         super(configDef(), properties);
+        validate();
+    }
+
+    private void validate() {
+        final String credentialsPath = getString(GCS_CREDENTIALS_PATH_CONFIG);
+        final String credentialsJson = getString(GCS_CREDENTIALS_JSON_CONFIG);
+        if (credentialsPath != null && credentialsJson != null) {
+            final String msg = String.format(
+                    "\"%s\" and \"%s\" are mutually exclusive options, but both are set.",
+                    GCS_CREDENTIALS_PATH_CONFIG, GCS_CREDENTIALS_JSON_CONFIG);
+            throw new ConfigException(msg);
+        }
     }
 
     public final GoogleCredentials getCredentials() {
+        final String credentialsPath = getString(GCS_CREDENTIALS_PATH_CONFIG);
+        final String credentialsJson = getString(GCS_CREDENTIALS_JSON_CONFIG);
         try {
-            final String credentialsPath = getString(GCS_CREDENTIALS_PATH_CONFIG);
-            return GoogleCredentialsBuilder.build(credentialsPath);
-        } catch (final IOException e) {
+            return GoogleCredentialsBuilder.build(credentialsPath, credentialsJson);
+        } catch (final Exception e) {
             throw new ConfigException("Failed to create GCS credentials: " + e.getMessage());
         }
     }
@@ -173,7 +197,7 @@ public final class GcsSinkConfig extends AbstractConfig {
         return getString(FILE_NAME_PREFIX_CONFIG);
     }
 
-    public final String getName() {
+    public final String getConnectorName() {
         return originalsStrings().get(NAME_CONFIG);
     }
 }

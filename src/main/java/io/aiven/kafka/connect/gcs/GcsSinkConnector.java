@@ -47,7 +47,7 @@ public final class GcsSinkConnector extends SinkConnector {
 
         this.configProps = Collections.unmodifiableMap(props);
         this.config = new GcsSinkConfig(props);
-        log.info("Starting connector {}", config.getName());
+        log.info("Starting connector {}", config.getConnectorName());
     }
 
     @Override
@@ -68,7 +68,7 @@ public final class GcsSinkConnector extends SinkConnector {
     @Override
     public void stop() {
         // Nothing to do.
-        log.info("Stopping connector {}", config.getName());
+        log.info("Stopping connector {}", config.getConnectorName());
     }
 
     @Override

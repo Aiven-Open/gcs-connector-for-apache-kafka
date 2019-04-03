@@ -19,12 +19,16 @@
 package io.aiven.kafka.connect.gcs.config;
 
 import com.google.auth.oauth2.UserCredentials;
+import com.google.common.io.Resources;
 import org.apache.kafka.common.config.ConfigException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.io.IOException;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -175,13 +179,48 @@ final class GcsSinkConfigTest {
     }
 
     @Test
+    void gcsCredentialsJson() throws IOException {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+
+        final String credentialsJson = Resources.toString(
+                getClass().getClassLoader().getResource("test_gcs_credentials.json"),
+                StandardCharsets.UTF_8
+        );
+        properties.put("gcs.credentials.json", credentialsJson);
+
+        final GcsSinkConfig config = new GcsSinkConfig(properties);
+        final UserCredentials credentials = (UserCredentials) config.getCredentials();
+        assertAll(
+                () -> assertEquals("test-client-id", credentials.getClientId()),
+                () -> assertEquals("test-client-secret", credentials.getClientSecret())
+        );
+    }
+
+    @Test
+    void gcsCredentialsExclusivity() throws IOException {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+
+        final URL credentialsResource = getClass().getClassLoader().getResource("test_gcs_credentials.json");
+        final String credentialsJson = Resources.toString(credentialsResource, StandardCharsets.UTF_8);
+        properties.put("gcs.credentials.json", credentialsJson);
+        properties.put("gcs.credentials.path", credentialsResource.getPath());
+
+        final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
+        assertEquals(
+                "\"gcs.credentials.path\" and \"gcs.credentials.json\" are mutually exclusive options, but both are set.",
+                t.getMessage());
+    }
+
+    @Test
     void connectorName() {
         final Map<String, String> properties = new HashMap<>();
         properties.put("gcs.bucket.name", "test-bucket");
         properties.put("name", "test-connector");
 
         final GcsSinkConfig config = new GcsSinkConfig(properties);
-        assertEquals("test-connector", config.getName());
+        assertEquals("test-connector", config.getConnectorName());
     }
 
     @Test

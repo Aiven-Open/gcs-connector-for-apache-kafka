@@ -22,11 +22,15 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.UserCredentials;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
+import com.google.common.io.Resources;
 import io.aiven.kafka.connect.gcs.gcs.GoogleCredentialsBuilder;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -36,12 +40,13 @@ final class GoogleCredentialsBuilderTest {
     @BeforeAll
     static void setUpAll() {
         testBucketName = System.getProperty("integration-test.gcs.bucket");
+        Objects.requireNonNull(testBucketName);
     }
 
     @Test
-    void testNoCredentialsPathProvided() throws IOException {
+    void testDefaultCredentials() throws IOException {
         final Storage storage = StorageOptions.newBuilder()
-                .setCredentials(GoogleCredentialsBuilder.build(null))
+                .setCredentials(GoogleCredentialsBuilder.build(null, null))
                 .build()
                 .getService();
         assertNotNull(storage.get(testBucketName));
@@ -51,7 +56,7 @@ final class GoogleCredentialsBuilderTest {
     void testCredentialsPathProvided() throws IOException {
         final String credentialsPath =
                 getClass().getClassLoader().getResource("test_gcs_credentials.json").getPath();
-        final GoogleCredentials credentials = GoogleCredentialsBuilder.build(credentialsPath);
+        final GoogleCredentials credentials = GoogleCredentialsBuilder.build(credentialsPath, null);
         assertTrue(credentials instanceof UserCredentials);
 
         final UserCredentials userCredentials = (UserCredentials) credentials;
@@ -59,5 +64,30 @@ final class GoogleCredentialsBuilderTest {
                 () -> assertEquals("test-client-id", userCredentials.getClientId()),
                 () -> assertEquals("test-client-secret", userCredentials.getClientSecret())
         );
+    }
+
+    @Test
+    void testCredentialsJsonProvided() throws IOException {
+        final String credentialsJson = Resources.toString(
+                getClass().getClassLoader().getResource("test_gcs_credentials.json"),
+                StandardCharsets.UTF_8);
+        final GoogleCredentials credentials = GoogleCredentialsBuilder.build(null, credentialsJson);
+        assertTrue(credentials instanceof UserCredentials);
+
+        final UserCredentials userCredentials = (UserCredentials) credentials;
+        assertAll(
+                () -> assertEquals("test-client-id", userCredentials.getClientId()),
+                () -> assertEquals("test-client-secret", userCredentials.getClientSecret())
+        );
+    }
+
+    @Test
+    void testBothCredentialsPathAndCredentialsJsonProvided() throws IOException {
+        final URL credentialResource = getClass().getClassLoader().getResource("test_gcs_credentials.json");
+        final Throwable t = assertThrows(IllegalArgumentException.class, () ->
+                GoogleCredentialsBuilder.build(
+                        credentialResource.getPath(),
+                        Resources.toString(credentialResource, StandardCharsets.UTF_8)));
+        assertEquals("Both credentialsPath and credentialsJson cannot be non-null.", t.getMessage());
     }
 }

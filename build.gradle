@@ -78,7 +78,11 @@ configurations {
 dependencies {
     compileOnly "org.apache.kafka:connect-api:$kafkaVersion"
 
-    implementation "com.google.cloud:google-cloud-storage:1.64.0"
+    implementation("com.google.cloud:google-cloud-storage:1.64.0") {
+        exclude group: "com.google.guava", module: "guava"
+    }
+
+    implementation "com.google.guava:guava:27.1-jre"
 
     implementation "org.slf4j:slf4j-api:1.7.25"
 
@@ -126,6 +130,10 @@ task integrationTest(type: Test) {
     // Pass the GCS credentials path to the tests.
     if (project.hasProperty('gcsCredentialsPath')) {
         systemProperty("integration-test.gcs.credentials.path", project.findProperty('gcsCredentialsPath'))
+    }
+    // Pass the GCS credentials JSON to the tests.
+    if (project.hasProperty('gcsCredentialsJson')) {
+        systemProperty("integration-test.gcs.credentials.json", project.findProperty('gcsCredentialsJson'))
     }
     // Pass the GCS bucket name to the tests.
     systemProperty("integration-test.gcs.bucket", project.findProperty('testGcsBucket'))
