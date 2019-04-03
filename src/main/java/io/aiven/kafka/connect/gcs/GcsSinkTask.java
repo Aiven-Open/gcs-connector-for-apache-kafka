@@ -102,7 +102,7 @@ public final class GcsSinkTask extends SinkTask {
                     .build();
 
             try (final ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-                // Don't group these two tris,
+                // Don't group these two tries,
                 // because the internal one must be closed before writing to GCS.
                 try (final OutputStream compressedStream = getCompressedStream(baos)) {
                     for (final SinkRecord record : buffer) {
