@@ -31,7 +31,9 @@ public final class KeyWriter implements OutputFieldWriter {
     /**
      * Takes the {@link SinkRecord}'s key as a byte array.
      *
-     * <p>This assumes the key <b>is</b> a byte array.
+     * <p>If the key is {@code null}, it outputs nothing.
+     *
+     * <p>If the key is not {@code null}, it assumes the key <b>is</b> a byte array.
      *
      * @param record the record to get the key from
      * @param outputStream the stream to write to
@@ -42,13 +44,17 @@ public final class KeyWriter implements OutputFieldWriter {
                       final OutputStream outputStream) throws IOException {
         Objects.requireNonNull(record);
         Objects.requireNonNull(record.keySchema());
-        Objects.requireNonNull(record.key());
         Objects.requireNonNull(outputStream);
 
         if (record.keySchema().type() != Schema.Type.BYTES) {
             final String msg = String.format("Record key schema type must be %s, %s given",
                     Schema.Type.BYTES, record.keySchema().type());
             throw new DataException(msg);
+        }
+
+        // Do nothing if the key is null.
+        if (record.key() == null) {
+            return;
         }
 
         if (!(record.key() instanceof byte[])) {
