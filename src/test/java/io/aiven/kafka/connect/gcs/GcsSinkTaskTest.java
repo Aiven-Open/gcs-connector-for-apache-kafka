@@ -182,6 +182,31 @@ final class GcsSinkTaskTest {
     }
 
     @Test
+    final void nullKeyValueAndTimestamp() {
+        properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_CONFIG, "key,value,timestamp,offset");
+        final GcsSinkTask task = new GcsSinkTask(properties, storage);
+
+        final List<SinkRecord> records = Arrays.asList(
+                createNullRecord("topic0", 0, 10),
+                createNullRecord("topic0", 0, 11),
+                createNullRecord("topic0", 0, 12)
+        );
+        task.put(records);
+        task.flush(null);
+
+        assertAll(
+                () -> assertIterableEquals(
+                        Lists.newArrayList("topic0-0-10"),
+                        testBucketAccessor.getBlobNames()
+                ),
+                () -> assertIterableEquals(
+                        Lists.newArrayList(",,,10", ",,,11", ",,,12"),
+                        readRawLinesFromBlob("topic0-0-10", false)
+                )
+        );
+    }
+
+    @Test
     final void multipleFlush() {
         final GcsSinkTask task = new GcsSinkTask(properties, storage);
 
@@ -252,6 +277,28 @@ final class GcsSinkTaskTest {
                 offset,
                 timestamp,
                 TimestampType.CREATE_TIME);
+    }
+
+    private SinkRecord createNullRecord(final String topic,
+                                        final int partition,
+                                        final int offset) {
+        return new SinkRecord(
+                topic,
+                partition,
+                Schema.BYTES_SCHEMA,
+                null,
+                Schema.BYTES_SCHEMA,
+                null,
+                offset,
+                null,
+                TimestampType.NO_TIMESTAMP_TYPE);
+    }
+
+    private Collection<String> readRawLinesFromBlob(
+            final String blobName,
+            final boolean compressed) throws IOException {
+        final BlobAccessor blobAccessor = new BlobAccessor(storage, TEST_BUCKET, blobName, compressed);
+        return blobAccessor.readLines();
     }
 
     private Collection<List<String>> readSplittedAndDecodedLinesFromBlob(

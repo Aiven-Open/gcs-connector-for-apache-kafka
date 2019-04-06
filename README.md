@@ -42,6 +42,13 @@ offset, and the timestamp to output):
 a2V5,TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ=,1232155,1554210895
 ```
 
+If the key, the value or the timestamp is null, an empty string will be
+output instead:
+
+```
+,,,1554210895
+```
+
 ## Configuration
 
 [Here](https://kafka.apache.org/documentation/#connect_running) you can
