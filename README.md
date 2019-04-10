@@ -36,8 +36,7 @@ these output fields is configurable.) The field values are separated by comma.
 The key and the value—if they're output—are stored as binaries encoded
 in [Base64](https://en.wikipedia.org/wiki/Base64).
 
-For example, a record line might look like (for the key, the value, the
-offset, and the timestamp to output):
+For example, if we output `key,value,offset,timestamp`, a record line might look like:
 ```
 a2V5,TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ=,1232155,1554210895
 ```
