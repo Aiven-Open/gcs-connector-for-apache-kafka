@@ -26,12 +26,12 @@ The connector uses the following format for output files (blobs):
 
 ### Data format
 
-Output files are text files that contain one record pre line (i.e.,
+Output files are text files that contain one record per line (i.e.,
 they're separated by `\n`).
 
 The connector can output the following fields from records into the
-output: the key, the value, the timestamp, and the offset. (The set of
-these output fields is configurable.) The fields are separated by comma.
+output: the key, the value, the timestamp, and the offset. (The set and the order of
+these output fields is configurable.) The field values are separated by comma.
 
 The key and the value—if they're output—are stored as binaries encoded
 in [Base64](https://en.wikipedia.org/wiki/Base64).
@@ -73,14 +73,16 @@ name=my-gcs-connector
 connector.class=io.aiven.kafka.connect.gcs.GcsSinkConnector
 
 # The key converter for this connector
+# (must be set to ByteArrayConverter)
 key.converter=org.apache.kafka.connect.converters.ByteArrayConverter
 
 # The value converter for this connector
+# (must be set to ByteArrayConverter)
 value.converter=org.apache.kafka.connect.converters.ByteArrayConverter
 
 # A comma-separated list of topics to use as input for this connector
 # Also a regular expression version `topics.regex` is supported.
-# See https://kafka.apache.org/documentation/#connect_resuming
+# See https://kafka.apache.org/documentation/#connect_configuring
 topics=topic1,topic2
 
 
@@ -104,7 +106,7 @@ gcs.bucket.name=my-gcs-bucket
 # Optional, the default is null.
 gcs.credentials.path=/some/path/google_credentials.json
 
-# GCP credentials as a JSON string.
+# GCP credentials as a JSON object.
 # Optional, the default is null.
 gcs.credentials.json={"type":"...", ...}
 
