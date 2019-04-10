@@ -38,6 +38,9 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Tests {@link GcsSinkConfig} class.
+ */
 final class GcsSinkConfigTest {
 
     @Test
