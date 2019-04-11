@@ -29,19 +29,30 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public final class GcsSinkConfig extends AbstractConfig {
+    private static final String GROUP_GCS = "GCS";
     public static final String GCS_CREDENTIALS_PATH_CONFIG = "gcs.credentials.path";
     public static final String GCS_CREDENTIALS_JSON_CONFIG = "gcs.credentials.json";
     public static final String GCS_BUCKET_NAME_CONFIG = "gcs.bucket.name";
 
-    public static final String FILE_COMPRESSION_TYPE_CONFIG = "file.compression.type";
+    private static final String GROUP_FILE = "File";
     public static final String FILE_NAME_PREFIX_CONFIG = "file.name.prefix";
+    public static final String FILE_COMPRESSION_TYPE_CONFIG = "file.compression.type";
 
+    private static final String GROUP_FORMAT = "Format";
     public static final String FORMAT_OUTPUT_FIELDS_CONFIG = "format.output.fields";
 
     public static final String NAME_CONFIG = "name";
 
     public static ConfigDef configDef() {
         final ConfigDef configDef = new ConfigDef();
+        addGcsConfigGroup(configDef);
+        addFileConfigGroup(configDef);
+        addFormatConfigGroup(configDef);
+        return configDef;
+    }
+
+    private static void addGcsConfigGroup(final ConfigDef configDef) {
+        int gcsGroupCounter = 0;
         configDef.define(
                 GCS_CREDENTIALS_PATH_CONFIG,
                 ConfigDef.Type.STRING,
@@ -49,7 +60,11 @@ public final class GcsSinkConfig extends AbstractConfig {
                 ConfigDef.Importance.LOW,
                 "The path to a GCP credentials file. " +
                         "If not provided, the connector will try to detect the credentials automatically. " +
-                        "Cannot be set together with \"" + GCS_CREDENTIALS_JSON_CONFIG + "\""
+                        "Cannot be set together with \"" + GCS_CREDENTIALS_JSON_CONFIG + "\"",
+                GROUP_GCS,
+                gcsGroupCounter++,
+                ConfigDef.Width.NONE,
+                GCS_CREDENTIALS_PATH_CONFIG
         );
 
         configDef.define(
@@ -59,7 +74,11 @@ public final class GcsSinkConfig extends AbstractConfig {
                 ConfigDef.Importance.LOW,
                 "GCP credentials as a JSON string. " +
                         "If not provided, the connector will try to detect the credentials automatically. " +
-                        "Cannot be set together with \"" + GCS_CREDENTIALS_PATH_CONFIG + "\""
+                        "Cannot be set together with \"" + GCS_CREDENTIALS_PATH_CONFIG + "\"",
+                GROUP_GCS,
+                gcsGroupCounter++,
+                ConfigDef.Width.NONE,
+                GCS_CREDENTIALS_JSON_CONFIG
         );
 
         configDef.define(
@@ -68,9 +87,16 @@ public final class GcsSinkConfig extends AbstractConfig {
                 ConfigDef.NO_DEFAULT_VALUE,
                 new ConfigDef.NonEmptyString(),
                 ConfigDef.Importance.HIGH,
-                "The GCS bucket name to store output files in."
+                "The GCS bucket name to store output files in.",
+                GROUP_GCS,
+                gcsGroupCounter++,
+                ConfigDef.Width.NONE,
+                GCS_BUCKET_NAME_CONFIG
         );
+    }
 
+    private static void addFileConfigGroup(final ConfigDef configDef) {
+        int fileGroupCounter = 0;
         configDef.define(
                 FILE_NAME_PREFIX_CONFIG,
                 ConfigDef.Type.STRING,
@@ -92,7 +118,11 @@ public final class GcsSinkConfig extends AbstractConfig {
                     }
                 },
                 ConfigDef.Importance.MEDIUM,
-                "The prefix to be added to the name of each file put on GCS."
+                "The prefix to be added to the name of each file put on GCS.",
+                GROUP_FILE,
+                fileGroupCounter++,
+                ConfigDef.Width.NONE,
+                FILE_NAME_PREFIX_CONFIG
         );
 
         final String supportedCompressionTypes = CompressionType.names().stream()
@@ -116,8 +146,17 @@ public final class GcsSinkConfig extends AbstractConfig {
                 },
                 ConfigDef.Importance.MEDIUM,
                 "The compression type used for files put on GCS. " +
-                        "The supported values are: " + supportedCompressionTypes + "."
+                        "The supported values are: " + supportedCompressionTypes + ".",
+                GROUP_FILE,
+                fileGroupCounter++,
+                ConfigDef.Width.NONE,
+                FILE_COMPRESSION_TYPE_CONFIG,
+                FixedSetRecommender.ofSupportedValues(CompressionType.names())
         );
+    }
+
+    private static void addFormatConfigGroup(final ConfigDef configDef) {
+        int formatGroupCounter = 0;
 
         final String supportedOutputFields = OutputField.names().stream()
                 .map(f -> "'" + f + "'")
@@ -148,9 +187,13 @@ public final class GcsSinkConfig extends AbstractConfig {
                 },
                 ConfigDef.Importance.MEDIUM,
                 "Fields to put into output files. " +
-                        "The supported values are: " + supportedOutputFields + "."
+                        "The supported values are: " + supportedOutputFields + ".",
+                GROUP_FORMAT,
+                formatGroupCounter++,
+                ConfigDef.Width.NONE,
+                FORMAT_OUTPUT_FIELDS_CONFIG,
+                FixedSetRecommender.ofSupportedValues(OutputField.names())
         );
-        return configDef;
     }
 
     public GcsSinkConfig(final Map<String, String> properties) {
