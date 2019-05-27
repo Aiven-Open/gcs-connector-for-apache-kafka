@@ -33,6 +33,8 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -240,6 +242,31 @@ final class GcsSinkTaskTest {
                         readSplittedAndDecodedLinesFromBlob("topic0-0-102", false, 0)
                 )
         );
+    }
+
+    @Test
+    final void maxRecordPerFile() throws IOException {
+        properties.put(GcsSinkConfig.FILE_MAX_RECORDS, "1");
+        final GcsSinkTask task = new GcsSinkTask(properties, storage);
+
+        final int recordNum = 100;
+
+        for (int i = 0; i < recordNum; i++) {
+            final SinkRecord record = createRecord("topic0", 0, "key" + i, "value" + i, i, i);
+            task.put(Collections.singletonList(record));
+        }
+        task.flush(null);
+
+        assertIterableEquals(
+                IntStream.range(0, recordNum).mapToObj(i -> "topic0-0-" + i).sorted().collect(Collectors.toList()),
+                testBucketAccessor.getBlobNames()
+        );
+        for (int i = 0; i < recordNum; i++) {
+            assertIterableEquals(
+                    Collections.singletonList(Collections.singletonList("value" + i)),
+                    readSplittedAndDecodedLinesFromBlob("topic0-0-" + i, false, 0)
+            );
+        }
     }
 
     @Test

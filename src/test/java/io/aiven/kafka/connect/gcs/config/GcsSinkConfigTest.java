@@ -252,4 +252,34 @@ final class GcsSinkConfigTest {
                 "cannot start with '.well-known/acme-challenge'",
                 t.getMessage());
     }
+
+    @Test
+    void maxRecordsPerFileNotSet() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        final GcsSinkConfig config = new GcsSinkConfig(properties);
+        assertEquals(0, config.getMaxRecordsPerFile());
+    }
+
+    @Test
+    void maxRecordsPerFileSetCorrect() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.max.records", "42");
+        final GcsSinkConfig config = new GcsSinkConfig(properties);
+        assertEquals(42, config.getMaxRecordsPerFile());
+    }
+
+    @Test
+    void maxRecordsPerFileSetIncorrect() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.max.records", "-42");
+        final Throwable t = assertThrows(
+                ConfigException.class,
+                () -> new GcsSinkConfig(properties));
+        assertEquals("Invalid value -42 for configuration file.max.records: " +
+                        "must be a non-negative integer number",
+                t.getMessage());
+    }
 }

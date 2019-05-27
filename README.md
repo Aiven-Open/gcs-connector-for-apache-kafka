@@ -48,6 +48,10 @@ output instead:
 ,,,1554210895
 ```
 
+It is possible to control the number of records to be put in a
+particular output file by setting `file.max.records`. By default, it is
+`0`, which is interpreted as "unlimited".
+
 ## Configuration
 
 [Here](https://kafka.apache.org/documentation/#connect_running) you can
