@@ -246,11 +246,11 @@ final class IntegrationTest {
         Thread.sleep(OFFSET_FLUSH_INTERVAL_MS * 2);
 
         final Map<String, String> expectedBlobsAndContent = new HashMap<>();
-        expectedBlobsAndContent.put(getBlobName(0, 0, false), "value-0\n");
-        expectedBlobsAndContent.put(getBlobName(0, 1, false), "value-1\n");
-        expectedBlobsAndContent.put(getBlobName(0, 2, false), "value-2\n");
-        expectedBlobsAndContent.put(getBlobName(1, 0, false), "value-3\n");
-        expectedBlobsAndContent.put(getBlobName(3, 0, false), "value-4\n");
+        expectedBlobsAndContent.put(getBlobName(0, 0, false), "value-0");
+        expectedBlobsAndContent.put(getBlobName(0, 1, false), "value-1");
+        expectedBlobsAndContent.put(getBlobName(0, 2, false), "value-2");
+        expectedBlobsAndContent.put(getBlobName(1, 0, false), "value-3");
+        expectedBlobsAndContent.put(getBlobName(3, 0, false), "value-4");
         final List<String> expectedBlobsNames = expectedBlobsAndContent.keySet().stream().sorted().collect(Collectors.toList());
         assertIterableEquals(expectedBlobsNames, testBucketAccessor.getBlobNames());
 

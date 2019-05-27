@@ -42,14 +42,25 @@ public final class OutputWriter {
                             final OutputStream outputStream) throws IOException {
         Objects.requireNonNull(record);
         Objects.requireNonNull(outputStream);
+        writeFields(record, outputStream);
+        outputStream.write(RECORD_SEPARATOR);
+    }
 
+    public void writeLastRecord(final SinkRecord record,
+                                final OutputStream outputStream) throws IOException {
+        Objects.requireNonNull(record);
+        Objects.requireNonNull(outputStream);
+        writeFields(record, outputStream);
+    }
+
+    private void writeFields(final SinkRecord record,
+                             final OutputStream outputStream) throws IOException {
         final Iterator<OutputFieldWriter> writerIter = writers.iterator();
         writerIter.next().write(record, outputStream);
         while (writerIter.hasNext()) {
             outputStream.write(FIELD_SEPARATOR);
             writerIter.next().write(record, outputStream);
         }
-        outputStream.write(RECORD_SEPARATOR);
     }
 
     public static final class Builder {
