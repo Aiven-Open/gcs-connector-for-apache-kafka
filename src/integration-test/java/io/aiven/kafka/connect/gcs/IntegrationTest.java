@@ -45,6 +45,7 @@ import org.apache.kafka.connect.util.Callback;
 import org.apache.kafka.connect.util.FutureCallback;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,27 +74,30 @@ final class IntegrationTest {
     private static String gcsCredentialsPath;
     private static String gcsCredentialsJson;
 
+    private static final String CONNECTOR_NAME = "aiven-gcs-sink-connector";
     private static final String TEST_TOPIC = "test-topic";
-    private static final boolean COMPRESS = true;
 
     private static final int OFFSET_FLUSH_INTERVAL_MS = 5000;
-
-    private static File testDir;
 
     private static String testBucketName;
 
     private static String gcsPrefix;
 
-    @Container
-    private static final KafkaContainer KAFKA = new KafkaContainer()
-            .withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false");
-
-    private static AdminClient adminClient;
-    private static KafkaProducer<byte[], byte[]> producer;
-    private static Connect connect;
-
     private static Storage storage;
     private static BucketAccessor testBucketAccessor;
+
+    private static File pluginDir;
+
+    @Container
+    private final KafkaContainer kafka = new KafkaContainer()
+            .withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false");
+
+    private AdminClient adminClient;
+    private KafkaProducer<byte[], byte[]> producer;
+
+    private Herder herder;
+    private Connect connect;
+
 
     @BeforeAll
     static void setUpAll() throws IOException, InterruptedException {
@@ -112,9 +116,9 @@ final class IntegrationTest {
         gcsPrefix = "aiven-kafka-connect-gcs-test-" +
                 ZonedDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) + "/";
 
-        testDir = Files.createTempDirectory("aiven-kafka-connect-gcs-test-").toFile();
+        final File testDir = Files.createTempDirectory("aiven-kafka-connect-gcs-test-").toFile();
 
-        final File pluginDir = new File(testDir, "plugins/aiven-kafka-connect-gcs/");
+        pluginDir = new File(testDir, "plugins/aiven-kafka-connect-gcs/");
         assert pluginDir.mkdirs();
 
         final File distFile = new File(System.getProperty("integration-test.distribution.file.path"));
@@ -124,20 +128,28 @@ final class IntegrationTest {
                 distFile.toString(), pluginDir.toString());
         final Process p = Runtime.getRuntime().exec(cmd);
         assert p.waitFor() == 0;
+    }
+
+    @BeforeEach
+    void setUp() throws ExecutionException, InterruptedException {
+        testBucketAccessor.clear(gcsPrefix);
 
         final Properties adminClientConfig = new Properties();
-        adminClientConfig.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
+        adminClientConfig.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBootstrapServers());
         adminClient = AdminClient.create(adminClientConfig);
 
         final Map<String, Object> producerProps = new HashMap<>();
-        producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
+        producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBootstrapServers());
         producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
                 "org.apache.kafka.common.serialization.ByteArraySerializer");
         producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
                 "org.apache.kafka.common.serialization.ByteArraySerializer");
         producer = new KafkaProducer<>(producerProps);
 
-        connect = startConnect(pluginDir);
+        final NewTopic newTopic = new NewTopic(TEST_TOPIC, 4, (short) 1);
+        adminClient.createTopics(Collections.singletonList(newTopic)).all().get();
+
+        startConnect(pluginDir);
     }
 
     @AfterEach
@@ -152,11 +164,13 @@ final class IntegrationTest {
     }
 
     @Test
-    final void test() throws ExecutionException, InterruptedException, IOException {
-        createTopicSync(TEST_TOPIC, 4);
+    final void basicTest() throws ExecutionException, InterruptedException, IOException {
+        final Map<String, String> connectorConfig = basicConnectorConfig();
+        connectorConfig.put("format.output.fields", "key,value");
+        connectorConfig.put("file.compression.type", "gzip");
+        createConnector(connectorConfig);
 
         final List<Future<RecordMetadata>> sendFutures = new ArrayList<>();
-
         int cnt = 0;
         for (int i = 0; i < 1000; i++) {
             for (int partition = 0; partition < 4; partition++) {
@@ -167,7 +181,7 @@ final class IntegrationTest {
                 sendFutures.add(sendMessageAsync(TEST_TOPIC, partition, key, value));
             }
         }
-
+        producer.flush();
         for (final Future<RecordMetadata> sendFuture : sendFutures) {
             sendFuture.get();
         }
@@ -176,11 +190,10 @@ final class IntegrationTest {
         Thread.sleep(OFFSET_FLUSH_INTERVAL_MS * 2);
 
         final List<String> expectedBlobs = Arrays.asList(
-                getBlobName(0, 0),
-                getBlobName(1, 0),
-                getBlobName(2, 0),
-                getBlobName(3, 0));
-
+                getBlobName(0, 0, true),
+                getBlobName(1, 0, true),
+                getBlobName(2, 0, true),
+                getBlobName(3, 0, true));
         assertIterableEquals(expectedBlobs, testBucketAccessor.getBlobNames());
 
         final Map<String, List<String>> blobContents = new HashMap<>();
@@ -200,7 +213,7 @@ final class IntegrationTest {
                 final String value = "value-" + cnt;
                 cnt += 1;
 
-                final String blobName = getBlobName(partition, 0);
+                final String blobName = getBlobName(partition, 0, true);
                 final String actualLine = blobContents.get(blobName).get(i);
                 final String expectedLine = key + "," + value;
                 assertEquals(expectedLine, actualLine);
@@ -208,13 +221,47 @@ final class IntegrationTest {
         }
     }
 
-    private static void createTopicSync(final String name,
-                                        final int numPartitions) throws ExecutionException, InterruptedException {
-        final NewTopic newTopic = new NewTopic(name, numPartitions, (short) 1);
-        adminClient.createTopics(Collections.singletonList(newTopic)).all().get();
+    @Test
+    final void oneFilePerRecordWithPlainValues() throws ExecutionException, InterruptedException, IOException {
+        final Map<String, String> connectorConfig = basicConnectorConfig();
+        connectorConfig.put("format.output.fields", "value");
+        connectorConfig.put("format.output.fields.value.encoding", "none");
+        connectorConfig.put("file.max.records", "1");
+        createConnector(connectorConfig);
+
+        final List<Future<RecordMetadata>> sendFutures = new ArrayList<>();
+
+        sendFutures.add(sendMessageAsync(TEST_TOPIC, 0, "key-0", "value-0"));
+        sendFutures.add(sendMessageAsync(TEST_TOPIC, 0, "key-1", "value-1"));
+        sendFutures.add(sendMessageAsync(TEST_TOPIC, 0, "key-2", "value-2"));
+        sendFutures.add(sendMessageAsync(TEST_TOPIC, 1, "key-3", "value-3"));
+        sendFutures.add(sendMessageAsync(TEST_TOPIC, 3, "key-4", "value-4"));
+
+        producer.flush();
+        for (final Future<RecordMetadata> sendFuture : sendFutures) {
+            sendFuture.get();
+        }
+
+        // TODO more robust way to detect that Connect finished processing
+        Thread.sleep(OFFSET_FLUSH_INTERVAL_MS * 2);
+
+        final Map<String, String> expectedBlobsAndContent = new HashMap<>();
+        expectedBlobsAndContent.put(getBlobName(0, 0, false), "value-0\n");
+        expectedBlobsAndContent.put(getBlobName(0, 1, false), "value-1\n");
+        expectedBlobsAndContent.put(getBlobName(0, 2, false), "value-2\n");
+        expectedBlobsAndContent.put(getBlobName(1, 0, false), "value-3\n");
+        expectedBlobsAndContent.put(getBlobName(3, 0, false), "value-4\n");
+        final List<String> expectedBlobsNames = expectedBlobsAndContent.keySet().stream().sorted().collect(Collectors.toList());
+        assertIterableEquals(expectedBlobsNames, testBucketAccessor.getBlobNames());
+
+        for (final String blobName : expectedBlobsAndContent.keySet()) {
+            final BlobAccessor blobAccessor = new BlobAccessor(storage, testBucketName, blobName, false);
+            assertEquals(expectedBlobsAndContent.get(blobName), blobAccessor.readStringContent());
+
+        }
     }
 
-    private static Future<RecordMetadata> sendMessageAsync(final String topicName,
+    private Future<RecordMetadata> sendMessageAsync(final String topicName,
                                                            final int partition,
                                                            final String key,
                                                            final String value) {
@@ -225,9 +272,9 @@ final class IntegrationTest {
         return producer.send(msg);
     }
 
-    private static Connect startConnect(final File pluginDir) {
+    private void startConnect(final File pluginDir) {
         final Map<String, String> workerProps = new HashMap<>();
-        workerProps.put("bootstrap.servers", KAFKA.getBootstrapServers());
+        workerProps.put("bootstrap.servers", kafka.getBootstrapServers());
 
         workerProps.put("offset.flush.interval.ms", Integer.toString(OFFSET_FLUSH_INTERVAL_MS));
 
@@ -251,63 +298,58 @@ final class IntegrationTest {
 
         final Worker worker = new Worker(
                 workerId, time, plugins, config, new MemoryOffsetBackingStore());
-        final Herder herder = new StandaloneHerder(worker);
+        herder = new StandaloneHerder(worker);
 
         final RestServer rest = new RestServer(config);
 
-        final Connect connect = new Connect(herder, rest);
+        connect = new Connect(herder, rest);
 
-        try {
-            connect.start();
-
-            final Map<String, String> connectorProps = new HashMap<>();
-            connectorProps.put("name", "aiven-gcs-sink-connector");
-            connectorProps.put("connector.class", GcsSinkConnector.class.getName());
-            connectorProps.put("key.converter", "org.apache.kafka.connect.converters.ByteArrayConverter");
-            connectorProps.put("value.converter", "org.apache.kafka.connect.converters.ByteArrayConverter");
-            connectorProps.put("tasks.max", "1");
-            if (gcsCredentialsPath != null) {
-                connectorProps.put("gcs.credentials.path", gcsCredentialsPath);
-            }
-            if (gcsCredentialsJson != null) {
-                connectorProps.put("gcs.credentials.json", gcsCredentialsJson);
-            }
-            connectorProps.put("gcs.bucket.name", testBucketName);
-            connectorProps.put("format.output.fields", "key,value");
-            connectorProps.put("topics", TEST_TOPIC);
-            connectorProps.put("file.name.prefix", gcsPrefix);
-            connectorProps.put("file.compression.type", "gzip");
-
-            final FutureCallback<Herder.Created<ConnectorInfo>> cb = new FutureCallback<>(
-                    new Callback<Herder.Created<ConnectorInfo>>() {
-                        @Override
-                        public void onCompletion(final Throwable error, final Herder.Created<ConnectorInfo> info) {
-                            if (error != null) {
-                                log.error("Failed to create job");
-                            } else {
-                                log.info("Created connector {}", info.result().name());
-                            }
-                        }
-                    });
-            herder.putConnectorConfig(
-                    connectorProps.get(ConnectorConfig.NAME_CONFIG),
-                    connectorProps, false, cb
-            );
-
-            final Herder.Created<ConnectorInfo> connectorInfoCreated = cb.get();
-            assert connectorInfoCreated.created();
-        } catch (final Throwable t) {
-            log.error("Stopping after connector error", t);
-            connect.stop();
-            throw new RuntimeException(t);
-        }
-
-        return connect;
+        connect.start();
     }
 
-    private String getBlobName(final int partition, final int startOffset) {
+    private Map<String, String> basicConnectorConfig() {
+        final Map<String, String> config = new HashMap<>();
+        config.put("name", CONNECTOR_NAME);
+        config.put("connector.class", GcsSinkConnector.class.getName());
+        config.put("key.converter", "org.apache.kafka.connect.converters.ByteArrayConverter");
+        config.put("value.converter", "org.apache.kafka.connect.converters.ByteArrayConverter");
+        config.put("tasks.max", "1");
+        if (gcsCredentialsPath != null) {
+            config.put("gcs.credentials.path", gcsCredentialsPath);
+        }
+        if (gcsCredentialsJson != null) {
+            config.put("gcs.credentials.json", gcsCredentialsJson);
+        }
+        config.put("gcs.bucket.name", testBucketName);
+        config.put("file.name.prefix", gcsPrefix);
+        config.put("topics", TEST_TOPIC);
+        return config;
+    }
+
+    private void createConnector(final Map<String, String> config) throws ExecutionException, InterruptedException {
+        final FutureCallback<Herder.Created<ConnectorInfo>> cb = new FutureCallback<>(
+                new Callback<Herder.Created<ConnectorInfo>>() {
+                    @Override
+                    public void onCompletion(final Throwable error, final Herder.Created<ConnectorInfo> info) {
+                        if (error != null) {
+                            log.error("Failed to create job");
+                        } else {
+                            log.info("Created connector {}", info.result().name());
+                        }
+                    }
+                });
+        herder.putConnectorConfig(
+                config.get(ConnectorConfig.NAME_CONFIG),
+                config, false, cb
+        );
+
+        final Herder.Created<ConnectorInfo> connectorInfoCreated = cb.get();
+        assert connectorInfoCreated.created();
+    }
+
+    private String getBlobName(final int partition, final int startOffset, final boolean compress) {
         String result = String.format("%s%s-%d-%d", gcsPrefix, TEST_TOPIC, partition, startOffset);
-        if (COMPRESS) {
+        if (compress) {
             result += ".gz";
         }
         return result;

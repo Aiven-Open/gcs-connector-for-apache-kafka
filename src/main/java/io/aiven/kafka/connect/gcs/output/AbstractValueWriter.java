@@ -24,10 +24,9 @@ import org.apache.kafka.connect.sink.SinkRecord;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.Base64;
 import java.util.Objects;
 
-public final class ValueWriter implements OutputFieldWriter {
+public abstract class AbstractValueWriter implements OutputFieldWriter {
     /**
      * Takes the {@link SinkRecord}'s value as a byte array.
      *
@@ -61,6 +60,8 @@ public final class ValueWriter implements OutputFieldWriter {
             throw new DataException("Value is not a byte array");
         }
 
-        outputStream.write(Base64.getEncoder().encode((byte[]) record.value()));
+        outputStream.write(getOutputBytes((byte[]) record.value()));
     }
+
+    protected abstract byte[] getOutputBytes(final byte[] value);
 }

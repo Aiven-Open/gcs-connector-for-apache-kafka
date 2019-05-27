@@ -49,6 +49,11 @@ public final class BlobAccessor {
         this.compressed = compressed;
     }
 
+    public final String readStringContent() throws IOException {
+        final byte[] blobBytes = storage.readAllBytes(bucketName, blobName);
+        return new String(blobBytes);
+    }
+
     public final List<String> readLines() throws IOException {
         final byte[] blobBytes = storage.readAllBytes(bucketName, blobName);
         try (final ByteArrayInputStream bais = new ByteArrayInputStream(blobBytes);

@@ -112,6 +112,42 @@ final class GcsSinkTaskTest {
     }
 
     @Test
+    final void basicValuesPlain() {
+        properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_VALUE_ENCODING_CONFIG, "none");
+        final GcsSinkTask task = new GcsSinkTask(properties, storage);
+
+        task.put(basicRecords);
+        task.flush(null);
+
+        assertAll(
+                () -> assertIterableEquals(
+                        Lists.newArrayList("topic0-0-10", "topic0-1-20", "topic0-2-50", "topic1-0-30", "topic1-1-40"),
+                        testBucketAccessor.getBlobNames()
+                ),
+                () -> assertIterableEquals(
+                        Lists.newArrayList(Arrays.asList("value0"), Arrays.asList("value5")),
+                        readSplittedAndDecodedLinesFromBlob("topic0-0-10", false)
+                ),
+                () -> assertIterableEquals(
+                        Lists.newArrayList(Arrays.asList("value1"), Arrays.asList("value6")),
+                        readSplittedAndDecodedLinesFromBlob("topic0-1-20", false)
+                ),
+                () -> assertIterableEquals(
+                        Lists.newArrayList(Arrays.asList("value4"), Arrays.asList("value9")),
+                        readSplittedAndDecodedLinesFromBlob("topic0-2-50", false)
+                ),
+                () -> assertIterableEquals(
+                        Lists.newArrayList(Arrays.asList("value2"), Arrays.asList("value7")),
+                        readSplittedAndDecodedLinesFromBlob("topic1-0-30", false)
+                ),
+                () -> assertIterableEquals(
+                        Lists.newArrayList(Arrays.asList("value3"), Arrays.asList("value8")),
+                        readSplittedAndDecodedLinesFromBlob("topic1-1-40", false)
+                )
+        );
+    }
+
+    @Test
     final void compression() {
         properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, "gzip");
         final GcsSinkTask task = new GcsSinkTask(properties, storage);

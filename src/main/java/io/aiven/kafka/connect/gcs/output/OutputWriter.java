@@ -59,13 +59,24 @@ public final class OutputWriter {
             Objects.requireNonNull(fields);
 
             for (final OutputField field : fields) {
-                switch (field) {
+                switch (field.getFieldType()) {
                     case KEY:
                         writers.add(new KeyWriter());
                         break;
 
                     case VALUE:
-                        writers.add(new ValueWriter());
+                        switch (field.getEncodingType()) {
+                            case NONE:
+                                writers.add(new PlainValueWriter());
+                                break;
+
+                            case BASE64:
+                                writers.add(new Base64ValueWriter());
+                                break;
+
+                            default:
+                                throw new ConnectException("Unknown output field encoding type " + field.getEncodingType());
+                        }
                         break;
 
                     case OFFSET:
@@ -77,7 +88,7 @@ public final class OutputWriter {
                         break;
 
                     default:
-                        throw new ConnectException("Unknown output field " + field);
+                        throw new ConnectException("Unknown output field type " + field);
                 }
             }
 

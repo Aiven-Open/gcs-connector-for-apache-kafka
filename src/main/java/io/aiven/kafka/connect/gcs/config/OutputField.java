@@ -18,44 +18,43 @@
 
 package io.aiven.kafka.connect.gcs.config;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Objects;
-import java.util.stream.Collectors;
+import com.google.common.base.Objects;
 
-public enum OutputField {
-    KEY("key"),
-    VALUE("value"),
-    OFFSET("offset"),
-    TIMESTAMP("timestamp");
+public class OutputField {
+    private OutputFieldType fieldType;
+    private OutputFieldEncodingType encodingType;
 
-    public final String name;
-
-    OutputField(final String name) {
-        this.name = name;
+    public OutputField(final OutputFieldType fieldType, final OutputFieldEncodingType encodingType) {
+        this.fieldType = fieldType;
+        this.encodingType = encodingType;
     }
 
-    public static OutputField forName(final String name) {
-        Objects.requireNonNull(name);
+    public OutputFieldType getFieldType() {
+        return fieldType;
+    }
 
-        if (KEY.name.equalsIgnoreCase(name)) {
-            return KEY;
-        } else if (VALUE.name.equalsIgnoreCase(name)) {
-            return VALUE;
-        } else if (OFFSET.name.equalsIgnoreCase(name)) {
-            return OFFSET;
-        } else if (TIMESTAMP.name.equalsIgnoreCase(name)) {
-            return TIMESTAMP;
-        } else {
-            throw new IllegalArgumentException("Unknown output field: " + name);
+    public OutputFieldEncodingType getEncodingType() {
+        return encodingType;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(fieldType, encodingType);
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (obj == this) {
+            return true;
         }
-    }
 
-    public static boolean isValidName(final String name) {
-        return names().contains(name.toLowerCase());
-    }
+        if (!(obj instanceof OutputField)) {
+            return false;
+        }
 
-    public static Collection<String> names() {
-        return Arrays.stream(values()).map(v -> v.name).collect(Collectors.toList());
+        final OutputField that = (OutputField) obj;
+
+        return Objects.equal(this.fieldType, that.fieldType)
+                && Objects.equal(this.encodingType, that.encodingType);
     }
 }

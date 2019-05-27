@@ -41,6 +41,9 @@ For example, if we output `key,value,offset,timestamp`, a record line might look
 a2V5,TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ=,1232155,1554210895
 ```
 
+It is possible to control the encoding of the `value` field by setting
+`format.output.fields.value.encoding` to `base64` or `none`.
+
 If the key, the value or the timestamp is null, an empty string will be
 output instead:
 
