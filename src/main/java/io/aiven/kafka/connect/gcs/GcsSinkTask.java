@@ -21,6 +21,7 @@ package io.aiven.kafka.connect.gcs;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
+import com.google.common.collect.Lists;
 import io.aiven.kafka.connect.gcs.config.CompressionType;
 import io.aiven.kafka.connect.gcs.config.GcsSinkConfig;
 import io.aiven.kafka.connect.gcs.output.OutputWriter;
@@ -98,27 +99,42 @@ public final class GcsSinkTask extends SinkTask {
                 continue;
             }
 
-            final SinkRecord firstRecord = buffer.get(0);
-            final String filename = createFilename(tp, firstRecord);
-            final BlobInfo blob = BlobInfo
-                    .newBuilder(config.getBucketName(), filename)
-                    .build();
+            flushBuffer(tp, buffer);
+            buffer.clear();
+        }
+    }
 
-            try (final ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-                // Don't group these two tries,
-                // because the internal one must be closed before writing to GCS.
-                try (final OutputStream compressedStream = getCompressedStream(baos)) {
-                    for (final SinkRecord record : buffer) {
-                        outputWriter.writeRecord(record, compressedStream);
-                    }
+    private void flushBuffer(final TopicPartition tp, final List<SinkRecord> buffer) {
+        if (config.isMaxRecordPerFileLimited()) {
+            final List<List<SinkRecord>> chunks = Lists.partition(buffer, config.getMaxRecordsPerFile());
+            for (final List<SinkRecord> chunk : chunks) {
+                flushChunk(tp, chunk);
+            }
+        } else {
+            // Flush the whole buffer as a single chunk.
+            flushChunk(tp, buffer);
+        }
+    }
+
+    private void flushChunk(final TopicPartition tp, final List<SinkRecord> chunk) {
+        final SinkRecord firstRecord = chunk.get(0);
+        final String filename = createFilename(tp, firstRecord);
+        final BlobInfo blob = BlobInfo
+                .newBuilder(config.getBucketName(), filename)
+                .build();
+
+        try (final ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            // Don't group these two tries,
+            // because the internal one must be closed before writing to GCS.
+            try (final OutputStream compressedStream = getCompressedStream(baos)) {
+                for (final SinkRecord record : chunk) {
+                    outputWriter.writeRecord(record, compressedStream);
                 }
-
-                storage.create(blob, baos.toByteArray());
-            } catch (final Exception e) {
-                throw new ConnectException(e);
             }
 
-            buffer.clear();
+            storage.create(blob, baos.toByteArray());
+        } catch (final Exception e) {
+            throw new ConnectException(e);
         }
     }
 

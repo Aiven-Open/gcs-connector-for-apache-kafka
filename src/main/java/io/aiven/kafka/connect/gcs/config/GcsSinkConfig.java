@@ -37,6 +37,7 @@ public final class GcsSinkConfig extends AbstractConfig {
     private static final String GROUP_FILE = "File";
     public static final String FILE_NAME_PREFIX_CONFIG = "file.name.prefix";
     public static final String FILE_COMPRESSION_TYPE_CONFIG = "file.compression.type";
+    public static final String FILE_MAX_RECORDS = "file.max.records";
 
     private static final String GROUP_FORMAT = "Format";
     public static final String FORMAT_OUTPUT_FIELDS_CONFIG = "format.output.fields";
@@ -153,6 +154,31 @@ public final class GcsSinkConfig extends AbstractConfig {
                 FILE_COMPRESSION_TYPE_CONFIG,
                 FixedSetRecommender.ofSupportedValues(CompressionType.names())
         );
+
+        configDef.define(
+                FILE_MAX_RECORDS,
+                ConfigDef.Type.INT,
+                0,
+                new ConfigDef.Validator() {
+                    @Override
+                    public void ensureValid(final String name, final Object value) {
+                        assert value instanceof Integer;
+                        if ((Integer) value < 0) {
+                            throw new ConfigException(
+                                    FILE_MAX_RECORDS, value,
+                                    "must be a non-negative integer number");
+                        }
+                    }
+                },
+                ConfigDef.Importance.MEDIUM,
+                "The maximum number of records to put in a single file. " +
+                        "Must be a non-negative integer number. " +
+                        "0 is interpreted as \"unlimited\", which is the default.",
+                GROUP_FILE,
+                fileGroupCounter++,
+                ConfigDef.Width.SHORT,
+                FILE_MAX_RECORDS
+        );
     }
 
     private static void addFormatConfigGroup(final ConfigDef configDef) {
@@ -242,5 +268,13 @@ public final class GcsSinkConfig extends AbstractConfig {
 
     public final String getConnectorName() {
         return originalsStrings().get(NAME_CONFIG);
+    }
+
+    public final boolean isMaxRecordPerFileLimited() {
+        return getMaxRecordsPerFile() > 0;
+    }
+
+    public final int getMaxRecordsPerFile() {
+        return getInt(FILE_MAX_RECORDS);
     }
 }
