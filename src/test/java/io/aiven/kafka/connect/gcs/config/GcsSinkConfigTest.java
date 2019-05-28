@@ -72,7 +72,7 @@ final class GcsSinkConfigTest {
                 () -> assertEquals("test-bucket", config.getBucketName()),
                 () -> assertEquals(CompressionType.NONE, config.getCompressionType()),
                 () -> assertEquals("", config.getPrefix()),
-                () -> assertIterableEquals(Collections.singleton(OutputField.VALUE), config.getOutputFields())
+                () -> assertIterableEquals(Collections.singleton(new OutputField(OutputFieldType.VALUE, OutputFieldEncodingType.BASE64)), config.getOutputFields())
         );
     }
 
@@ -85,19 +85,23 @@ final class GcsSinkConfigTest {
         properties.put("gcs.bucket.name", "test-bucket");
         properties.put("file.compression.type", "gzip");
         properties.put("file.name.prefix", "test-prefix");
+        properties.put("file.max.records", "42");
         properties.put("format.output.fields", "key,value,offset,timestamp");
+        properties.put("format.output.fields.value.encoding", "base64");
 
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         assertAll(
                 () -> assertDoesNotThrow(() -> config.getCredentials()),
                 () -> assertEquals("test-bucket", config.getBucketName()),
                 () -> assertEquals(CompressionType.GZIP, config.getCompressionType()),
+                () -> assertTrue(config.isMaxRecordPerFileLimited()),
+                () -> assertEquals(42, config.getMaxRecordsPerFile()),
                 () -> assertEquals("test-prefix", config.getPrefix()),
                 () -> assertIterableEquals(Arrays.asList(
-                        OutputField.KEY,
-                        OutputField.VALUE,
-                        OutputField.OFFSET,
-                        OutputField.TIMESTAMP), config.getOutputFields())
+                        new OutputField(OutputFieldType.KEY, OutputFieldEncodingType.NONE),
+                        new OutputField(OutputFieldType.VALUE, OutputFieldEncodingType.BASE64),
+                        new OutputField(OutputFieldType.OFFSET, OutputFieldEncodingType.NONE),
+                        new OutputField(OutputFieldType.TIMESTAMP, OutputFieldEncodingType.NONE)), config.getOutputFields())
         );
     }
 

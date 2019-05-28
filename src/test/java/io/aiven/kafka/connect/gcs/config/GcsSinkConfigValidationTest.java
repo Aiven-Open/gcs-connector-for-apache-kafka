@@ -56,7 +56,7 @@ final class GcsSinkConfigValidationTest {
                 .findFirst()
                 .get();
         assertIterableEquals(
-                OutputField.names(),
+                OutputFieldType.names(),
                 v.recommendedValues()
         );
     }

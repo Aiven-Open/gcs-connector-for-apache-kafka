@@ -127,9 +127,10 @@ public final class GcsSinkTask extends SinkTask {
             // Don't group these two tries,
             // because the internal one must be closed before writing to GCS.
             try (final OutputStream compressedStream = getCompressedStream(baos)) {
-                for (final SinkRecord record : chunk) {
-                    outputWriter.writeRecord(record, compressedStream);
+                for (int i = 0; i < chunk.size() - 1; i++) {
+                    outputWriter.writeRecord(chunk.get(i), compressedStream);
                 }
+                outputWriter.writeLastRecord(chunk.get(chunk.size() - 1), compressedStream);
             }
 
             storage.create(blob, baos.toByteArray());

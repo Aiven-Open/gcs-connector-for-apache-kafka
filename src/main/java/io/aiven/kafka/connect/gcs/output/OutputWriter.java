@@ -42,14 +42,25 @@ public final class OutputWriter {
                             final OutputStream outputStream) throws IOException {
         Objects.requireNonNull(record);
         Objects.requireNonNull(outputStream);
+        writeFields(record, outputStream);
+        outputStream.write(RECORD_SEPARATOR);
+    }
 
+    public void writeLastRecord(final SinkRecord record,
+                                final OutputStream outputStream) throws IOException {
+        Objects.requireNonNull(record);
+        Objects.requireNonNull(outputStream);
+        writeFields(record, outputStream);
+    }
+
+    private void writeFields(final SinkRecord record,
+                             final OutputStream outputStream) throws IOException {
         final Iterator<OutputFieldWriter> writerIter = writers.iterator();
         writerIter.next().write(record, outputStream);
         while (writerIter.hasNext()) {
             outputStream.write(FIELD_SEPARATOR);
             writerIter.next().write(record, outputStream);
         }
-        outputStream.write(RECORD_SEPARATOR);
     }
 
     public static final class Builder {
@@ -59,13 +70,24 @@ public final class OutputWriter {
             Objects.requireNonNull(fields);
 
             for (final OutputField field : fields) {
-                switch (field) {
+                switch (field.getFieldType()) {
                     case KEY:
                         writers.add(new KeyWriter());
                         break;
 
                     case VALUE:
-                        writers.add(new ValueWriter());
+                        switch (field.getEncodingType()) {
+                            case NONE:
+                                writers.add(new PlainValueWriter());
+                                break;
+
+                            case BASE64:
+                                writers.add(new Base64ValueWriter());
+                                break;
+
+                            default:
+                                throw new ConnectException("Unknown output field encoding type " + field.getEncodingType());
+                        }
                         break;
 
                     case OFFSET:
@@ -77,7 +99,7 @@ public final class OutputWriter {
                         break;
 
                     default:
-                        throw new ConnectException("Unknown output field " + field);
+                        throw new ConnectException("Unknown output field type " + field);
                 }
             }
 

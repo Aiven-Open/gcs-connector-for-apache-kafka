@@ -24,6 +24,7 @@ import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigException;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -41,6 +42,7 @@ public final class GcsSinkConfig extends AbstractConfig {
 
     private static final String GROUP_FORMAT = "Format";
     public static final String FORMAT_OUTPUT_FIELDS_CONFIG = "format.output.fields";
+    public static final String FORMAT_OUTPUT_FIELDS_VALUE_ENCODING_CONFIG = "format.output.fields.value.encoding";
 
     public static final String NAME_CONFIG = "name";
 
@@ -184,13 +186,13 @@ public final class GcsSinkConfig extends AbstractConfig {
     private static void addFormatConfigGroup(final ConfigDef configDef) {
         int formatGroupCounter = 0;
 
-        final String supportedOutputFields = OutputField.names().stream()
+        final String supportedOutputFields = OutputFieldType.names().stream()
                 .map(f -> "'" + f + "'")
                 .collect(Collectors.joining(", "));
         configDef.define(
                 FORMAT_OUTPUT_FIELDS_CONFIG,
                 ConfigDef.Type.LIST,
-                OutputField.VALUE.name,
+                OutputFieldType.VALUE.name,
                 new ConfigDef.Validator() {
                     @Override
                     public void ensureValid(final String name, final Object value) {
@@ -203,7 +205,7 @@ public final class GcsSinkConfig extends AbstractConfig {
                                     "cannot be empty");
                         }
                         for (final String fieldName : valueList) {
-                            if (!OutputField.isValidName(fieldName)) {
+                            if (!OutputFieldType.isValidName(fieldName)) {
                                 throw new ConfigException(
                                         FORMAT_OUTPUT_FIELDS_CONFIG, value,
                                         "supported values are: " + supportedOutputFields);
@@ -218,7 +220,36 @@ public final class GcsSinkConfig extends AbstractConfig {
                 formatGroupCounter++,
                 ConfigDef.Width.NONE,
                 FORMAT_OUTPUT_FIELDS_CONFIG,
-                FixedSetRecommender.ofSupportedValues(OutputField.names())
+                FixedSetRecommender.ofSupportedValues(OutputFieldType.names())
+        );
+
+        final String supportedValueFieldEncodingTypes = CompressionType.names().stream()
+                .map(f -> "'" + f + "'")
+                .collect(Collectors.joining(", "));
+        configDef.define(
+                FORMAT_OUTPUT_FIELDS_VALUE_ENCODING_CONFIG,
+                ConfigDef.Type.STRING,
+                OutputFieldEncodingType.BASE64.name,
+                new ConfigDef.Validator() {
+                    @Override
+                    public void ensureValid(final String name, final Object value) {
+                        assert value instanceof String;
+                        final String valueStr = (String) value;
+                        if (!OutputFieldEncodingType.names().contains(valueStr)) {
+                            throw new ConfigException(
+                                    FORMAT_OUTPUT_FIELDS_VALUE_ENCODING_CONFIG, valueStr,
+                                    "supported values are: " + supportedValueFieldEncodingTypes);
+                        }
+                    }
+                },
+                ConfigDef.Importance.MEDIUM,
+                "The type of encoding for the value field. " +
+                        "The supported values are: " + supportedOutputFields + ".",
+                GROUP_FORMAT,
+                formatGroupCounter++,
+                ConfigDef.Width.NONE,
+                FORMAT_OUTPUT_FIELDS_VALUE_ENCODING_CONFIG,
+                FixedSetRecommender.ofSupportedValues(OutputFieldEncodingType.names())
         );
     }
 
@@ -257,9 +288,18 @@ public final class GcsSinkConfig extends AbstractConfig {
     }
 
     public final List<OutputField> getOutputFields() {
-        return getList(FORMAT_OUTPUT_FIELDS_CONFIG).stream()
-                .map(OutputField::forName)
-                .collect(Collectors.toList());
+        final List<OutputField> result = new ArrayList<>();
+        for (final String outputFieldTypeStr : getList(FORMAT_OUTPUT_FIELDS_CONFIG)) {
+            final OutputFieldType fieldType = OutputFieldType.forName(outputFieldTypeStr);
+            final OutputFieldEncodingType encodingType;
+            if (fieldType == OutputFieldType.VALUE) {
+                encodingType = OutputFieldEncodingType.forName(getString(FORMAT_OUTPUT_FIELDS_VALUE_ENCODING_CONFIG));
+            } else {
+                encodingType = OutputFieldEncodingType.NONE;
+            }
+            result.add(new OutputField(fieldType, encodingType));
+        }
+        return result;
     }
 
     public final String getPrefix() {
