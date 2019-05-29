@@ -72,6 +72,13 @@ final class GcsSinkConfigTest {
                 () -> assertEquals("test-bucket", config.getBucketName()),
                 () -> assertEquals(CompressionType.NONE, config.getCompressionType()),
                 () -> assertEquals("", config.getPrefix()),
+                () -> assertEquals("a-b-c",
+                        config.getFilenameTemplate()
+                                .instance()
+                                .bindVariable("topic", () -> "a")
+                                .bindVariable("partition", () -> "b")
+                                .bindVariable("start_offset", () -> "c")
+                                .render()),
                 () -> assertIterableEquals(Collections.singleton(new OutputField(OutputFieldType.VALUE, OutputFieldEncodingType.BASE64)), config.getOutputFields())
         );
     }
@@ -85,6 +92,7 @@ final class GcsSinkConfigTest {
         properties.put("gcs.bucket.name", "test-bucket");
         properties.put("file.compression.type", "gzip");
         properties.put("file.name.prefix", "test-prefix");
+        properties.put("file.name.template", "{{topic}}-{{partition}}-{{start_offset}}.gz");
         properties.put("file.max.records", "42");
         properties.put("format.output.fields", "key,value,offset,timestamp");
         properties.put("format.output.fields.value.encoding", "base64");
@@ -97,6 +105,13 @@ final class GcsSinkConfigTest {
                 () -> assertTrue(config.isMaxRecordPerFileLimited()),
                 () -> assertEquals(42, config.getMaxRecordsPerFile()),
                 () -> assertEquals("test-prefix", config.getPrefix()),
+                () -> assertEquals("a-b-c.gz",
+                        config.getFilenameTemplate()
+                                .instance()
+                                .bindVariable("topic", () -> "a")
+                                .bindVariable("partition", () -> "b")
+                                .bindVariable("start_offset", () -> "c")
+                                .render()),
                 () -> assertIterableEquals(Arrays.asList(
                         new OutputField(OutputFieldType.KEY, OutputFieldEncodingType.NONE),
                         new OutputField(OutputFieldType.VALUE, OutputFieldEncodingType.BASE64),
@@ -284,6 +299,133 @@ final class GcsSinkConfigTest {
                 () -> new GcsSinkConfig(properties));
         assertEquals("Invalid value -42 for configuration file.max.records: " +
                         "must be a non-negative integer number",
+                t.getMessage());
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = { "none", "gzip" })
+    void filenameTemplateNotSet(final String compression) {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        if (compression != null) {
+            properties.put("file.compression.type", compression);
+        }
+
+        String expected = "a-b-c";
+        if ("gzip".equals(compression)) {
+            expected += ".gz";
+        }
+
+        final GcsSinkConfig config = new GcsSinkConfig(properties);
+        final String actual = config.getFilenameTemplate()
+                .instance()
+                .bindVariable("topic", () -> "a")
+                .bindVariable("partition", () -> "b")
+                .bindVariable("start_offset", () -> "c")
+                .render();
+        assertEquals(expected, actual);
+    }
+
+    @Test
+    void supportedFilenameTemplateVariablesOrder1() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.name.template", "{{topic}}-{{partition}}-{{start_offset}}");
+
+        final GcsSinkConfig config = new GcsSinkConfig(properties);
+        final String actual = config.getFilenameTemplate()
+                .instance()
+                .bindVariable("topic", () -> "a")
+                .bindVariable("partition", () -> "b")
+                .bindVariable("start_offset", () -> "c")
+                .render();
+        assertEquals("a-b-c", actual);
+    }
+
+    @Test
+    void supportedFilenameTemplateVariablesOrder2() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.name.template", "{{start_offset}}-{{partition}}-{{topic}}");
+
+        final GcsSinkConfig config = new GcsSinkConfig(properties);
+        final String actual = config.getFilenameTemplate()
+                .instance()
+                .bindVariable("topic", () -> "a")
+                .bindVariable("partition", () -> "b")
+                .bindVariable("start_offset", () -> "c")
+                .render();
+        assertEquals("c-b-a", actual);
+    }
+
+    @Test
+    void emptyFilenameTemplate() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.name.template", "");
+
+        final Throwable t = assertThrows(
+                ConfigException.class,
+                () -> new GcsSinkConfig(properties));
+        assertEquals("Invalid value  for configuration file.name.template: " +
+                        "unsupported set of template variables, supported set is: topic, partition, start_offset",
+                t.getMessage());
+    }
+
+    @Test
+    void filenameTemplateUnknownVariable() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.name.template", "{{ aaa }}{{ topic }}{{ partition }}{{ start_offset }}");
+
+        final Throwable t = assertThrows(
+                ConfigException.class,
+                () -> new GcsSinkConfig(properties));
+        assertEquals("Invalid value {{ aaa }}{{ topic }}{{ partition }}{{ start_offset }} for configuration file.name.template: " +
+                        "unsupported set of template variables, supported set is: topic, partition, start_offset",
+                t.getMessage());
+    }
+
+    @Test
+    void filenameTemplateNoTopic() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.name.template", "{{ partition }}{{ start_offset }}");
+
+        final Throwable t = assertThrows(
+                ConfigException.class,
+                () -> new GcsSinkConfig(properties));
+        assertEquals("Invalid value {{ partition }}{{ start_offset }} for configuration file.name.template: " +
+                        "unsupported set of template variables, supported set is: topic, partition, start_offset",
+                t.getMessage());
+    }
+
+    @Test
+    void filenameTemplateNoPartition() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.name.template", "{{ topic }}{{ start_offset }}");
+
+        final Throwable t = assertThrows(
+                ConfigException.class,
+                () -> new GcsSinkConfig(properties));
+        assertEquals("Invalid value {{ topic }}{{ start_offset }} for configuration file.name.template: " +
+                        "unsupported set of template variables, supported set is: topic, partition, start_offset",
+                t.getMessage());
+    }
+
+    @Test
+    void filenameTemplateNoStartOffset() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.name.template", "{{ topic }}{{ partition }}");
+
+        final Throwable t = assertThrows(
+                ConfigException.class,
+                () -> new GcsSinkConfig(properties));
+        assertEquals("Invalid value {{ topic }}{{ partition }} for configuration file.name.template: " +
+                        "unsupported set of template variables, supported set is: topic, partition, start_offset",
                 t.getMessage());
     }
 }

@@ -20,6 +20,7 @@ package io.aiven.kafka.connect.gcs.config;
 
 import com.google.auth.oauth2.GoogleCredentials;
 import io.aiven.kafka.connect.gcs.gcs.GoogleCredentialsBuilder;
+import io.aiven.kafka.connect.gcs.templating.Template;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigException;
@@ -37,6 +38,7 @@ public final class GcsSinkConfig extends AbstractConfig {
 
     private static final String GROUP_FILE = "File";
     public static final String FILE_NAME_PREFIX_CONFIG = "file.name.prefix";
+    public static final String FILE_NAME_TEMPLATE_CONFIG = "file.name.template";
     public static final String FILE_COMPRESSION_TYPE_CONFIG = "file.compression.type";
     public static final String FILE_MAX_RECORDS = "file.max.records";
 
@@ -126,6 +128,24 @@ public final class GcsSinkConfig extends AbstractConfig {
                 fileGroupCounter++,
                 ConfigDef.Width.NONE,
                 FILE_NAME_PREFIX_CONFIG
+        );
+
+        configDef.define(
+                FILE_NAME_TEMPLATE_CONFIG,
+                ConfigDef.Type.STRING,
+                null,
+                new FilenameTemplateValidator(FILE_NAME_TEMPLATE_CONFIG),
+                ConfigDef.Importance.MEDIUM,
+                "The template for file names on GCS. " +
+                        "Supports `{{ variable }}` placeholders for substituting variables. " +
+                        "Currently supported variables are `topic`, `partition`, and `start_offset` " +
+                        "(the offset of the first record in the file). " +
+                        "Only some combinations of variables are valid, which currently are:\n" +
+                        "- `topic`, `partition`, `start_offset`.",
+                GROUP_FILE,
+                fileGroupCounter++,
+                ConfigDef.Width.LONG,
+                FILE_NAME_TEMPLATE_CONFIG
         );
 
         final String supportedCompressionTypes = CompressionType.names().stream()
@@ -316,5 +336,16 @@ public final class GcsSinkConfig extends AbstractConfig {
 
     public final int getMaxRecordsPerFile() {
         return getInt(FILE_MAX_RECORDS);
+    }
+
+    public final Template getFilenameTemplate() {
+        String templateStr = getString(FILE_NAME_TEMPLATE_CONFIG);
+        if (templateStr == null) {
+            templateStr = "{{topic}}-{{partition}}-{{start_offset}}";
+            if (getCompressionType() == CompressionType.GZIP) {
+                templateStr += ".gz";
+            }
+        }
+        return new Template(templateStr);
     }
 }
