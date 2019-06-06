@@ -16,13 +16,25 @@ specified bucket in GCS.
 ### File name format
 
 The connector uses the following format for output files (blobs):
-`<prefix><topic>-<partition>-<start-offset>[.gz]`, where:
+`<prefix><topic>-<partition>-<start_offset>[.gz]`, where:
 - `<prefix>` is the optional prefix that can be used, for example, for
   subdirectories in the bucket;
 - `<topic>` is the Kafka topic name;
 - `<partition>` is the topic's partition number;
-- `<start-offset>` is the Kafka offset of the first record in the file;
+- `<start_offset>` is the Kafka offset of the first record in the file;
 - `[.gz]` suffix is added when compression is enabled.
+
+The part after the prefix can be controlled by `file.name.template`. It
+supports placeholders with variable names: `{{ variable_name }}`. Only
+certain sets of variables are valid, currently:
+- `topic`, `partition`, `start_offset`.
+
+If not specified, the default value is
+`{{topic}}-{{partition}}-{{start_offset}}` (+ `.gz` when compression is
+enabled).
+
+Even when `file.name.template` is explicitly set, the prefix is still
+added.
 
 ### Data format
 

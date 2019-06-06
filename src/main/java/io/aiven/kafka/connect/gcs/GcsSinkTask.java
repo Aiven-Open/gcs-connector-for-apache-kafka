@@ -25,6 +25,7 @@ import com.google.common.collect.Lists;
 import io.aiven.kafka.connect.gcs.config.CompressionType;
 import io.aiven.kafka.connect.gcs.config.GcsSinkConfig;
 import io.aiven.kafka.connect.gcs.output.OutputWriter;
+import io.aiven.kafka.connect.gcs.templating.Template;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.errors.ConnectException;
@@ -49,6 +50,8 @@ public final class GcsSinkTask extends SinkTask {
     private GcsSinkConfig config;
     private Storage storage;
 
+    private Template filenameTemplate;
+
     // required by Connect
     public GcsSinkTask() { }
 
@@ -61,6 +64,7 @@ public final class GcsSinkTask extends SinkTask {
         this.config = new GcsSinkConfig(props);
         this.storage = storage;
         this.outputWriter = OutputWriter.builder().addFields(config.getOutputFields()).build();
+        this.filenameTemplate = config.getFilenameTemplate();
     }
 
     @Override
@@ -73,6 +77,7 @@ public final class GcsSinkTask extends SinkTask {
                 .build()
                 .getService();
         outputWriter = OutputWriter.builder().addFields(config.getOutputFields()).build();
+        filenameTemplate = config.getFilenameTemplate();
     }
 
     @Override
@@ -143,12 +148,12 @@ public final class GcsSinkTask extends SinkTask {
         Objects.requireNonNull(tp);
         Objects.requireNonNull(firstRecord);
 
-        String result = String.format("%s%s-%d-%d",
-                config.getPrefix(), tp.topic(), tp.partition(), firstRecord.kafkaOffset());
-        if (config.getCompressionType() == CompressionType.GZIP) {
-            result += ".gz";
-        }
-        return result;
+        final String filename = filenameTemplate.instance()
+                .bindVariable("topic", tp::topic)
+                .bindVariable("partition", () -> Integer.toString(tp.partition()))
+                .bindVariable("start_offset", () -> Long.toString(firstRecord.kafkaOffset()))
+                .render();
+        return config.getPrefix() + filename;
     }
 
     private OutputStream getCompressedStream(final OutputStream outputStream) throws IOException {
