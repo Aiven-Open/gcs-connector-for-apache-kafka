@@ -21,7 +21,6 @@ package io.aiven.kafka.connect.gcs;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import io.aiven.kafka.connect.gcs.gcs.GoogleCredentialsBuilder;
-import io.aiven.kafka.connect.gcs.testutils.BlobAccessor;
 import io.aiven.kafka.connect.gcs.testutils.BucketAccessor;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
@@ -198,9 +197,8 @@ final class IntegrationTest {
 
         final Map<String, List<String>> blobContents = new HashMap<>();
         for (final String blobName : expectedBlobs) {
-            final BlobAccessor blobAccessor = new BlobAccessor(storage, testBucketName, blobName, true);
             blobContents.put(blobName,
-                    blobAccessor.readAndDecodeLines(0, 1).stream()
+                    testBucketAccessor.readAndDecodeLines(blobName, true, 0, 1).stream()
                     .map(fields -> String.join(",", fields))
                     .collect(Collectors.toList())
             );
@@ -255,9 +253,10 @@ final class IntegrationTest {
         assertIterableEquals(expectedBlobsNames, testBucketAccessor.getBlobNames());
 
         for (final String blobName : expectedBlobsAndContent.keySet()) {
-            final BlobAccessor blobAccessor = new BlobAccessor(storage, testBucketName, blobName, false);
-            assertEquals(expectedBlobsAndContent.get(blobName), blobAccessor.readStringContent());
-
+            assertEquals(
+                    expectedBlobsAndContent.get(blobName),
+                    testBucketAccessor.readStringContent(blobName, false)
+            );
         }
     }
 
