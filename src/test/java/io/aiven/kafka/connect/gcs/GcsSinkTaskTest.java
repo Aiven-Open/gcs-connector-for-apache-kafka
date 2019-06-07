@@ -22,7 +22,6 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.contrib.nio.testing.LocalStorageHelper;
 import com.google.common.collect.Lists;
 import io.aiven.kafka.connect.gcs.config.GcsSinkConfig;
-import io.aiven.kafka.connect.gcs.testutils.BlobAccessor;
 import io.aiven.kafka.connect.gcs.testutils.BucketAccessor;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.connect.data.Schema;
@@ -30,7 +29,6 @@ import org.apache.kafka.connect.sink.SinkRecord;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -281,7 +279,7 @@ final class GcsSinkTaskTest {
     }
 
     @Test
-    final void maxRecordPerFile() throws IOException {
+    final void maxRecordPerFile() {
         properties.put(GcsSinkConfig.FILE_MAX_RECORDS, "1");
         final GcsSinkTask task = new GcsSinkTask(properties, storage);
 
@@ -359,16 +357,14 @@ final class GcsSinkTaskTest {
 
     private Collection<String> readRawLinesFromBlob(
             final String blobName,
-            final boolean compressed) throws IOException {
-        final BlobAccessor blobAccessor = new BlobAccessor(storage, TEST_BUCKET, blobName, compressed);
-        return blobAccessor.readLines();
+            final boolean compressed) {
+        return testBucketAccessor.readLines(blobName, compressed);
     }
 
     private Collection<List<String>> readSplittedAndDecodedLinesFromBlob(
             final String blobName,
             final boolean compressed,
-            final int... fieldsToDecode) throws IOException {
-        final BlobAccessor blobAccessor = new BlobAccessor(storage, TEST_BUCKET, blobName, compressed);
-        return blobAccessor.readAndDecodeLines(fieldsToDecode);
+            final int... fieldsToDecode) {
+        return testBucketAccessor.readAndDecodeLines(blobName, compressed, fieldsToDecode);
     }
 }
