@@ -102,7 +102,6 @@ final class GcsSinkConfigTest {
                 () -> assertDoesNotThrow(() -> config.getCredentials()),
                 () -> assertEquals("test-bucket", config.getBucketName()),
                 () -> assertEquals(CompressionType.GZIP, config.getCompressionType()),
-                () -> assertTrue(config.isMaxRecordPerFileLimited()),
                 () -> assertEquals(42, config.getMaxRecordsPerFile()),
                 () -> assertEquals("test-prefix", config.getPrefix()),
                 () -> assertEquals("a-b-c.gz",

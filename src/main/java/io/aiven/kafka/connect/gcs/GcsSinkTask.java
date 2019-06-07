@@ -21,11 +21,9 @@ package io.aiven.kafka.connect.gcs;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
-import com.google.common.collect.Lists;
 import io.aiven.kafka.connect.gcs.config.CompressionType;
 import io.aiven.kafka.connect.gcs.config.GcsSinkConfig;
 import io.aiven.kafka.connect.gcs.output.OutputWriter;
-import io.aiven.kafka.connect.gcs.templating.Template;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.errors.ConnectException;
@@ -43,14 +41,12 @@ import java.util.zip.GZIPOutputStream;
 public final class GcsSinkTask extends SinkTask {
     private static final Logger log = LoggerFactory.getLogger(GcsSinkConnector.class);
 
-    private final Map<TopicPartition, List<SinkRecord>> buffers = new HashMap<>();
+    private RecordGrouper recordGrouper;
 
     private OutputWriter outputWriter;
 
     private GcsSinkConfig config;
     private Storage storage;
-
-    private Template filenameTemplate;
 
     // required by Connect
     public GcsSinkTask() { }
@@ -63,8 +59,7 @@ public final class GcsSinkTask extends SinkTask {
 
         this.config = new GcsSinkConfig(props);
         this.storage = storage;
-        this.outputWriter = OutputWriter.builder().addFields(config.getOutputFields()).build();
-        this.filenameTemplate = config.getFilenameTemplate();
+        initRest();
     }
 
     @Override
@@ -76,8 +71,20 @@ public final class GcsSinkTask extends SinkTask {
                 .setCredentials(config.getCredentials())
                 .build()
                 .getService();
-        outputWriter = OutputWriter.builder().addFields(config.getOutputFields()).build();
-        filenameTemplate = config.getFilenameTemplate();
+        initRest();
+    }
+
+    private void initRest() {
+        this.outputWriter = OutputWriter.builder().addFields(config.getOutputFields()).build();
+
+        final Integer maxRecordsPerFile;
+        if (config.getMaxRecordsPerFile() == 0) {
+            maxRecordsPerFile = null;
+        } else {
+            maxRecordsPerFile = config.getMaxRecordsPerFile();
+        }
+        this.recordGrouper = new TopicPartitionRecordGrouper(
+                config.getFilenameTemplate(), maxRecordsPerFile);
     }
 
     @Override
@@ -86,74 +93,37 @@ public final class GcsSinkTask extends SinkTask {
 
         log.info("Processing {} records", records.size());
         for (final SinkRecord record : records) {
-            final TopicPartition tp = new TopicPartition(record.topic(), record.kafkaPartition());
-            if (!buffers.containsKey(tp)) {
-                buffers.put(tp, new ArrayList<>());
-            }
-            buffers.get(tp).add(record);
+            recordGrouper.put(record);
         }
     }
 
     @Override
     public void flush(final Map<TopicPartition, OffsetAndMetadata> currentOffsets) {
-        for (final Map.Entry<TopicPartition, List<SinkRecord>> entry : buffers.entrySet()) {
-            final TopicPartition tp = entry.getKey();
-            final List<SinkRecord> buffer = entry.getValue();
-
-            if (buffer.isEmpty()) {
-                continue;
-            }
-
-            flushBuffer(tp, buffer);
-            buffer.clear();
+        for (final Map.Entry<String, List<SinkRecord>> entry : recordGrouper.records().entrySet()) {
+            flushFile(entry.getKey(), entry.getValue());
         }
+        recordGrouper.clear();
     }
 
-    private void flushBuffer(final TopicPartition tp, final List<SinkRecord> buffer) {
-        if (config.isMaxRecordPerFileLimited()) {
-            final List<List<SinkRecord>> chunks = Lists.partition(buffer, config.getMaxRecordsPerFile());
-            for (final List<SinkRecord> chunk : chunks) {
-                flushChunk(tp, chunk);
-            }
-        } else {
-            // Flush the whole buffer as a single chunk.
-            flushChunk(tp, buffer);
-        }
-    }
-
-    private void flushChunk(final TopicPartition tp, final List<SinkRecord> chunk) {
-        final SinkRecord firstRecord = chunk.get(0);
-        final String filename = createFilename(tp, firstRecord);
+    private void flushFile(final String filename, final List<SinkRecord> records) {
         final BlobInfo blob = BlobInfo
-                .newBuilder(config.getBucketName(), filename)
+                .newBuilder(config.getBucketName(), config.getPrefix() + filename)
                 .build();
 
         try (final ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
             // Don't group these two tries,
             // because the internal one must be closed before writing to GCS.
             try (final OutputStream compressedStream = getCompressedStream(baos)) {
-                for (int i = 0; i < chunk.size() - 1; i++) {
-                    outputWriter.writeRecord(chunk.get(i), compressedStream);
+                for (int i = 0; i < records.size() - 1; i++) {
+                    outputWriter.writeRecord(records.get(i), compressedStream);
                 }
-                outputWriter.writeLastRecord(chunk.get(chunk.size() - 1), compressedStream);
+                outputWriter.writeLastRecord(records.get(records.size() - 1), compressedStream);
             }
 
             storage.create(blob, baos.toByteArray());
         } catch (final Exception e) {
             throw new ConnectException(e);
         }
-    }
-
-    private String createFilename(final TopicPartition tp, final SinkRecord firstRecord) {
-        Objects.requireNonNull(tp);
-        Objects.requireNonNull(firstRecord);
-
-        final String filename = filenameTemplate.instance()
-                .bindVariable("topic", tp::topic)
-                .bindVariable("partition", () -> Integer.toString(tp.partition()))
-                .bindVariable("start_offset", () -> Long.toString(firstRecord.kafkaOffset()))
-                .render();
-        return config.getPrefix() + filename;
     }
 
     private OutputStream getCompressedStream(final OutputStream outputStream) throws IOException {
