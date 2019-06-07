@@ -330,10 +330,6 @@ public final class GcsSinkConfig extends AbstractConfig {
         return originalsStrings().get(NAME_CONFIG);
     }
 
-    public final boolean isMaxRecordPerFileLimited() {
-        return getMaxRecordsPerFile() > 0;
-    }
-
     public final int getMaxRecordsPerFile() {
         return getInt(FILE_MAX_RECORDS);
     }
