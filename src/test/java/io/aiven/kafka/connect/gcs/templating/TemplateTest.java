@@ -230,6 +230,6 @@ final class TemplateTest {
     @Test
     void variables() {
         final Template te = new Template("1{{foo}}2{{bar}}3{{baz}}4");
-        assertIterableEquals(Arrays.asList("foo", "bar", "baz"), te.getVariables());
+        assertIterableEquals(Arrays.asList("foo", "bar", "baz"), te.variables());
     }
 }

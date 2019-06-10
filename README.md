@@ -16,25 +16,134 @@ specified bucket in GCS.
 ### File name format
 
 The connector uses the following format for output files (blobs):
-`<prefix><topic>-<partition>-<start_offset>[.gz]`, where:
-- `<prefix>` is the optional prefix that can be used, for example, for
-  subdirectories in the bucket;
-- `<topic>` is the Kafka topic name;
-- `<partition>` is the topic's partition number;
-- `<start_offset>` is the Kafka offset of the first record in the file;
-- `[.gz]` suffix is added when compression is enabled.
+`<prefix><filename>`.
 
-The part after the prefix can be controlled by `file.name.template`. It
-supports placeholders with variable names: `{{ variable_name }}`. Only
-certain sets of variables are valid, currently:
-- `topic`, `partition`, `start_offset`.
+`<prefix>` is the optional prefix that can be used, for example, for
+subdirectories in the bucket.
 
-If not specified, the default value is
+`<filename>` is the file name. The connector has the configurable
+template for file names. It supports placeholders with variable names:
+`{{ variable_name }}`. Currently supported variables are:
+- `topic` - the Kafka topic;
+- `partition` - the Kafka partition;
+- `start_offset` - the Kafka offset of the first record in the file;
+- `key` - the Kafka key.
+
+Only the certain combinations of variables are allowed in the file name
+template (however, variables in a template can be in any order). Each
+combination determines the mode of record grouping the connector will
+use. Currently supported combinations of variables and the corresponding
+record grouping modes are:
+- `topic`, `partition`, `start_offset` - grouping by the topic and
+  partition;
+- `key` - grouping by the key.
+
+If the file name template is not specified, the default value is
 `{{topic}}-{{partition}}-{{start_offset}}` (+ `.gz` when compression is
 enabled).
 
-Even when `file.name.template` is explicitly set, the prefix is still
-added.
+### Record grouping
+
+Incoming records are being grouped until flushed.
+
+#### Grouping by the topic and partition
+
+In this mode, the connector groups records by the topic and partition.
+When a file is written, a offset of the first record in it is added to
+its name.
+
+For example, let's say the template is
+`{{topic}}-part{{partition}}-off{{start_offset}}`. If the connector
+receives records like
+```
+topic:topicB partition:0 offset:0
+topic:topicA partition:0 offset:0
+topic:topicA partition:0 offset:1
+topic:topicB partition:0 offset:1
+flush
+```
+
+there will be two files `topicA-part0-off0` and `topicB-part0-off0` with
+two records in each.
+
+Each `flush` produces a new set of files. For example:
+
+```
+topic:topicA partition:0 offset:0
+topic:topicA partition:0 offset:1
+flush
+topic:topicA partition:0 offset:2
+topic:topicA partition:0 offset:3
+flush
+```
+
+In this case, there will be two files `topicA-part0-off0` and
+`topicA-part0-off2` with two records in each.
+
+#### Grouping by the key
+
+In this mode, the connector groups records by the Kafka key. It always
+puts one record in a file, the latest record that arrived before a flush
+for each key. Also, it overwrites files if later new records with the
+same keys arrive.
+
+This mode is good for maintaining the latest values per key as files on
+GCS.
+
+Let's say the template is `k{{key}}`. For example, when the following
+records arrive
+```
+key:0 value:0
+key:1 value:1
+key:0 value:2
+key:1 value:3
+flush
+```
+
+there will be two files `k0` (containing value `2`) and `k1` (containing
+value `3`).
+
+After a flush, previously written files might be overwritten:
+```
+key:0 value:0
+key:1 value:1
+key:0 value:2
+key:1 value:3
+flush
+key:0 value:4
+flush
+```
+
+In this case, there will be two files `k0` (containing value `4`) and
+`k1` (containing value `3`).
+
+##### The string representation of a key
+
+The connector in this mode uses the following algorithm to create the
+string representation of a key:
+
+1. If `key` is `null`, the string value is `"null"` (i.e., string
+   literal `null`).
+2. If `key` schema type is `STRING`, it's used directly.
+3. Otherwise, Java `.toString()` is applied.
+
+If keys of you records are strings, you may want to use
+`org.apache.kafka.connect.storage.StringConverter` as `key.converter`.
+
+##### Warning: Single key in different partitions
+
+The `group by key` mode primarily targets scenarios where each key
+appears in one partition only. If the same key appears in multiple
+partitions the result may be unexpected.
+
+For example:
+```
+topic:topicA partition:0 key:x value:aaa
+topic:topicA partition:1 key:x value:bbb
+flush
+```
+file `kx` may contain `aaa` or `bbb`, i.e. the behavior is
+non-deterministic.
 
 ### Data format
 
@@ -91,7 +200,8 @@ name=my-gcs-connector
 connector.class=io.aiven.kafka.connect.gcs.GcsSinkConnector
 
 # The key converter for this connector
-# (must be set to ByteArrayConverter)
+# (must be set to org.apache.kafka.connect.converters.ByteArrayConverter
+# or org.apache.kafka.connect.storage.StringConverter)
 key.converter=org.apache.kafka.connect.converters.ByteArrayConverter
 
 # The value converter for this connector
@@ -145,6 +255,12 @@ file.name.prefix=some-prefix/
 # The supported values are: `gzip`, `none`.
 # Optional, the default is `none`.
 file.compression.type=gzip
+
+# The file name template.
+# See "File name format" section.
+# Optional, the default is `{{topic}}-{{partition}}-{{start_offset}}` or
+# `{{topic}}-{{partition}}-{{start_offset}}.gz` if the compression is enabled.
+file.name.template={{topic}}-{{partition}}-{{start_offset}}.gz
 ```
 
 ## Development

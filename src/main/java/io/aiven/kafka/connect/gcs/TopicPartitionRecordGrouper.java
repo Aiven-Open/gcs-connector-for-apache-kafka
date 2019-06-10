@@ -26,7 +26,7 @@ import org.apache.kafka.connect.sink.SinkRecord;
 import java.util.*;
 
 /**
- * A {@link RecordGrouper} that groups record by topic and partition.
+ * A {@link RecordGrouper} that groups records by topic and partition.
  *
  * <p>The class requires a filename template with {@code topic}, {@code partition},
  * and {@code start_offset} variables declared.
@@ -34,13 +34,11 @@ import java.util.*;
  * <p>The class supports limited and unlimited number of records in files.
  */
 final class TopicPartitionRecordGrouper implements RecordGrouper {
-    private static final List<String> EXPECTED_VARIABLE_LIST = new ArrayList<>();
-    static {
-        EXPECTED_VARIABLE_LIST.add(FilenameTemplateVariable.TOPIC.name);
-        EXPECTED_VARIABLE_LIST.add(FilenameTemplateVariable.PARTITION.name);
-        EXPECTED_VARIABLE_LIST.add(FilenameTemplateVariable.START_OFFSET.name);
-    }
-    private static final Set<String> EXPECTED_VARIABLE_SET = new HashSet<>(EXPECTED_VARIABLE_LIST);
+    private static final List<String> EXPECTED_VARIABLE_LIST = Arrays.asList(
+            FilenameTemplateVariable.TOPIC.name,
+            FilenameTemplateVariable.PARTITION.name,
+            FilenameTemplateVariable.START_OFFSET.name
+    );
 
     private final Template filenameTemplate;
     private final Integer maxRecordsPerFile;
@@ -57,12 +55,12 @@ final class TopicPartitionRecordGrouper implements RecordGrouper {
     public TopicPartitionRecordGrouper(final Template filenameTemplate, final Integer maxRecordsPerFile) {
         Objects.requireNonNull(filenameTemplate);
 
-        if (!EXPECTED_VARIABLE_SET.equals(new HashSet<>(filenameTemplate.getVariables()))) {
+        if (!acceptsTemplate(filenameTemplate)) {
             throw new IllegalArgumentException(
                     "filenameTemplate must have set of variables {"
                             + String.join(",", EXPECTED_VARIABLE_LIST)
                             + "}, but {"
-                            + String.join(",", filenameTemplate.getVariables())
+                            + String.join(",", filenameTemplate.variables())
                             + "} was given"
                     );
         }
@@ -116,5 +114,12 @@ final class TopicPartitionRecordGrouper implements RecordGrouper {
     @Override
     public Map<String, List<SinkRecord>> records() {
         return Collections.unmodifiableMap(fileBuffers);
+    }
+
+    /**
+     * Checks if the template is acceptable for this grouper.
+     */
+    static boolean acceptsTemplate(final Template filenameTemplate) {
+        return new HashSet<>(EXPECTED_VARIABLE_LIST).equals(filenameTemplate.variablesSet());
     }
 }

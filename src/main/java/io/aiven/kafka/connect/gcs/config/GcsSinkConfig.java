@@ -19,6 +19,7 @@
 package io.aiven.kafka.connect.gcs.config;
 
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.common.collect.ImmutableSet;
 import io.aiven.kafka.connect.gcs.gcs.GoogleCredentialsBuilder;
 import io.aiven.kafka.connect.gcs.templating.Template;
 import org.apache.kafka.common.config.AbstractConfig;
@@ -286,6 +287,17 @@ public final class GcsSinkConfig extends AbstractConfig {
                     "\"%s\" and \"%s\" are mutually exclusive options, but both are set.",
                     GCS_CREDENTIALS_PATH_CONFIG, GCS_CREDENTIALS_JSON_CONFIG);
             throw new ConfigException(msg);
+        }
+
+        // Special checks for {{key}} filename template.
+        final Template filenameTemplate = getFilenameTemplate();
+        if (ImmutableSet.of(FilenameTemplateVariable.KEY.name).equals(filenameTemplate.variablesSet())) {
+            if (getMaxRecordsPerFile() > 1) {
+                final String msg = String.format("When %s is %s, %s must be either 1 or not set",
+                        FILE_NAME_TEMPLATE_CONFIG, filenameTemplate, FILE_MAX_RECORDS);
+                throw new ConfigException(msg);
+            }
+
         }
     }
 
