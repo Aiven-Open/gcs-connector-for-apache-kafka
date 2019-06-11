@@ -35,10 +35,14 @@ import java.util.regex.Pattern;
 public final class Template {
     private final static Pattern VARIABLE_PATTERN = Pattern.compile("\\{\\{\\s*([\\w_]+)\\s*}}"); // {{ var }}
 
+    private final String originalTemplateString;
+
     private final List<String> variables = new ArrayList<>();
     private final List<TemplatePart> templateParts = new ArrayList<>();
 
     public Template(final String template) {
+        this.originalTemplateString = template;
+
         final Matcher m = VARIABLE_PATTERN.matcher(template);
         int position = 0;
         while (m.find()) {
@@ -52,8 +56,12 @@ public final class Template {
         templateParts.add(new StaticTemplatePart(template.substring(position)));
     }
 
-    public final List<String> getVariables() {
+    public final List<String> variables() {
         return Collections.unmodifiableList(variables);
+    }
+
+    public final Set<String> variablesSet() {
+        return Collections.unmodifiableSet(new HashSet<>(variables));
     }
 
     public final Instance instance() {
@@ -78,6 +86,11 @@ public final class Template {
             this.variableName = variableName;
             this.originalPlaceholder = originalPlaceholder;
         }
+    }
+
+    @Override
+    public String toString() {
+        return originalTemplateString;
     }
 
     public class Instance {

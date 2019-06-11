@@ -31,8 +31,7 @@ import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 final class TopicPartitionRecordGrouperTest {
 
@@ -64,9 +63,10 @@ final class TopicPartitionRecordGrouperTest {
         final Template filenameTemplate = new Template(template);
         final IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> new TopicPartitionRecordGrouper(filenameTemplate, null));
+        assertFalse(TopicPartitionRecordGrouper.acceptsTemplate(filenameTemplate));
         assertEquals(
                 "filenameTemplate must have set of variables {topic,partition,start_offset}, but {"
-                + String.join(",", filenameTemplate.getVariables())
+                + String.join(",", filenameTemplate.variables())
                 + "} was given",
                 ex.getMessage());
     }
@@ -76,31 +76,33 @@ final class TopicPartitionRecordGrouperTest {
     @ValueSource(ints = 10)
     final void empty(final Integer maxRecordsPerFile) {
         final Template filenameTemplate = new Template("{{topic}}-{{partition}}-{{start_offset}}");
-        final TopicPartitionRecordGrouper fileGrouper = new TopicPartitionRecordGrouper(filenameTemplate, maxRecordsPerFile);
-        assertThat(fileGrouper.records(), anEmptyMap());
+        final TopicPartitionRecordGrouper grouper = new TopicPartitionRecordGrouper(filenameTemplate, maxRecordsPerFile);
+        assertTrue(TopicPartitionRecordGrouper.acceptsTemplate(filenameTemplate));
+        assertThat(grouper.records(), anEmptyMap());
     }
 
     @Test
     final void unlimited() {
         final Template filenameTemplate = new Template("{{topic}}-{{partition}}-{{start_offset}}");
-        final TopicPartitionRecordGrouper fileGrouper = new TopicPartitionRecordGrouper(filenameTemplate, null);
+        final TopicPartitionRecordGrouper grouper = new TopicPartitionRecordGrouper(filenameTemplate, null);
+        assertTrue(TopicPartitionRecordGrouper.acceptsTemplate(filenameTemplate));
 
-        fileGrouper.put(T0P1R0);
-        fileGrouper.put(T0P0R0);
-        fileGrouper.put(T0P1R1);
-        fileGrouper.put(T0P0R1);
-        fileGrouper.put(T0P0R2);
-        fileGrouper.put(T0P1R2);
-        fileGrouper.put(T0P0R3);
-        fileGrouper.put(T1P1R0);
-        fileGrouper.put(T1P1R1);
-        fileGrouper.put(T0P0R4);
-        fileGrouper.put(T1P1R2);
-        fileGrouper.put(T1P1R3);
-        fileGrouper.put(T0P0R5);
-        fileGrouper.put(T0P1R3);
+        grouper.put(T0P1R0);
+        grouper.put(T0P0R0);
+        grouper.put(T0P1R1);
+        grouper.put(T0P0R1);
+        grouper.put(T0P0R2);
+        grouper.put(T0P1R2);
+        grouper.put(T0P0R3);
+        grouper.put(T1P1R0);
+        grouper.put(T1P1R1);
+        grouper.put(T0P0R4);
+        grouper.put(T1P1R2);
+        grouper.put(T1P1R3);
+        grouper.put(T0P0R5);
+        grouper.put(T0P1R3);
 
-        final Map<String, List<SinkRecord>> records = fileGrouper.records();
+        final Map<String, List<SinkRecord>> records = grouper.records();
         assertThat(records.keySet(), containsInAnyOrder("topic0-0-0", "topic0-1-10", "topic1-0-1000"));
         assertThat(records.get("topic0-0-0"),
                 contains(T0P0R0, T0P0R1, T0P0R2, T0P0R3, T0P0R4, T0P0R5));
@@ -113,24 +115,25 @@ final class TopicPartitionRecordGrouperTest {
     @Test
     final void limited() {
         final Template filenameTemplate = new Template("{{topic}}-{{partition}}-{{start_offset}}");
-        final TopicPartitionRecordGrouper fileGrouper = new TopicPartitionRecordGrouper(filenameTemplate, 2);
+        final TopicPartitionRecordGrouper grouper = new TopicPartitionRecordGrouper(filenameTemplate, 2);
+        assertTrue(TopicPartitionRecordGrouper.acceptsTemplate(filenameTemplate));
 
-        fileGrouper.put(T0P1R0);
-        fileGrouper.put(T0P0R0);
-        fileGrouper.put(T0P1R1);
-        fileGrouper.put(T0P0R1);
-        fileGrouper.put(T0P0R2);
-        fileGrouper.put(T0P1R2);
-        fileGrouper.put(T0P0R3);
-        fileGrouper.put(T1P1R0);
-        fileGrouper.put(T1P1R1);
-        fileGrouper.put(T0P0R4);
-        fileGrouper.put(T1P1R2);
-        fileGrouper.put(T1P1R3);
-        fileGrouper.put(T0P0R5);
-        fileGrouper.put(T0P1R3);
+        grouper.put(T0P1R0);
+        grouper.put(T0P0R0);
+        grouper.put(T0P1R1);
+        grouper.put(T0P0R1);
+        grouper.put(T0P0R2);
+        grouper.put(T0P1R2);
+        grouper.put(T0P0R3);
+        grouper.put(T1P1R0);
+        grouper.put(T1P1R1);
+        grouper.put(T0P0R4);
+        grouper.put(T1P1R2);
+        grouper.put(T1P1R3);
+        grouper.put(T0P0R5);
+        grouper.put(T0P1R3);
 
-        final Map<String, List<SinkRecord>> records = fileGrouper.records();
+        final Map<String, List<SinkRecord>> records = grouper.records();
         assertThat(records.keySet(),
                 containsInAnyOrder("topic0-0-0", "topic0-0-2", "topic0-0-4", "topic0-1-10", "topic0-1-12", "topic1-0-1000", "topic1-0-1002"));
         assertThat(records.get("topic0-0-0"),
@@ -152,28 +155,29 @@ final class TopicPartitionRecordGrouperTest {
     @Test
     final void clear() {
         final Template filenameTemplate = new Template("{{topic}}-{{partition}}-{{start_offset}}");
-        final TopicPartitionRecordGrouper fileGrouper = new TopicPartitionRecordGrouper(filenameTemplate, null);
+        final TopicPartitionRecordGrouper grouper = new TopicPartitionRecordGrouper(filenameTemplate, null);
+        assertTrue(TopicPartitionRecordGrouper.acceptsTemplate(filenameTemplate));
 
-        fileGrouper.put(T0P1R0);
-        fileGrouper.put(T0P0R0);
-        fileGrouper.put(T0P1R1);
-        fileGrouper.put(T0P0R1);
-        fileGrouper.put(T0P0R2);
-        fileGrouper.put(T0P1R2);
-        fileGrouper.put(T0P0R3);
-        fileGrouper.put(T0P1R3);
+        grouper.put(T0P1R0);
+        grouper.put(T0P0R0);
+        grouper.put(T0P1R1);
+        grouper.put(T0P0R1);
+        grouper.put(T0P0R2);
+        grouper.put(T0P1R2);
+        grouper.put(T0P0R3);
+        grouper.put(T0P1R3);
 
-        fileGrouper.clear();
-        assertThat(fileGrouper.records(), anEmptyMap());
+        grouper.clear();
+        assertThat(grouper.records(), anEmptyMap());
 
-        fileGrouper.put(T1P1R0);
-        fileGrouper.put(T1P1R1);
-        fileGrouper.put(T0P0R4);
-        fileGrouper.put(T1P1R2);
-        fileGrouper.put(T1P1R3);
-        fileGrouper.put(T0P0R5);
+        grouper.put(T1P1R0);
+        grouper.put(T1P1R1);
+        grouper.put(T0P0R4);
+        grouper.put(T1P1R2);
+        grouper.put(T1P1R3);
+        grouper.put(T0P0R5);
 
-        final Map<String, List<SinkRecord>> records = fileGrouper.records();
+        final Map<String, List<SinkRecord>> records = grouper.records();
         assertThat(records.keySet(), containsInAnyOrder("topic0-0-4", "topic1-0-1000"));
         assertThat(records.get("topic0-0-4"),
                 contains(T0P0R4, T0P0R5));

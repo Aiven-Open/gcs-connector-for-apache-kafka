@@ -46,9 +46,10 @@ public final class KeyWriter implements OutputFieldWriter {
         Objects.requireNonNull(record.keySchema());
         Objects.requireNonNull(outputStream);
 
-        if (record.keySchema().type() != Schema.Type.BYTES) {
-            final String msg = String.format("Record key schema type must be %s, %s given",
-                    Schema.Type.BYTES, record.keySchema().type());
+        if (record.keySchema().type() != Schema.Type.BYTES
+                && record.keySchema().type() != Schema.Type.STRING) {
+            final String msg = String.format("Record key schema type must be %s or %s, %s given",
+                    Schema.Type.BYTES, Schema.Type.STRING, record.keySchema().type());
             throw new DataException(msg);
         }
 
@@ -57,10 +58,12 @@ public final class KeyWriter implements OutputFieldWriter {
             return;
         }
 
-        if (!(record.key() instanceof byte[])) {
-            throw new DataException("Key is not a byte array");
+        if (record.key() instanceof byte[]) {
+            outputStream.write(Base64.getEncoder().encode((byte[]) record.key()));
+        } else if (record.key() instanceof String) {
+            outputStream.write(Base64.getEncoder().encode(((String) record.key()).getBytes()));
+        } else {
+            throw new DataException("Key is not byte[] or String");
         }
-
-        outputStream.write(Base64.getEncoder().encode((byte[]) record.key()));
     }
 }

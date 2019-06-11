@@ -327,7 +327,7 @@ final class GcsSinkConfigTest {
     }
 
     @Test
-    void supportedFilenameTemplateVariablesOrder1() {
+    void topicPartitionOffsetFilenameTemplateVariablesOrder1() {
         final Map<String, String> properties = new HashMap<>();
         properties.put("gcs.bucket.name", "test-bucket");
         properties.put("file.name.template", "{{topic}}-{{partition}}-{{start_offset}}");
@@ -343,7 +343,7 @@ final class GcsSinkConfigTest {
     }
 
     @Test
-    void supportedFilenameTemplateVariablesOrder2() {
+    void topicPartitionOffsetFilenameTemplateVariablesOrder2() {
         final Map<String, String> properties = new HashMap<>();
         properties.put("gcs.bucket.name", "test-bucket");
         properties.put("file.name.template", "{{start_offset}}-{{partition}}-{{topic}}");
@@ -359,6 +359,20 @@ final class GcsSinkConfigTest {
     }
 
     @Test
+    void keyFilenameTemplateVariable() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.name.template", "{{key}}");
+
+        final GcsSinkConfig config = new GcsSinkConfig(properties);
+        final String actual = config.getFilenameTemplate()
+                .instance()
+                .bindVariable("key", () -> "a")
+                .render();
+        assertEquals("a", actual);
+    }
+
+    @Test
     void emptyFilenameTemplate() {
         final Map<String, String> properties = new HashMap<>();
         properties.put("gcs.bucket.name", "test-bucket");
@@ -368,7 +382,7 @@ final class GcsSinkConfigTest {
                 ConfigException.class,
                 () -> new GcsSinkConfig(properties));
         assertEquals("Invalid value  for configuration file.name.template: " +
-                        "unsupported set of template variables, supported set is: topic, partition, start_offset",
+                        "unsupported set of template variables, supported sets are: topic,partition,start_offset; key",
                 t.getMessage());
     }
 
@@ -382,7 +396,7 @@ final class GcsSinkConfigTest {
                 ConfigException.class,
                 () -> new GcsSinkConfig(properties));
         assertEquals("Invalid value {{ aaa }}{{ topic }}{{ partition }}{{ start_offset }} for configuration file.name.template: " +
-                        "unsupported set of template variables, supported set is: topic, partition, start_offset",
+                        "unsupported set of template variables, supported sets are: topic,partition,start_offset; key",
                 t.getMessage());
     }
 
@@ -396,7 +410,7 @@ final class GcsSinkConfigTest {
                 ConfigException.class,
                 () -> new GcsSinkConfig(properties));
         assertEquals("Invalid value {{ partition }}{{ start_offset }} for configuration file.name.template: " +
-                        "unsupported set of template variables, supported set is: topic, partition, start_offset",
+                        "unsupported set of template variables, supported sets are: topic,partition,start_offset; key",
                 t.getMessage());
     }
 
@@ -410,7 +424,7 @@ final class GcsSinkConfigTest {
                 ConfigException.class,
                 () -> new GcsSinkConfig(properties));
         assertEquals("Invalid value {{ topic }}{{ start_offset }} for configuration file.name.template: " +
-                        "unsupported set of template variables, supported set is: topic, partition, start_offset",
+                        "unsupported set of template variables, supported sets are: topic,partition,start_offset; key",
                 t.getMessage());
     }
 
@@ -424,7 +438,40 @@ final class GcsSinkConfigTest {
                 ConfigException.class,
                 () -> new GcsSinkConfig(properties));
         assertEquals("Invalid value {{ topic }}{{ partition }} for configuration file.name.template: " +
-                        "unsupported set of template variables, supported set is: topic, partition, start_offset",
+                        "unsupported set of template variables, supported sets are: topic,partition,start_offset; key",
+                t.getMessage());
+    }
+
+    @Test
+    void keyFilenameTemplateAndLimitedRecordsPerFileNotSet() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.name.template", "{{key}}");
+
+        assertDoesNotThrow(() -> new GcsSinkConfig(properties));
+    }
+
+    @Test
+    void keyFilenameTemplateAndLimitedRecordsPerFile1() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.name.template", "{{key}}");
+        properties.put("file.max.records", "1");
+
+        assertDoesNotThrow(() -> new GcsSinkConfig(properties));
+    }
+
+    @Test
+    void keyFilenameTemplateAndLimitedRecordsPerFileMoreThan1() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.name.template", "{{key}}");
+        properties.put("file.max.records", "42");
+
+        final Throwable t = assertThrows(
+                ConfigException.class,
+                () -> new GcsSinkConfig(properties));
+        assertEquals("When file.name.template is {{key}}, file.max.records must be either 1 or not set",
                 t.getMessage());
     }
 }

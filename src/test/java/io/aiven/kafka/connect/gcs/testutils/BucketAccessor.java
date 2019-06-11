@@ -79,6 +79,21 @@ public final class BucketAccessor {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Get blob names with the prefix.
+     *
+     * <p>Doesn't support caching.
+     */
+    public final List<String> getBlobNames(final String prefix) {
+        Objects.requireNonNull(prefix);
+
+        final Storage.BlobListOption blobListOption = Storage.BlobListOption.prefix(prefix);
+        return StreamSupport.stream(storage.list(bucketName, blobListOption).iterateAll().spliterator(), false)
+                .map(BlobInfo::getName)
+                .sorted()
+                .collect(Collectors.toList());
+    }
+
     public final void clear(final String prefix) {
         Objects.requireNonNull(prefix);
 

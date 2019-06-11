@@ -21,7 +21,8 @@ package io.aiven.kafka.connect.gcs.config;
 public enum FilenameTemplateVariable {
     TOPIC("topic"),
     PARTITION("partition"),
-    START_OFFSET("start_offset");
+    START_OFFSET("start_offset"),
+    KEY("key");
 
     public final String name;
 

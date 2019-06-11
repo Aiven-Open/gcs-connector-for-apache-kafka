@@ -322,6 +322,48 @@ final class GcsSinkTaskTest {
         );
     }
 
+    @Test
+    final void groupByKey() {
+        properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_CONFIG, "key,value");
+        properties.put("file.name.template", "{{key}}");
+
+        final GcsSinkTask task = new GcsSinkTask(properties, storage);
+
+        final List<SinkRecord> records = Arrays.asList(
+                createRecordStringKey("topic0", 0, "key0", "value0", 10, 1000),
+                createRecordStringKey("topic0", 1, "key1", "value1", 20, 1001),
+                createRecordStringKey("topic1", 0, "key2", "value2", 30, 1002),
+
+                createRecordStringKey("topic0", 0, "key1", "value3", 11, 1005),
+                createRecordStringKey("topic0", 1, "key1", "value4", 21, 1006),
+                createRecordStringKey("topic1", 0, null, "value5", 31, 1007),
+
+                createRecordStringKey("topic0", 0, "key0", "value6", 12, 1009),
+                createRecordStringKey("topic0", 1, "key1", "value7", 22, 1010),
+                createRecordStringKey("topic1", 0, "key1", "value8", 32, 1011)
+        );
+
+        task.put(records);
+        task.flush(null);
+
+        assertIterableEquals(
+                Lists.newArrayList("key0", "key1", "key2", "null"),
+                testBucketAccessor.getBlobNames());
+
+        assertIterableEquals(
+                Arrays.asList(Arrays.asList("key0", "value6")),
+                readSplittedAndDecodedLinesFromBlob("key0", false, 0, 1));
+        assertIterableEquals(
+                Arrays.asList(Arrays.asList("key1", "value8")),
+                readSplittedAndDecodedLinesFromBlob("key1", false, 0, 1));
+        assertIterableEquals(
+                Arrays.asList(Arrays.asList("key2", "value2")),
+                readSplittedAndDecodedLinesFromBlob("key2", false, 0, 1));
+        assertIterableEquals(
+                Arrays.asList(Arrays.asList("", "value5")), // null is written as an empty string to files
+                readSplittedAndDecodedLinesFromBlob("null", false, 0, 1));
+    }
+
     private SinkRecord createRecord(final String topic,
                                     final int partition,
                                     final String key,
@@ -333,6 +375,24 @@ final class GcsSinkTaskTest {
                 partition,
                 Schema.BYTES_SCHEMA,
                 key.getBytes(StandardCharsets.UTF_8),
+                Schema.BYTES_SCHEMA,
+                value.getBytes(StandardCharsets.UTF_8),
+                offset,
+                timestamp,
+                TimestampType.CREATE_TIME);
+    }
+
+    private SinkRecord createRecordStringKey(final String topic,
+                                             final int partition,
+                                             final String key,
+                                             final String value,
+                                             final int offset,
+                                             final long timestamp) {
+        return new SinkRecord(
+                topic,
+                partition,
+                Schema.OPTIONAL_STRING_SCHEMA,
+                key,
                 Schema.BYTES_SCHEMA,
                 value.getBytes(StandardCharsets.UTF_8),
                 offset,
