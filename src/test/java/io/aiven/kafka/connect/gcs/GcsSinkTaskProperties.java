@@ -42,19 +42,18 @@ import static org.junit.jupiter.api.Assertions.*;
  * This is a property-based test for {@link GcsSinkTask} using
  * <a href="https://jqwik.net/docs/current/user-guide.html">jqwik</a>.
  *
- * The idea is to generate random lists of {@link SinkRecord}
- * ({@link GcsSinkTaskProperties#records()}, put them into a task, and check certain properties
+ * The idea is to generate random batches of {@link SinkRecord}
+ * ({@link GcsSinkTaskProperties#recordBatches()}, put them into a task, and check certain properties
  * of the written files afterwards. Files are written virtually using the in-memory GCS mock.
  */
 final class GcsSinkTaskProperties {
-
-    // TODO add flushes to tests
 
     private static final int MAX_TOPICS = 6;
     private static final int MAX_PARTITIONS_PER_TOPIC = 10;
     private static final int MAX_START_OFFSET = 20000;
     private static final int MAX_OFFSET_INCREMENT = 5;
     private static final int MAX_RECORDS_PER_TRY = 10000;
+    private static final double PROBABILITY_OF_NEW_RECORD_BATCH = 2.0 / MAX_RECORDS_PER_TRY;
     private static final String TEST_BUCKET = "test-bucket";
     private static final String PREFIX = "test-dir/";
     private static final int FIELD_KEY = 0;
@@ -62,17 +61,17 @@ final class GcsSinkTaskProperties {
     private static final int FIELD_OFFSET = 2;
 
     @Property
-    final void unlimited(@ForAll("records") final List<SinkRecord> records) {
-        genericTry(records, null);
+    final void unlimited(@ForAll("recordBatches") final List<List<SinkRecord>> recordBatches) {
+        genericTry(recordBatches, null);
     }
 
     @Property
-    final void limited(@ForAll("records") final List<SinkRecord> records,
+    final void limited(@ForAll("recordBatches") final List<List<SinkRecord>> recordBatches,
                        @ForAll @IntRange(min = 1, max = 100) final int maxRecordsPerFile) {
-        genericTry(records, maxRecordsPerFile);
+        genericTry(recordBatches, maxRecordsPerFile);
     }
 
-    private void genericTry(final List<SinkRecord> records, final Integer maxRecordsPerFile) {
+    private void genericTry(final List<List<SinkRecord>> recordBatches, final Integer maxRecordsPerFile) {
         final Storage storage = LocalStorageHelper.getOptions().getService();
         final BucketAccessor testBucketAccessor = new BucketAccessor(storage, TEST_BUCKET, true);
 
@@ -87,12 +86,15 @@ final class GcsSinkTaskProperties {
 
         final GcsSinkTask task = new GcsSinkTask(taskProps, storage);
 
-        task.put(records);
-        task.flush(null);
+        for (final List<SinkRecord> recordBatch : recordBatches) {
+            task.put(recordBatch);
+            task.flush(null);
+        }
 
-        checkExpectedFileNames(records, maxRecordsPerFile, testBucketAccessor);
+        checkExpectedFileNames(recordBatches, maxRecordsPerFile, testBucketAccessor);
         checkFileSizes(testBucketAccessor, maxRecordsPerFile);
-        checkTotalRecordCountAndNoMultipleWrites(records.size(), testBucketAccessor);
+        final int expectedRecordCount = recordBatches.stream().mapToInt(List::size).sum();
+        checkTotalRecordCountAndNoMultipleWrites(expectedRecordCount, testBucketAccessor);
         checkTopicPartitionPartInFileNames(testBucketAccessor);
         checkOffsetOrderInFiles(testBucketAccessor);
     }
@@ -100,20 +102,23 @@ final class GcsSinkTaskProperties {
     /**
      * Checks that written files have expected names.
      */
-    private void checkExpectedFileNames(final List<SinkRecord> records,
+    private void checkExpectedFileNames(final List<List<SinkRecord>> recordBatches,
                                         final Integer maxRecordsPerFile,
                                         final BucketAccessor bucketAccessor) {
-        final Map<TopicPartition, List<SinkRecord>> groupedPerTopicPartition = records.stream()
-                .collect(
-                        Collectors.groupingBy(r -> new TopicPartition(r.topic(), r.kafkaPartition()))
-                );
-
         final List<String> expectedFileNames = new ArrayList<>();
-        for (final TopicPartition tp : groupedPerTopicPartition.keySet()) {
-            final List<List<SinkRecord>> chunks = Lists.partition(
-                    groupedPerTopicPartition.get(tp), effectiveMaxRecordsPerFile(maxRecordsPerFile));
-            for (final List<SinkRecord> chunk : chunks) {
-                expectedFileNames.add(createFilename(chunk.get(0)));
+
+        for (final List<SinkRecord> recordBatch : recordBatches) {
+            final Map<TopicPartition, List<SinkRecord>> groupedPerTopicPartition = recordBatch.stream()
+                    .collect(
+                            Collectors.groupingBy(r -> new TopicPartition(r.topic(), r.kafkaPartition()))
+                    );
+
+            for (final TopicPartition tp : groupedPerTopicPartition.keySet()) {
+                final List<List<SinkRecord>> chunks = Lists.partition(
+                        groupedPerTopicPartition.get(tp), effectiveMaxRecordsPerFile(maxRecordsPerFile));
+                for (final List<SinkRecord> chunk : chunks) {
+                    expectedFileNames.add(createFilename(chunk.get(0)));
+                }
             }
         }
 
@@ -196,7 +201,7 @@ final class GcsSinkTaskProperties {
     }
 
     @Provide
-    private Arbitrary<List<SinkRecord>> records() {
+    private Arbitrary<List<List<SinkRecord>>> recordBatches() {
         final RandomGenerator<String> keyGenerator = RandomGenerators.samples(
                 new String[]{"key0", "key1", "key2", "key3", null});
 
@@ -219,10 +224,15 @@ final class GcsSinkTaskProperties {
 
             // Randomly pick the number of records to generate in this try.
             final int numberOrRecords = random.nextInt(MAX_RECORDS_PER_TRY);
-            final List<SinkRecord> result = new ArrayList<>(numberOrRecords);
+            final List<List<SinkRecord>> result = new ArrayList<>(numberOrRecords);
+            result.add(new ArrayList<>());
             for (int i = 0; i < numberOrRecords; i++) {
+                if (random.nextDouble() < PROBABILITY_OF_NEW_RECORD_BATCH) {
+                    result.add(new ArrayList<>());
+                }
                 final TopicPartition tp = topicPartitions.get(random.nextInt(topicPartitions.size()));
-                result.add(recordBuilders.get(tp).build());
+                final List<SinkRecord> currentBatch = result.get(result.size() - 1);
+                currentBatch.add(recordBuilders.get(tp).build());
             }
             return result;
         });
