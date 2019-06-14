@@ -7,3 +7,6 @@ build
 # IntelliJ IDEA
 /.idea
 /out
+
+# jqwik
+.jqwik-database
