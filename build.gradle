@@ -41,8 +41,6 @@ ext {
     kafkaVersion = "1.0.2"
 
     testcontainersVersion = "1.11.1"
-
-    buildVersionFileName = "aiven-kafka-connect-gcs-version.properties"
 }
 
 distributions {
@@ -111,18 +109,6 @@ checkstyle {
     ]
 }
 
-task createVersionFile {
-    def receiptFile = file("$buildDir/$buildVersionFileName")
-
-    outputs.file receiptFile
-    outputs.upToDateWhen { false }
-
-    doLast {
-        receiptFile.parentFile.mkdirs()
-        receiptFile.setText("version=$version")
-    }
-}
-
 task integrationTest(type: Test) {
     description = 'Runs the integration tests.'
     group = 'verification'
@@ -161,12 +147,13 @@ test {
     }
 }
 
-jar {
-    dependsOn createVersionFile
-    from("$buildDir") {
-        include "$buildVersionFileName"
+processResources {
+    filesMatching('aiven-kafka-connect-gcs-version.properties') {
+        expand(version: version)
     }
+}
 
+jar {
     manifest {
         attributes(
                 'Version': "${version}"
