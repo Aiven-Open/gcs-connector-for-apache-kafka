@@ -1,6 +1,6 @@
 /*
  * Aiven Kafka GCS Connector
- * Copyright (c) 2019 Aiven Ltd
+ * Copyright (c) 2019 Aiven Oy
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -18,7 +18,14 @@
 
 package io.aiven.kafka.connect.gcs.templating;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -29,11 +36,10 @@ import java.util.regex.Pattern;
  * <p>Variable syntax: {@code {{ variable_name }}}. Only alphanumeric characters and {@code _} are
  * allowed as a variable name. Any number of spaces/tabs inside the braces is allowed.
  *
- * Non-bound variables are left as is.
- *
+ * <p>Non-bound variables are left as is.
  */
 public final class Template {
-    private final static Pattern VARIABLE_PATTERN = Pattern.compile("\\{\\{\\s*([\\w_]+)\\s*}}"); // {{ var }}
+    private static final Pattern VARIABLE_PATTERN = Pattern.compile("\\{\\{\\s*([\\w_]+)\\s*}}"); // {{ var }}
 
     private final String originalTemplateString;
 
@@ -68,7 +74,8 @@ public final class Template {
         return new Instance();
     }
 
-    private static abstract class TemplatePart { }
+    private abstract static class TemplatePart {
+    }
 
     private static final class StaticTemplatePart extends TemplatePart {
         final String text;
@@ -96,7 +103,8 @@ public final class Template {
     public class Instance {
         private final Map<String, Supplier<String>> bindings = new HashMap<>();
 
-        private Instance() {}
+        private Instance() {
+        }
 
         public final Instance bindVariable(final String name, final Supplier<String> supplier) {
             Objects.requireNonNull(name);

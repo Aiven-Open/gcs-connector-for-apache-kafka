@@ -1,6 +1,6 @@
 /*
  * Aiven Kafka GCS Connector
- * Copyright (c) 2019 Aiven Ltd
+ * Copyright (c) 2019 Aiven Oy
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -18,29 +18,32 @@
 
 package io.aiven.kafka.connect.gcs.config;
 
-import com.google.common.collect.Sets;
-import io.aiven.kafka.connect.gcs.templating.Template;
-import org.apache.kafka.common.config.ConfigDef;
-import org.apache.kafka.common.config.ConfigException;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import org.apache.kafka.common.config.ConfigDef;
+import org.apache.kafka.common.config.ConfigException;
+
+import io.aiven.kafka.connect.gcs.templating.Template;
+
+import com.google.common.collect.Sets;
 
 final class FilenameTemplateValidator implements ConfigDef.Validator {
 
     private final String configName;
 
     private static final List<Set<String>> SUPPORTED_VARIABLES_SETS = new ArrayList<>();
+
     static {
         SUPPORTED_VARIABLES_SETS.add(
-                Sets.newHashSet(FilenameTemplateVariable.TOPIC.name,
-                        FilenameTemplateVariable.PARTITION.name,
-                        FilenameTemplateVariable.START_OFFSET.name)
+            Sets.newHashSet(FilenameTemplateVariable.TOPIC.name,
+                FilenameTemplateVariable.PARTITION.name,
+                FilenameTemplateVariable.START_OFFSET.name)
         );
         SUPPORTED_VARIABLES_SETS.add(
-                Sets.newHashSet(FilenameTemplateVariable.KEY.name)
+            Sets.newHashSet(FilenameTemplateVariable.KEY.name)
         );
     }
 
@@ -60,7 +63,7 @@ final class FilenameTemplateValidator implements ConfigDef.Validator {
         final String valueStr = (String) value;
         if (valueStr.startsWith(".well-known/acme-challenge")) {
             throw new ConfigException(configName, value,
-                    "cannot start with '.well-known/acme-challenge'");
+                "cannot start with '.well-known/acme-challenge'");
         }
 
         final Template template = new Template((String) value);
@@ -74,11 +77,11 @@ final class FilenameTemplateValidator implements ConfigDef.Validator {
         }
         if (!isVariableSetSupported) {
             final String supportedSetsStr = SUPPORTED_VARIABLES_SETS.stream()
-                    .map(set -> String.join(",", set))
-                    .collect(Collectors.joining("; "));
+                .map(set -> String.join(",", set))
+                .collect(Collectors.joining("; "));
 
             throw new ConfigException(configName, value,
-                    "unsupported set of template variables, supported sets are: " + supportedSetsStr);
+                "unsupported set of template variables, supported sets are: " + supportedSetsStr);
         }
     }
 }

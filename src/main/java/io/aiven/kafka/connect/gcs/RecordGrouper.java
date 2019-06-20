@@ -1,6 +1,6 @@
 /*
  * Aiven Kafka GCS Connector
- * Copyright (c) 2019 Aiven Ltd
+ * Copyright (c) 2019 Aiven Oy
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -18,10 +18,10 @@
 
 package io.aiven.kafka.connect.gcs;
 
-import org.apache.kafka.connect.sink.SinkRecord;
-
 import java.util.List;
 import java.util.Map;
+
+import org.apache.kafka.connect.sink.SinkRecord;
 
 /**
  * The interface for classes that associates {@link SinkRecord}s with files by some criteria.

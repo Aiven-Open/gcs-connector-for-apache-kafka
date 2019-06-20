@@ -1,6 +1,6 @@
 /*
  * Aiven Kafka GCS Connector
- * Copyright (c) 2019 Aiven Ltd
+ * Copyright (c) 2019 Aiven Oy
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -18,14 +18,21 @@
 
 package io.aiven.kafka.connect.gcs;
 
-import io.aiven.kafka.connect.gcs.config.GcsSinkConfig;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.sink.SinkConnector;
+
+import io.aiven.kafka.connect.gcs.config.GcsSinkConfig;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.*;
 
 public final class GcsSinkConnector extends SinkConnector {
     private static final Logger log = LoggerFactory.getLogger(GcsSinkConnector.class);
@@ -34,7 +41,8 @@ public final class GcsSinkConnector extends SinkConnector {
     private GcsSinkConfig config;
 
     // required by Connect
-    public GcsSinkConnector() { }
+    public GcsSinkConnector() {
+    }
 
     @Override
     public String version() {

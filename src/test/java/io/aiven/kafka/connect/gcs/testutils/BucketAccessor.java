@@ -1,6 +1,6 @@
 /*
  * Aiven Kafka GCS Connector
- * Copyright (c) 2019 Aiven Ltd
+ * Copyright (c) 2019 Aiven Oy
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -18,16 +18,25 @@
 
 package io.aiven.kafka.connect.gcs.testutils;
 
-import com.google.cloud.storage.Blob;
-import com.google.cloud.storage.BlobInfo;
-import com.google.cloud.storage.Storage;
-
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import java.util.zip.GZIPInputStream;
+
+import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.Storage;
 
 public final class BucketAccessor {
     private final Storage storage;
@@ -74,9 +83,9 @@ public final class BucketAccessor {
 
     private List<String> getBlobNames0() {
         return StreamSupport.stream(storage.list(bucketName).iterateAll().spliterator(), false)
-                .map(BlobInfo::getName)
-                .sorted()
-                .collect(Collectors.toList());
+            .map(BlobInfo::getName)
+            .sorted()
+            .collect(Collectors.toList());
     }
 
     /**
@@ -89,9 +98,9 @@ public final class BucketAccessor {
 
         final Storage.BlobListOption blobListOption = Storage.BlobListOption.prefix(prefix);
         return StreamSupport.stream(storage.list(bucketName, blobListOption).iterateAll().spliterator(), false)
-                .map(BlobInfo::getName)
-                .sorted()
-                .collect(Collectors.toList());
+            .map(BlobInfo::getName)
+            .sorted()
+            .collect(Collectors.toList());
     }
 
     public final void clear(final String prefix) {
@@ -115,7 +124,7 @@ public final class BucketAccessor {
         Objects.requireNonNull(blobName);
         if (cache) {
             return stringContentCache.computeIfAbsent(
-                    blobName, k -> readStringContent0(blobName, compressed));
+                blobName, k -> readStringContent0(blobName, compressed));
         } else {
             return readStringContent0(blobName, compressed);
         }
@@ -154,7 +163,8 @@ public final class BucketAccessor {
         }
     }
 
-    private InputStream getDecompressedStream(final InputStream inputStream, final boolean compressed) throws IOException {
+    private InputStream getDecompressedStream(final InputStream inputStream,
+                                              final boolean compressed) throws IOException {
         Objects.requireNonNull(inputStream);
 
         if (compressed) {
@@ -172,7 +182,7 @@ public final class BucketAccessor {
 
         if (cache) {
             return decodedLinesCache.computeIfAbsent(
-                    blobName, k -> readAndDecodeLines0(blobName, compressed, fieldsToDecode));
+                blobName, k -> readAndDecodeLines0(blobName, compressed, fieldsToDecode));
         } else {
             return readAndDecodeLines0(blobName, compressed, fieldsToDecode);
         }
@@ -182,9 +192,9 @@ public final class BucketAccessor {
                                                    final boolean compressed,
                                                    final int[] fieldsToDecode) {
         return readLines(blobName, compressed).stream()
-                .map(l -> l.split(","))
-                .map(fields -> decodeRequiredFields(fields, fieldsToDecode))
-                .collect(Collectors.toList());
+            .map(l -> l.split(","))
+            .map(fields -> decodeRequiredFields(fields, fieldsToDecode))
+            .collect(Collectors.toList());
     }
 
     private List<String> decodeRequiredFields(final String[] originalFields, final int[] fieldsToDecode) {

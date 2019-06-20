@@ -1,6 +1,6 @@
 /*
  * Aiven Kafka GCS Connector
- * Copyright (c) 2019 Aiven Ltd
+ * Copyright (c) 2019 Aiven Oy
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -55,6 +55,6 @@ public class OutputField {
         final OutputField that = (OutputField) obj;
 
         return Objects.equal(this.fieldType, that.fieldType)
-                && Objects.equal(this.encodingType, that.encodingType);
+            && Objects.equal(this.encodingType, that.encodingType);
     }
 }

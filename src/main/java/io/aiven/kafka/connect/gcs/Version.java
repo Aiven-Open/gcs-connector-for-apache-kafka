@@ -1,6 +1,6 @@
 /*
  * Aiven Kafka GCS Connector
- * Copyright (c) 2019 Aiven Ltd
+ * Copyright (c) 2019 Aiven Oy
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -18,11 +18,11 @@
 
 package io.aiven.kafka.connect.gcs;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.InputStream;
 import java.util.Properties;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class Version {
     private static final Logger log = LoggerFactory.getLogger(Version.class);
@@ -34,7 +34,7 @@ class Version {
     static {
         final Properties props = new Properties();
         try (final InputStream resourceStream =
-                     Version.class.getClassLoader().getResourceAsStream(PROPERTIES_FILENAME)) {
+                 Version.class.getClassLoader().getResourceAsStream(PROPERTIES_FILENAME)) {
             props.load(resourceStream);
         } catch (final Exception e) {
             log.warn("Error while loading {}: {}", PROPERTIES_FILENAME, e.getMessage());

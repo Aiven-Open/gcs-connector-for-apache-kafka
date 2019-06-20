@@ -1,6 +1,6 @@
 /*
  * Aiven Kafka GCS Connector
- * Copyright (c) 2019 Aiven Ltd
+ * Copyright (c) 2019 Aiven Oy
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -18,12 +18,20 @@
 
 package io.aiven.kafka.connect.gcs;
 
-import io.aiven.kafka.connect.gcs.config.FilenameTemplateVariable;
-import io.aiven.kafka.connect.gcs.templating.Template;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
 
-import java.util.*;
+import io.aiven.kafka.connect.gcs.config.FilenameTemplateVariable;
+import io.aiven.kafka.connect.gcs.templating.Template;
 
 /**
  * A {@link RecordGrouper} that groups records by key.
@@ -34,7 +42,7 @@ import java.util.*;
  */
 final class KeyRecordGrouper implements RecordGrouper {
     private static final List<String> EXPECTED_VARIABLE_LIST = Arrays.asList(
-            FilenameTemplateVariable.KEY.name
+        FilenameTemplateVariable.KEY.name
     );
 
     private final Template filenameTemplate;
@@ -52,12 +60,12 @@ final class KeyRecordGrouper implements RecordGrouper {
 
         if (!acceptsTemplate(filenameTemplate)) {
             throw new IllegalArgumentException(
-                    "filenameTemplate must have set of variables {"
-                            + String.join(",", EXPECTED_VARIABLE_LIST)
-                            + "}, but {"
-                            + String.join(",", filenameTemplate.variables())
-                            + "} was given"
-                    );
+                "filenameTemplate must have set of variables {"
+                    + String.join(",", EXPECTED_VARIABLE_LIST)
+                    + "}, but {"
+                    + String.join(",", filenameTemplate.variables())
+                    + "} was given"
+            );
         }
 
         this.filenameTemplate = filenameTemplate;
@@ -88,8 +96,8 @@ final class KeyRecordGrouper implements RecordGrouper {
         }
 
         return filenameTemplate.instance()
-                .bindVariable(FilenameTemplateVariable.KEY.name, () -> keyString)
-                .render();
+            .bindVariable(FilenameTemplateVariable.KEY.name, () -> keyString)
+            .render();
     }
 
     @Override

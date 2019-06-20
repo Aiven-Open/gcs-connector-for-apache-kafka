@@ -1,6 +1,6 @@
 /*
  * Aiven Kafka GCS Connector
- * Copyright (c) 2019 Aiven Ltd
+ * Copyright (c) 2019 Aiven Oy
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -18,10 +18,10 @@
 
 package io.aiven.kafka.connect.gcs.output;
 
-import org.apache.kafka.connect.sink.SinkRecord;
-
 import java.io.IOException;
 import java.io.OutputStream;
+
+import org.apache.kafka.connect.sink.SinkRecord;
 
 public interface OutputFieldWriter {
     void write(SinkRecord record, OutputStream outputStream) throws IOException;

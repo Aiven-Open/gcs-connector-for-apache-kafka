@@ -1,6 +1,6 @@
 /*
  * Aiven Kafka GCS Connector
- * Copyright (c) 2019 Aiven Ltd
+ * Copyright (c) 2019 Aiven Oy
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -18,14 +18,19 @@
 
 package io.aiven.kafka.connect.gcs.output;
 
-import io.aiven.kafka.connect.gcs.config.OutputField;
-import org.apache.kafka.connect.errors.ConnectException;
-import org.apache.kafka.connect.sink.SinkRecord;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Objects;
+
+import org.apache.kafka.connect.errors.ConnectException;
+import org.apache.kafka.connect.sink.SinkRecord;
+
+import io.aiven.kafka.connect.gcs.config.OutputField;
 
 public final class OutputWriter {
 
@@ -86,7 +91,8 @@ public final class OutputWriter {
                                 break;
 
                             default:
-                                throw new ConnectException("Unknown output field encoding type " + field.getEncodingType());
+                                throw new ConnectException("Unknown output field encoding type "
+                                    + field.getEncodingType());
                         }
                         break;
 

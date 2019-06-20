@@ -1,6 +1,6 @@
 /*
  * Aiven Kafka GCS Connector
- * Copyright (c) 2019 Aiven Ltd
+ * Copyright (c) 2019 Aiven Oy
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -18,12 +18,20 @@
 
 package io.aiven.kafka.connect.gcs;
 
-import io.aiven.kafka.connect.gcs.config.FilenameTemplateVariable;
-import io.aiven.kafka.connect.gcs.templating.Template;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.sink.SinkRecord;
 
-import java.util.*;
+import io.aiven.kafka.connect.gcs.config.FilenameTemplateVariable;
+import io.aiven.kafka.connect.gcs.templating.Template;
 
 /**
  * A {@link RecordGrouper} that groups records by topic and partition.
@@ -35,9 +43,9 @@ import java.util.*;
  */
 final class TopicPartitionRecordGrouper implements RecordGrouper {
     private static final List<String> EXPECTED_VARIABLE_LIST = Arrays.asList(
-            FilenameTemplateVariable.TOPIC.name,
-            FilenameTemplateVariable.PARTITION.name,
-            FilenameTemplateVariable.START_OFFSET.name
+        FilenameTemplateVariable.TOPIC.name,
+        FilenameTemplateVariable.PARTITION.name,
+        FilenameTemplateVariable.START_OFFSET.name
     );
 
     private final Template filenameTemplate;
@@ -49,7 +57,7 @@ final class TopicPartitionRecordGrouper implements RecordGrouper {
     /**
      * A constructor.
      *
-     * @param filenameTemplate the filename template.
+     * @param filenameTemplate  the filename template.
      * @param maxRecordsPerFile the maximum number of records per file ({@code null} for unlimited).
      */
     public TopicPartitionRecordGrouper(final Template filenameTemplate, final Integer maxRecordsPerFile) {
@@ -57,12 +65,12 @@ final class TopicPartitionRecordGrouper implements RecordGrouper {
 
         if (!acceptsTemplate(filenameTemplate)) {
             throw new IllegalArgumentException(
-                    "filenameTemplate must have set of variables {"
-                            + String.join(",", EXPECTED_VARIABLE_LIST)
-                            + "}, but {"
-                            + String.join(",", filenameTemplate.variables())
-                            + "} was given"
-                    );
+                "filenameTemplate must have set of variables {"
+                    + String.join(",", EXPECTED_VARIABLE_LIST)
+                    + "}, but {"
+                    + String.join(",", filenameTemplate.variables())
+                    + "} was given"
+            );
         }
 
         this.filenameTemplate = filenameTemplate;
@@ -89,10 +97,10 @@ final class TopicPartitionRecordGrouper implements RecordGrouper {
 
     private String renderFilename(final TopicPartition tp, final SinkRecord headRecord) {
         return filenameTemplate.instance()
-                .bindVariable(FilenameTemplateVariable.TOPIC.name, tp::topic)
-                .bindVariable(FilenameTemplateVariable.PARTITION.name, () -> Integer.toString(tp.partition()))
-                .bindVariable(FilenameTemplateVariable.START_OFFSET.name, () -> Long.toString(headRecord.kafkaOffset()))
-                .render();
+            .bindVariable(FilenameTemplateVariable.TOPIC.name, tp::topic)
+            .bindVariable(FilenameTemplateVariable.PARTITION.name, () -> Integer.toString(tp.partition()))
+            .bindVariable(FilenameTemplateVariable.START_OFFSET.name, () -> Long.toString(headRecord.kafkaOffset()))
+            .render();
     }
 
     private boolean shouldCreateNewFile(final String filename) {

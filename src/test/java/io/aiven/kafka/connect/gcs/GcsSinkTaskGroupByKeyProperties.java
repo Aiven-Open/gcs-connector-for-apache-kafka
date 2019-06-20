@@ -1,6 +1,6 @@
 /*
  * Aiven Kafka GCS Connector
- * Copyright (c) 2019 Aiven Ltd
+ * Copyright (c) 2019 Aiven Oy
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -18,20 +18,22 @@
 
 package io.aiven.kafka.connect.gcs;
 
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.contrib.nio.testing.LocalStorageHelper;
-import io.aiven.kafka.connect.gcs.config.GcsSinkConfig;
-import io.aiven.kafka.connect.gcs.testutils.BucketAccessor;
-import net.jqwik.api.ForAll;
-import net.jqwik.api.Property;
-import org.apache.kafka.connect.sink.SinkRecord;
-
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import org.apache.kafka.connect.sink.SinkRecord;
+
+import io.aiven.kafka.connect.gcs.config.GcsSinkConfig;
+import io.aiven.kafka.connect.gcs.testutils.BucketAccessor;
+
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.contrib.nio.testing.LocalStorageHelper;
+import net.jqwik.api.ForAll;
+import net.jqwik.api.Property;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -42,7 +44,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * This is a property-based test for {@link GcsSinkTask} (grouping records by the key)
  * using <a href="https://jqwik.net/docs/current/user-guide.html">jqwik</a>.
  *
- * The idea is to generate random batches of {@link SinkRecord}
+ * <p>The idea is to generate random batches of {@link SinkRecord}
  * (see {@link PbtBase#recordBatches()}, put them into a task, and check certain properties
  * of the written files afterwards. Files are written virtually using the in-memory GCS mock.
  */
@@ -72,8 +74,8 @@ final class GcsSinkTaskGroupByKeyProperties extends PbtBase {
 
         // Check expected file names.
         final List<String> expectedFileNames = lastRecordPerKey.keySet().stream()
-                .map(this::createFilename)
-                .collect(Collectors.toList());
+            .map(this::createFilename)
+            .collect(Collectors.toList());
         assertThat(testBucketAccessor.getBlobNames(), containsInAnyOrder(expectedFileNames.toArray()));
 
         // Check file contents.
@@ -93,7 +95,7 @@ final class GcsSinkTaskGroupByKeyProperties extends PbtBase {
             }
             final String expectedValueSubstring = new String((byte[]) record.value(), StandardCharsets.UTF_8);
             final String expectedLine = String.format("%s,%s,%d",
-                    expectedKeySubstring, expectedValueSubstring, record.kafkaOffset());
+                expectedKeySubstring, expectedValueSubstring, record.kafkaOffset());
             assertEquals(expectedLine, lines.get(0));
         }
     }

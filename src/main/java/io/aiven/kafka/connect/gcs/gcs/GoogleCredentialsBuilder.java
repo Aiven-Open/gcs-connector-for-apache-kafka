@@ -1,6 +1,6 @@
 /*
  * Aiven Kafka GCS Connector
- * Copyright (c) 2019 Aiven Ltd
+ * Copyright (c) 2019 Aiven Oy
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -18,14 +18,14 @@
 
 package io.aiven.kafka.connect.gcs.gcs;
 
-import com.google.auth.oauth2.GoogleCredentials;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+
+import com.google.auth.oauth2.GoogleCredentials;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class GoogleCredentialsBuilder {
     private static final Logger log = LoggerFactory.getLogger(GoogleCredentialsBuilder.class);
@@ -36,15 +36,17 @@ public final class GoogleCredentialsBuilder {
      * <p>{@code credentialsPath} and {@code credentialsJson} are mutually exclusive.
      * So if both are provided (are non-{@code null}), this is an error.
      *
-     * <p>If either @code credentialsPath} or {@code credentialsJson} is provided, it's used to construct the credentials.
+     * <p>If either @code credentialsPath} or {@code credentialsJson} is provided,
+     * it's used to construct the credentials.
      *
      * <p>If none are provided, the default GCP SDK credentials acquisition mechanism is used.
      *
      * @param credentialsPath the credential path, can be {@code null}.
      * @param credentialsJson the credential JSON string, can be {@code null}.
      * @return a {@link GoogleCredentials} constructed based on the input.
-     * @throws IOException if some error getting the credentials happen.
-     * @throws IllegalArgumentException if both {@code credentialsPath} and {@code credentialsJson} are non-{@code null}.
+     * @throws IOException              if some error getting the credentials happen.
+     * @throws IllegalArgumentException
+     * if both {@code credentialsPath} and {@code credentialsJson} are non-{@code null}.
      */
     public static GoogleCredentials build(final String credentialsPath,
                                           final String credentialsJson) throws IOException, IllegalArgumentException {

@@ -1,6 +1,6 @@
 /*
  * Aiven Kafka GCS Connector
- * Copyright (c) 2019 Aiven Ltd
+ * Copyright (c) 2019 Aiven Oy
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -18,29 +18,41 @@
 
 package io.aiven.kafka.connect.gcs;
 
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.contrib.nio.testing.LocalStorageHelper;
-import com.google.common.collect.Lists;
-import io.aiven.kafka.connect.gcs.config.GcsSinkConfig;
-import io.aiven.kafka.connect.gcs.testutils.BucketAccessor;
-import net.jqwik.api.ForAll;
-import net.jqwik.api.Property;
-import net.jqwik.api.constraints.IntRange;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.sink.SinkRecord;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import io.aiven.kafka.connect.gcs.config.GcsSinkConfig;
+import io.aiven.kafka.connect.gcs.testutils.BucketAccessor;
+
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.contrib.nio.testing.LocalStorageHelper;
+import com.google.common.collect.Lists;
+import net.jqwik.api.ForAll;
+import net.jqwik.api.Property;
+import net.jqwik.api.constraints.IntRange;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * This is a property-based test for {@link GcsSinkTask} (grouping records by the topic and partition)
  * using <a href="https://jqwik.net/docs/current/user-guide.html">jqwik</a>.
  *
- * The idea is to generate random batches of {@link SinkRecord}
+ * <p>The idea is to generate random batches of {@link SinkRecord}
  * (see {@link PbtBase#recordBatches()}, put them into a task, and check certain properties
  * of the written files afterwards. Files are written virtually using the in-memory GCS mock.
  */
@@ -91,13 +103,13 @@ final class GcsSinkTaskGroupByTopicPartitionProperties extends PbtBase {
 
         for (final List<SinkRecord> recordBatch : recordBatches) {
             final Map<TopicPartition, List<SinkRecord>> groupedPerTopicPartition = recordBatch.stream()
-                    .collect(
-                            Collectors.groupingBy(r -> new TopicPartition(r.topic(), r.kafkaPartition()))
-                    );
+                .collect(
+                    Collectors.groupingBy(r -> new TopicPartition(r.topic(), r.kafkaPartition()))
+                );
 
             for (final TopicPartition tp : groupedPerTopicPartition.keySet()) {
                 final List<List<SinkRecord>> chunks = Lists.partition(
-                        groupedPerTopicPartition.get(tp), effectiveMaxRecordsPerFile(maxRecordsPerFile));
+                    groupedPerTopicPartition.get(tp), effectiveMaxRecordsPerFile(maxRecordsPerFile));
                 for (final List<SinkRecord> chunk : chunks) {
                     expectedFileNames.add(createFilename(chunk.get(0)));
                 }
@@ -114,8 +126,8 @@ final class GcsSinkTaskGroupByTopicPartitionProperties extends PbtBase {
         final int effectiveMax = effectiveMaxRecordsPerFile(maxRecordsPerFile);
         for (final String filename : bucketAccessor.getBlobNames()) {
             assertThat(
-                    bucketAccessor.readLines(filename, false),
-                    hasSize(allOf(greaterThan(0), lessThanOrEqualTo(effectiveMax)))
+                bucketAccessor.readLines(filename, false),
+                hasSize(allOf(greaterThan(0), lessThanOrEqualTo(effectiveMax)))
             );
         }
     }
@@ -123,8 +135,8 @@ final class GcsSinkTaskGroupByTopicPartitionProperties extends PbtBase {
     /**
      * Checks, that:
      * <ul>
-     *     <li>the total number of records written to all files is correct;</li>
-     *     <li>each record is written only once.</li>
+     * <li>the total number of records written to all files is correct;</li>
+     * <li>each record is written only once.</li>
      * </ul>
      */
     private void checkTotalRecordCountAndNoMultipleWrites(final int expectedCount,
@@ -174,8 +186,8 @@ final class GcsSinkTaskGroupByTopicPartitionProperties extends PbtBase {
         for (final String filename : bucketAccessor.getBlobNames()) {
             final List<List<String>> lines = bucketAccessor.readAndDecodeLines(filename, false, FIELD_KEY, FIELD_VALUE);
             final List<Integer> offsets = lines.stream()
-                    .map(line -> Integer.parseInt(line.get(FIELD_OFFSET)))
-                    .collect(Collectors.toList());
+                .map(line -> Integer.parseInt(line.get(FIELD_OFFSET)))
+                .collect(Collectors.toList());
             for (int i = 0; i < offsets.size() - 1; i++) {
                 assertTrue(offsets.get(i) < offsets.get(i + 1));
             }
