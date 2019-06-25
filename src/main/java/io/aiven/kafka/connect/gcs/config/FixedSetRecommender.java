@@ -1,6 +1,6 @@
 /*
  * Aiven Kafka GCS Connector
- * Copyright (c) 2019 Aiven Ltd
+ * Copyright (c) 2019 Aiven Oy
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -18,9 +18,14 @@
 
 package io.aiven.kafka.connect.gcs.config;
 
-import org.apache.kafka.common.config.ConfigDef;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
-import java.util.*;
+import org.apache.kafka.common.config.ConfigDef;
 
 /**
  * A {@link ConfigDef.Recommender} that always supports only

@@ -1,6 +1,6 @@
 /*
  * Aiven Kafka GCS Connector
- * Copyright (c) 2019 Aiven Ltd
+ * Copyright (c) 2019 Aiven Oy
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -18,8 +18,6 @@
 
 package io.aiven.kafka.connect.gcs.templating;
 
-import org.junit.jupiter.api.Test;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,7 +27,11 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.stream.Collectors;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertIterableEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 final class TemplateTest {
     @Test
@@ -223,7 +225,7 @@ final class TemplateTest {
              final BufferedReader bufferedReader = new BufferedReader(reader)) {
 
             return bufferedReader.lines().filter(s -> !s.isEmpty() && !s.startsWith("#"))
-                    .collect(Collectors.toList());
+                .collect(Collectors.toList());
         }
     }
 

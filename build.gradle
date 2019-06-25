@@ -1,6 +1,6 @@
 /*
  * Aiven Kafka GCS Connector
- * Copyright (c) 2019 Aiven Ltd
+ * Copyright (c) 2019 Aiven Oy
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -87,7 +87,10 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter:5.4.1'
     testImplementation 'org.hamcrest:hamcrest:2.1'
     testImplementation "net.jqwik:jqwik:1.1.5"
-    testImplementation "net.jqwik:jqwik-engine:1.1.5" // is provided by "jqwik", but need this in testImplementation scope
+
+    // is provided by "jqwik", but need this in testImplementation scope
+    testImplementation "net.jqwik:jqwik-engine:1.1.5"
+
     testImplementation "org.apache.kafka:connect-api:$kafkaVersion"
     testImplementation 'com.google.cloud:google-cloud-nio:0.84.0-alpha'
     testRuntime 'ch.qos.logback:logback-classic:1.2.3'
@@ -104,9 +107,9 @@ dependencies {
 }
 
 checkstyle {
-    configProperties = [
-            rootDir: "$rootDir"
-    ]
+    toolVersion "8.21"
+    configDir rootProject.file("checkstyle/")
+    println configFile
 }
 
 task integrationTest(type: Test) {
@@ -114,7 +117,7 @@ task integrationTest(type: Test) {
     group = 'verification'
     testClassesDirs = sourceSets.integrationTest.output.classesDirs
     classpath = sourceSets.integrationTest.runtimeClasspath
-    
+
     dependsOn test, distTar
 
     useJUnitPlatform()

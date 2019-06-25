@@ -1,6 +1,6 @@
 /*
  * Aiven Kafka GCS Connector
- * Copyright (c) 2019 Aiven Ltd
+ * Copyright (c) 2019 Aiven Oy
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -18,14 +18,14 @@
 
 package io.aiven.kafka.connect.gcs.output;
 
-import org.apache.kafka.connect.data.Schema;
-import org.apache.kafka.connect.errors.DataException;
-import org.apache.kafka.connect.sink.SinkRecord;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Base64;
 import java.util.Objects;
+
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.errors.DataException;
+import org.apache.kafka.connect.sink.SinkRecord;
 
 public final class KeyWriter implements OutputFieldWriter {
     /**
@@ -35,7 +35,7 @@ public final class KeyWriter implements OutputFieldWriter {
      *
      * <p>If the key is not {@code null}, it assumes the key <b>is</b> a byte array.
      *
-     * @param record the record to get the key from
+     * @param record       the record to get the key from
      * @param outputStream the stream to write to
      * @throws DataException when the key is not actually a byte array
      */
@@ -47,9 +47,9 @@ public final class KeyWriter implements OutputFieldWriter {
         Objects.requireNonNull(outputStream);
 
         if (record.keySchema().type() != Schema.Type.BYTES
-                && record.keySchema().type() != Schema.Type.STRING) {
+            && record.keySchema().type() != Schema.Type.STRING) {
             final String msg = String.format("Record key schema type must be %s or %s, %s given",
-                    Schema.Type.BYTES, Schema.Type.STRING, record.keySchema().type());
+                Schema.Type.BYTES, Schema.Type.STRING, record.keySchema().type());
             throw new DataException(msg);
         }
 

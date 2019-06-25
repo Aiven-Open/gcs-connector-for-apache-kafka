@@ -1,6 +1,6 @@
 /*
  * Aiven Kafka GCS Connector
- * Copyright (c) 2019 Aiven Ltd
+ * Copyright (c) 2019 Aiven Oy
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -18,26 +18,31 @@
 
 package io.aiven.kafka.connect.gcs;
 
-import com.google.cloud.storage.BlobInfo;
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageOptions;
-import io.aiven.kafka.connect.gcs.config.CompressionType;
-import io.aiven.kafka.connect.gcs.config.GcsSinkConfig;
-import io.aiven.kafka.connect.gcs.output.OutputWriter;
-import io.aiven.kafka.connect.gcs.templating.Template;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.zip.GZIPOutputStream;
+
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
+
+import io.aiven.kafka.connect.gcs.config.CompressionType;
+import io.aiven.kafka.connect.gcs.config.GcsSinkConfig;
+import io.aiven.kafka.connect.gcs.output.OutputWriter;
+import io.aiven.kafka.connect.gcs.templating.Template;
+
+import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.*;
-import java.util.zip.GZIPOutputStream;
 
 public final class GcsSinkTask extends SinkTask {
     private static final Logger log = LoggerFactory.getLogger(GcsSinkConnector.class);
@@ -50,7 +55,8 @@ public final class GcsSinkTask extends SinkTask {
     private Storage storage;
 
     // required by Connect
-    public GcsSinkTask() { }
+    public GcsSinkTask() {
+    }
 
     // for testing
     GcsSinkTask(final Map<String, String> props,
@@ -69,9 +75,9 @@ public final class GcsSinkTask extends SinkTask {
 
         this.config = new GcsSinkConfig(props);
         this.storage = StorageOptions.newBuilder()
-                .setCredentials(config.getCredentials())
-                .build()
-                .getService();
+            .setCredentials(config.getCredentials())
+            .build()
+            .getService();
         initRest();
     }
 
@@ -118,8 +124,8 @@ public final class GcsSinkTask extends SinkTask {
 
     private void flushFile(final String filename, final List<SinkRecord> records) {
         final BlobInfo blob = BlobInfo
-                .newBuilder(config.getBucketName(), config.getPrefix() + filename)
-                .build();
+            .newBuilder(config.getBucketName(), config.getPrefix() + filename)
+            .build();
 
         try (final ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
             // Don't group these two tries,

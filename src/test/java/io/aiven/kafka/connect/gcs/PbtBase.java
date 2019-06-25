@@ -1,6 +1,6 @@
 /*
  * Aiven Kafka GCS Connector
- * Copyright (c) 2019 Aiven Ltd
+ * Copyright (c) 2019 Aiven Oy
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -18,18 +18,24 @@
 
 package io.aiven.kafka.connect.gcs;
 
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+
+import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.sink.SinkRecord;
+
 import io.aiven.kafka.connect.gcs.config.GcsSinkConfig;
+
 import net.jqwik.api.Arbitraries;
 import net.jqwik.api.Arbitrary;
 import net.jqwik.api.Provide;
 import net.jqwik.api.RandomGenerator;
 import net.jqwik.engine.properties.arbitraries.randomized.RandomGenerators;
-import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.connect.data.Schema;
-import org.apache.kafka.connect.sink.SinkRecord;
-
-import java.nio.charset.StandardCharsets;
-import java.util.*;
 
 abstract class PbtBase {
     private static final int MAX_TOPICS = 6;
@@ -49,7 +55,7 @@ abstract class PbtBase {
     @Provide
     final Arbitrary<List<List<SinkRecord>>> recordBatches() {
         final RandomGenerator<String> keyGenerator = RandomGenerators.samples(
-                new String[]{"key0", "key1", "key2", "key3", null});
+            new String[]{"key0", "key1", "key2", "key3", null});
 
         // TODO make generated lists shrinkable
         return Arbitraries.randomValue(random -> {
@@ -109,13 +115,13 @@ abstract class PbtBase {
             final String value = topic + "-" + partition;
 
             final SinkRecord record = new SinkRecord(
-                    topic,
-                    partition,
-                    Schema.OPTIONAL_STRING_SCHEMA,
-                    key,
-                    Schema.OPTIONAL_BYTES_SCHEMA,
-                    value.getBytes(StandardCharsets.UTF_8),
-                    offset);
+                topic,
+                partition,
+                Schema.OPTIONAL_STRING_SCHEMA,
+                key,
+                Schema.OPTIONAL_BYTES_SCHEMA,
+                value.getBytes(StandardCharsets.UTF_8),
+                offset);
             // Imitate gaps in offsets.
             final int offsetIncrement = random.nextInt(MAX_OFFSET_INCREMENT - 1) + 1;
             offset += offsetIncrement;

@@ -1,6 +1,6 @@
 /*
  * Aiven Kafka GCS Connector
- * Copyright (c) 2019 Aiven Ltd
+ * Copyright (c) 2019 Aiven Oy
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -18,11 +18,12 @@
 
 package io.aiven.kafka.connect.gcs.config;
 
-import org.apache.kafka.common.config.ConfigValue;
-import org.junit.jupiter.api.Test;
-
 import java.util.HashMap;
 import java.util.Map;
+
+import org.apache.kafka.common.config.ConfigValue;
+
+import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 
@@ -37,12 +38,12 @@ final class GcsSinkConfigValidationTest {
         connectorProps.put("file.compression.type", "unknown");
 
         final ConfigValue v = GcsSinkConfig.configDef().validate(connectorProps).stream()
-                .filter(x -> x.name().equals("file.compression.type"))
-                .findFirst()
-                .get();
+            .filter(x -> x.name().equals("file.compression.type"))
+            .findFirst()
+            .get();
         assertIterableEquals(
-                CompressionType.names(),
-                v.recommendedValues()
+            CompressionType.names(),
+            v.recommendedValues()
         );
     }
 
@@ -52,12 +53,12 @@ final class GcsSinkConfigValidationTest {
         connectorProps.put("format.output.fields", "unknown");
 
         final ConfigValue v = GcsSinkConfig.configDef().validate(connectorProps).stream()
-                .filter(x -> x.name().equals("format.output.fields"))
-                .findFirst()
-                .get();
+            .filter(x -> x.name().equals("format.output.fields"))
+            .findFirst()
+            .get();
         assertIterableEquals(
-                OutputFieldType.names(),
-                v.recommendedValues()
+            OutputFieldType.names(),
+            v.recommendedValues()
         );
     }
 }

@@ -1,6 +1,6 @@
 /*
  * Aiven Kafka GCS Connector
- * Copyright (c) 2019 Aiven Ltd
+ * Copyright (c) 2019 Aiven Oy
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -18,13 +18,13 @@
 
 package io.aiven.kafka.connect.gcs.output;
 
-import org.apache.kafka.connect.data.Schema;
-import org.apache.kafka.connect.errors.DataException;
-import org.apache.kafka.connect.sink.SinkRecord;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Objects;
+
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.errors.DataException;
+import org.apache.kafka.connect.sink.SinkRecord;
 
 public abstract class AbstractValueWriter implements OutputFieldWriter {
     /**
@@ -34,7 +34,7 @@ public abstract class AbstractValueWriter implements OutputFieldWriter {
      *
      * <p>If the value is not {@code null}, it assumes the value <b>is</b> a byte array.
      *
-     * @param record the record to get the value from
+     * @param record       the record to get the value from
      * @param outputStream the stream to write to
      * @throws DataException when the value is not actually a byte array
      */
@@ -47,7 +47,7 @@ public abstract class AbstractValueWriter implements OutputFieldWriter {
 
         if (record.valueSchema().type() != Schema.Type.BYTES) {
             final String msg = String.format("Record value schema type must be %s, %s given",
-                    Schema.Type.BYTES, record.valueSchema().type());
+                Schema.Type.BYTES, record.valueSchema().type());
             throw new DataException(msg);
         }
 
