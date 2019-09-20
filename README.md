@@ -13,6 +13,8 @@ The connector subscribes to the specified Kafka topics and collects
 messages coming in them and periodically dumps the collected data to the
 specified bucket in GCS.
 
+Sometimes—for example, on reprocessing of some data—the connector will overwrite files that are already in the bucket. You need to ensure the bucket doesn't have a retention policy that prohibits overwriting.
+
 ### File name format
 
 The connector uses the following format for output files (blobs):
