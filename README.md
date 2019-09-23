@@ -15,6 +15,10 @@ specified bucket in GCS.
 
 Sometimes—for example, on reprocessing of some data—the connector will overwrite files that are already in the bucket. You need to ensure the bucket doesn't have a retention policy that prohibits overwriting.
 
+The following object permissions must be enabled in the bucket:
+- `storage.objects.create`;
+- `storage.objects.delete` (needed for overwriting).
+
 ### File name format
 
 The connector uses the following format for output files (blobs):
