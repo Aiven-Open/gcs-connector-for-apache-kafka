@@ -108,7 +108,7 @@ public final class GcsSinkTask extends SinkTask {
     public void put(final Collection<SinkRecord> records) {
         Objects.requireNonNull(records);
 
-        log.info("Processing {} records", records.size());
+        log.debug("Processing {} records", records.size());
         for (final SinkRecord record : records) {
             recordGrouper.put(record);
         }
