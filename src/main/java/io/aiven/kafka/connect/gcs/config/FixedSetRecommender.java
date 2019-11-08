@@ -36,7 +36,7 @@ class FixedSetRecommender implements ConfigDef.Recommender {
     private final List<Object> supportedValues;
 
     private FixedSetRecommender(final Collection<?> supportedValues) {
-        Objects.requireNonNull(supportedValues);
+        Objects.requireNonNull(supportedValues, "supportedValues cannot be null");
         this.supportedValues = new ArrayList<>(supportedValues);
     }
 
@@ -51,7 +51,7 @@ class FixedSetRecommender implements ConfigDef.Recommender {
     }
 
     static FixedSetRecommender ofSupportedValues(final Collection<?> supportedValues) {
-        Objects.requireNonNull(supportedValues);
+        Objects.requireNonNull(supportedValues, "supportedValues cannot be null");
         return new FixedSetRecommender(supportedValues);
     }
 }

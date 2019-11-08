@@ -41,9 +41,9 @@ public abstract class AbstractValueWriter implements OutputFieldWriter {
     @Override
     public void write(final SinkRecord record,
                       final OutputStream outputStream) throws IOException {
-        Objects.requireNonNull(record);
-        Objects.requireNonNull(record.valueSchema());
-        Objects.requireNonNull(outputStream);
+        Objects.requireNonNull(record, "record cannot be null");
+        Objects.requireNonNull(record.valueSchema(), "value schema cannot be null");
+        Objects.requireNonNull(outputStream, "outputStream cannot be null");
 
         if (record.valueSchema().type() != Schema.Type.BYTES) {
             final String msg = String.format("Record value schema type must be %s, %s given",

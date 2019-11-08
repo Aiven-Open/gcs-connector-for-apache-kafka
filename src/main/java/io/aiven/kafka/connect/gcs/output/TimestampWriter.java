@@ -29,8 +29,8 @@ public final class TimestampWriter implements OutputFieldWriter {
     @Override
     public void write(final SinkRecord record,
                       final OutputStream outputStream) throws IOException {
-        Objects.requireNonNull(record);
-        Objects.requireNonNull(outputStream);
+        Objects.requireNonNull(record, "record cannot be null");
+        Objects.requireNonNull(outputStream, "outputStream cannot be null");
 
         if (record.timestamp() != null) {
             outputStream.write(record.timestamp().toString().getBytes(StandardCharsets.UTF_8));

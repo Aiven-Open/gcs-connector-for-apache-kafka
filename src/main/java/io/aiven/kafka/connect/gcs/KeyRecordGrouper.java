@@ -56,7 +56,7 @@ final class KeyRecordGrouper implements RecordGrouper {
      * @param filenameTemplate the filename template.
      */
     public KeyRecordGrouper(final Template filenameTemplate) {
-        Objects.requireNonNull(filenameTemplate);
+        Objects.requireNonNull(filenameTemplate, "filenameTemplate cannot be null");
 
         if (!acceptsTemplate(filenameTemplate)) {
             throw new IllegalArgumentException(
@@ -73,7 +73,7 @@ final class KeyRecordGrouper implements RecordGrouper {
 
     @Override
     public void put(final SinkRecord record) {
-        Objects.requireNonNull(record);
+        Objects.requireNonNull(record, "records cannot be null");
 
         final String filename = renderFilename(record);
 

@@ -107,8 +107,8 @@ public final class Template {
         }
 
         public final Instance bindVariable(final String name, final Supplier<String> supplier) {
-            Objects.requireNonNull(name);
-            Objects.requireNonNull(supplier);
+            Objects.requireNonNull(name, "name cannot be null");
+            Objects.requireNonNull(supplier, "supplier cannot be null");
             if (name.trim().isEmpty()) {
                 throw new IllegalArgumentException("name must not be empty");
             }

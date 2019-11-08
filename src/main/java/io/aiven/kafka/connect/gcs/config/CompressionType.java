@@ -34,7 +34,7 @@ public enum CompressionType {
     }
 
     public static CompressionType forName(final String name) {
-        Objects.requireNonNull(name);
+        Objects.requireNonNull(name, "name cannot be null");
 
         if (NONE.name.equalsIgnoreCase(name)) {
             return NONE;

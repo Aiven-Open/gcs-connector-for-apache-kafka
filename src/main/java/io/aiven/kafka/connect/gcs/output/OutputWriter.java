@@ -45,16 +45,16 @@ public final class OutputWriter {
 
     public void writeRecord(final SinkRecord record,
                             final OutputStream outputStream) throws IOException {
-        Objects.requireNonNull(record);
-        Objects.requireNonNull(outputStream);
+        Objects.requireNonNull(record, "record cannot be null");
+        Objects.requireNonNull(outputStream, "outputStream cannot be null");
         writeFields(record, outputStream);
         outputStream.write(RECORD_SEPARATOR);
     }
 
     public void writeLastRecord(final SinkRecord record,
                                 final OutputStream outputStream) throws IOException {
-        Objects.requireNonNull(record);
-        Objects.requireNonNull(outputStream);
+        Objects.requireNonNull(record, "record cannot be null");
+        Objects.requireNonNull(outputStream, "outputStream cannot be null");
         writeFields(record, outputStream);
     }
 
@@ -72,7 +72,7 @@ public final class OutputWriter {
         private final List<OutputFieldWriter> writers = new ArrayList<>();
 
         public final Builder addFields(final Collection<OutputField> fields) {
-            Objects.requireNonNull(fields);
+            Objects.requireNonNull(fields, "fields cannot be null");
 
             for (final OutputField field : fields) {
                 switch (field.getFieldType()) {
