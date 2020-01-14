@@ -43,6 +43,15 @@ final class FilenameTemplateValidator implements ConfigDef.Validator {
                 FilenameTemplateVariable.START_OFFSET.name)
         );
         SUPPORTED_VARIABLES_SETS.add(
+            Sets.newHashSet(FilenameTemplateVariable.TOPIC.name,
+                FilenameTemplateVariable.PARTITION.name,
+                FilenameTemplateVariable.START_OFFSET.name,
+                FilenameTemplateVariable.YEAR.name,
+                FilenameTemplateVariable.MONTH.name,
+                FilenameTemplateVariable.DAY.name,
+                FilenameTemplateVariable.HOUR.name)
+        );
+        SUPPORTED_VARIABLES_SETS.add(
             Sets.newHashSet(FilenameTemplateVariable.KEY.name)
         );
     }

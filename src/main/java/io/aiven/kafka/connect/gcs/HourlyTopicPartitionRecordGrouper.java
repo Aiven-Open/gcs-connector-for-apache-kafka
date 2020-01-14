@@ -20,7 +20,7 @@ package io.aiven.kafka.connect.gcs;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 
 import org.apache.kafka.common.TopicPartition;
@@ -78,5 +78,4 @@ final class HourlyTopicPartitionRecordGrouper extends TopicPartitionRecordGroupe
     static boolean acceptsTemplate(final Template filenameTemplate) {
         return new HashSet<>(EXPECTED_VARIABLE_LIST).equals(filenameTemplate.variablesSet());
     }
-}
 }

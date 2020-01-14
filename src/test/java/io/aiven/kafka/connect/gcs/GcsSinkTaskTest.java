@@ -110,6 +110,21 @@ final class GcsSinkTaskTest {
     }
 
     @Test
+    final void basicNewTemplate() {
+        final String template = "{{year}/{{month}}/{{day}}/{{hour}}/{{topic}}-{{partition}}-{{start_offset}}";
+        properties.put(GcsSinkConfig.FILE_NAME_TEMPLATE_CONFIG, template);
+
+        final GcsSinkTask task = new GcsSinkTask(properties, storage);
+
+        task.put(basicRecords);
+        task.flush(null);
+
+        assertIterableEquals(
+            Lists.newArrayList("topic0-0-10", "topic0-1-20", "topic0-2-50", "topic1-0-30", "topic1-1-40"),
+            testBucketAccessor.getBlobNames());
+    }
+
+    @Test
     final void basicValuesPlain() {
         properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_VALUE_ENCODING_CONFIG, "none");
         final GcsSinkTask task = new GcsSinkTask(properties, storage);
