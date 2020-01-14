@@ -32,6 +32,7 @@ import org.apache.kafka.connect.sink.SinkRecord;
 
 import io.aiven.kafka.connect.gcs.config.FilenameTemplateVariable;
 import io.aiven.kafka.connect.gcs.templating.Template;
+import io.aiven.kafka.connect.gcs.templating.Template.Instance;
 
 /**
  * A {@link RecordGrouper} that groups records by topic and partition.
@@ -41,7 +42,7 @@ import io.aiven.kafka.connect.gcs.templating.Template;
  *
  * <p>The class supports limited and unlimited number of records in files.
  */
-final class TopicPartitionRecordGrouper implements RecordGrouper {
+class TopicPartitionRecordGrouper implements RecordGrouper {
     private static final List<String> EXPECTED_VARIABLE_LIST = Arrays.asList(
         FilenameTemplateVariable.TOPIC.name,
         FilenameTemplateVariable.PARTITION.name,
@@ -83,24 +84,23 @@ final class TopicPartitionRecordGrouper implements RecordGrouper {
 
         final TopicPartition tp = new TopicPartition(record.topic(), record.kafkaPartition());
         final SinkRecord currentHeadRecord = currentHeadRecords.computeIfAbsent(tp, ignored -> record);
-        final String filename = renderFilename(tp, currentHeadRecord);
+        final String filename = renderFilename(tp, currentHeadRecord).render();
 
         if (shouldCreateNewFile(filename)) {
             // Create new file using this record as the head record.
             currentHeadRecords.put(tp, record);
-            final String newFilename = renderFilename(tp, record);
+            final String newFilename = renderFilename(tp, record).render();
             fileBuffers.computeIfAbsent(newFilename, ignored -> new ArrayList<>()).add(record);
         } else {
             fileBuffers.computeIfAbsent(filename, ignored -> new ArrayList<>()).add(record);
         }
     }
 
-    private String renderFilename(final TopicPartition tp, final SinkRecord headRecord) {
+    protected Instance renderFilename(final TopicPartition tp, final SinkRecord headRecord) {
         return filenameTemplate.instance()
             .bindVariable(FilenameTemplateVariable.TOPIC.name, tp::topic)
             .bindVariable(FilenameTemplateVariable.PARTITION.name, () -> Integer.toString(tp.partition()))
-            .bindVariable(FilenameTemplateVariable.START_OFFSET.name, () -> Long.toString(headRecord.kafkaOffset()))
-            .render();
+            .bindVariable(FilenameTemplateVariable.START_OFFSET.name, () -> Long.toString(headRecord.kafkaOffset()));
     }
 
     private boolean shouldCreateNewFile(final String filename) {

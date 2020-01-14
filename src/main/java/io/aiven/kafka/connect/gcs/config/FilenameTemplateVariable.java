@@ -22,7 +22,11 @@ public enum FilenameTemplateVariable {
     TOPIC("topic"),
     PARTITION("partition"),
     START_OFFSET("start_offset"),
-    KEY("key");
+    KEY("key"),
+    HOUR("hour"),
+    DAY("day"),
+    MONTH("month"),
+    YEAR("year");
 
     public final String name;
 

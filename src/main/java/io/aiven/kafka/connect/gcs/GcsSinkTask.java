@@ -92,7 +92,9 @@ public final class GcsSinkTask extends SinkTask {
         }
 
         final Template filenameTemplate = config.getFilenameTemplate();
-        if (TopicPartitionRecordGrouper.acceptsTemplate(filenameTemplate)) {
+        if (HourlyTopicPartitionRecordGrouper.acceptsTemplate(filenameTemplate)) {
+            this.recordGrouper = new HourlyTopicPartitionRecordGrouper(filenameTemplate, maxRecordsPerFile);
+        } else if (TopicPartitionRecordGrouper.acceptsTemplate(filenameTemplate)) {
             this.recordGrouper = new TopicPartitionRecordGrouper(filenameTemplate, maxRecordsPerFile);
         } else if (KeyRecordGrouper.acceptsTemplate(filenameTemplate)) {
             if (maxRecordsPerFile == null) {
