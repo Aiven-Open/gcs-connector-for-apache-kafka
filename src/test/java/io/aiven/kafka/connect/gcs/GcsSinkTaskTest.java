@@ -40,6 +40,7 @@ import com.google.cloud.storage.contrib.nio.testing.LocalStorageHelper;
 import com.google.common.collect.Lists;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.threeten.bp.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
@@ -111,7 +112,7 @@ final class GcsSinkTaskTest {
 
     @Test
     final void basicNewTemplate() {
-        final String template = "{{year}/{{month}}/{{day}}/{{hour}}/{{topic}}-{{partition}}-{{start_offset}}";
+        final String template = "{{year}}/{{month}}/{{day}}/{{hour}}/{{topic}}-{{partition}}-{{start_offset}}";
         properties.put(GcsSinkConfig.FILE_NAME_TEMPLATE_CONFIG, template);
 
         final GcsSinkTask task = new GcsSinkTask(properties, storage);
@@ -119,8 +120,22 @@ final class GcsSinkTaskTest {
         task.put(basicRecords);
         task.flush(null);
 
+        final LocalDateTime now = LocalDateTime.now();
+        final String prefix = String.format("%d/%d/%d/%d/",
+            now.getYear(),
+            now.getMonthValue(),
+            now.getDayOfMonth(),
+            now.getHour()
+        );
+
         assertIterableEquals(
-            Lists.newArrayList("topic0-0-10", "topic0-1-20", "topic0-2-50", "topic1-0-30", "topic1-1-40"),
+            Lists.newArrayList(
+                prefix + "topic0-0-10",
+                prefix + "topic0-1-20",
+                prefix + "topic0-2-50",
+                prefix + "topic1-0-30",
+                prefix + "topic1-1-40"
+            ),
             testBucketAccessor.getBlobNames());
     }
 

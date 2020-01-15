@@ -32,15 +32,18 @@ import org.apache.kafka.common.config.ConfigException;
 
 import com.google.auth.oauth2.UserCredentials;
 import com.google.common.io.Resources;
+import org.hamcrest.core.StringContains;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+
 
 /**
  * Tests {@link GcsSinkConfig} class.
@@ -178,10 +181,7 @@ final class GcsSinkConfigTest {
         final Throwable t = assertThrows(
             ConfigException.class, () -> new GcsSinkConfig(properties)
         );
-        assertEquals("Invalid value [key, value, offset, timestamp, unsupported] "
-                + "for configuration format.output.fields: "
-                + "supported values are: 'key', 'value', 'offset', 'timestamp'",
-            t.getMessage());
+        assertThat(t.getMessage(), StringContains.containsString("supported values are:"));
     }
 
     @Test
@@ -378,9 +378,7 @@ final class GcsSinkConfigTest {
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties));
-        assertEquals("Invalid value  for configuration file.name.template: "
-                + "unsupported set of template variables, supported sets are: topic,partition,start_offset; key",
-            t.getMessage());
+        assertThat(t.getMessage(), StringContains.containsString("supported sets are:"));
     }
 
     @Test
@@ -392,10 +390,7 @@ final class GcsSinkConfigTest {
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties));
-        assertEquals("Invalid value {{ aaa }}{{ topic }}{{ partition }}{{ start_offset }} "
-                + "for configuration file.name.template: "
-                + "unsupported set of template variables, supported sets are: topic,partition,start_offset; key",
-            t.getMessage());
+        assertThat(t.getMessage(), StringContains.containsString("supported sets are:"));
     }
 
     @Test
@@ -407,9 +402,7 @@ final class GcsSinkConfigTest {
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties));
-        assertEquals("Invalid value {{ partition }}{{ start_offset }} for configuration file.name.template: "
-                + "unsupported set of template variables, supported sets are: topic,partition,start_offset; key",
-            t.getMessage());
+        assertThat(t.getMessage(), StringContains.containsString("supported sets are:"));
     }
 
     @Test
@@ -421,9 +414,7 @@ final class GcsSinkConfigTest {
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties));
-        assertEquals("Invalid value {{ topic }}{{ start_offset }} for configuration file.name.template: "
-                + "unsupported set of template variables, supported sets are: topic,partition,start_offset; key",
-            t.getMessage());
+        assertThat(t.getMessage(), StringContains.containsString("supported sets are:"));
     }
 
     @Test
@@ -435,9 +426,7 @@ final class GcsSinkConfigTest {
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties));
-        assertEquals("Invalid value {{ topic }}{{ partition }} for configuration file.name.template: "
-                + "unsupported set of template variables, supported sets are: topic,partition,start_offset; key",
-            t.getMessage());
+        assertThat(t.getMessage(), StringContains.containsString("supported sets are:"));
     }
 
     @Test
