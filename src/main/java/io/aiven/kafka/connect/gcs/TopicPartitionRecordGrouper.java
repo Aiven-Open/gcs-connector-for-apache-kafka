@@ -49,8 +49,8 @@ class TopicPartitionRecordGrouper implements RecordGrouper {
         FilenameTemplateVariable.START_OFFSET.name
     );
 
-    private final Template filenameTemplate;
-    private final Integer maxRecordsPerFile;
+    protected final Template filenameTemplate;
+    protected final Integer maxRecordsPerFile;
 
     private final Map<TopicPartition, SinkRecord> currentHeadRecords = new HashMap<>();
     private final Map<String, List<SinkRecord>> fileBuffers = new HashMap<>();
@@ -64,7 +64,7 @@ class TopicPartitionRecordGrouper implements RecordGrouper {
     public TopicPartitionRecordGrouper(final Template filenameTemplate, final Integer maxRecordsPerFile) {
         Objects.requireNonNull(filenameTemplate);
 
-        if (!acceptsTemplate(filenameTemplate)) {
+        if (!this.acceptsTemplateInstance(filenameTemplate)) {
             throw new IllegalArgumentException(
                 "filenameTemplate must have set of variables {"
                     + String.join(",", EXPECTED_VARIABLE_LIST)
@@ -94,6 +94,10 @@ class TopicPartitionRecordGrouper implements RecordGrouper {
         } else {
             fileBuffers.computeIfAbsent(filename, ignored -> new ArrayList<>()).add(record);
         }
+    }
+
+    protected boolean acceptsTemplateInstance(final Template filenameTemplate) {
+        return TopicPartitionRecordGrouper.acceptsTemplate(filenameTemplate);
     }
 
     protected Instance renderFilename(final TopicPartition tp, final SinkRecord headRecord) {

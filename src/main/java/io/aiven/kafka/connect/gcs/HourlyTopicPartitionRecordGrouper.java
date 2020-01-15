@@ -62,6 +62,11 @@ final class HourlyTopicPartitionRecordGrouper extends TopicPartitionRecordGroupe
     }
 
     @Override
+    protected boolean acceptsTemplateInstance(final Template filenameTemplate) {
+        return HourlyTopicPartitionRecordGrouper.acceptsTemplate(filenameTemplate);
+    }
+
+    @Override
     protected Instance renderFilename(final TopicPartition tp, final SinkRecord headRecord) {
         final LocalDateTime now = LocalDateTime.now();
 
