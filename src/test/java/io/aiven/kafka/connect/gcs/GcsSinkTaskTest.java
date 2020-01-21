@@ -111,7 +111,7 @@ final class GcsSinkTaskTest {
     }
 
     @Test
-    final void basicNewTemplate() {
+    final void withTimebasedGrouping() {
         final String template = "{{year}}/{{month}}/{{day}}/{{hour}}/{{topic}}-{{partition}}-{{start_offset}}";
         properties.put(GcsSinkConfig.FILE_NAME_TEMPLATE_CONFIG, template);
 
