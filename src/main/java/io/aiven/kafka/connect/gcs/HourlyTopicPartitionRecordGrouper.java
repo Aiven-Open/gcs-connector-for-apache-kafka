@@ -32,10 +32,10 @@ import io.aiven.kafka.connect.gcs.templating.Template.Instance;
 
 
 /**
- * A {@link RecordGrouper} that groups records by topic and partition.
+ * A {@link RecordGrouper} that groups records by topic and partition, as well as by year/month/day/hour
  *
- * <p>The class requires a filename template with {@code topic}, {@code partition},
- * and {@code start_offset} variables declared.
+ * <p>The class requires a filename template with {@code topic}, {@code partition}, {@code start_offset},
+ * as well as {@code year}, {@code month}, {@code day}, {@code hour} variables declared.
  *
  * <p>The class supports limited and unlimited number of records in files.
  */
@@ -67,19 +67,19 @@ final class HourlyTopicPartitionRecordGrouper extends TopicPartitionRecordGroupe
     }
 
     @Override
-    protected Instance renderFilename(final TopicPartition tp, final SinkRecord headRecord) {
+    protected Instance bindFilenameTemplate(final TopicPartition tp, final SinkRecord headRecord) {
         final LocalDateTime now = LocalDateTime.now();
 
-        return super.renderFilename(tp, headRecord)
+        return super.bindFilenameTemplate(tp, headRecord)
             .bindVariable(FilenameTemplateVariable.YEAR.name, () -> Integer.toString(now.getYear()))
             .bindVariable(FilenameTemplateVariable.MONTH.name, () -> Integer.toString(now.getMonthValue()))
             .bindVariable(FilenameTemplateVariable.DAY.name, () -> Integer.toString(now.getDayOfMonth()))
             .bindVariable(FilenameTemplateVariable.HOUR.name, () -> Integer.toString(now.getHour()));
     }
 
-        /**
-     * Checks if the template is acceptable for this grouper.
-     */
+    /**
+    * Checks if the template is acceptable for this grouper.
+    */
     static boolean acceptsTemplate(final Template filenameTemplate) {
         return new HashSet<>(EXPECTED_VARIABLE_LIST).equals(filenameTemplate.variablesSet());
     }

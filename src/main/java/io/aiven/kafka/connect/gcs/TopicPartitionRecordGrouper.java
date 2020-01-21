@@ -84,12 +84,12 @@ class TopicPartitionRecordGrouper implements RecordGrouper {
 
         final TopicPartition tp = new TopicPartition(record.topic(), record.kafkaPartition());
         final SinkRecord currentHeadRecord = currentHeadRecords.computeIfAbsent(tp, ignored -> record);
-        final String filename = renderFilename(tp, currentHeadRecord).render();
+        final String filename = renderFilename(tp, currentHeadRecord);
 
         if (shouldCreateNewFile(filename)) {
             // Create new file using this record as the head record.
             currentHeadRecords.put(tp, record);
-            final String newFilename = renderFilename(tp, record).render();
+            final String newFilename = renderFilename(tp, record);
             fileBuffers.computeIfAbsent(newFilename, ignored -> new ArrayList<>()).add(record);
         } else {
             fileBuffers.computeIfAbsent(filename, ignored -> new ArrayList<>()).add(record);
@@ -100,11 +100,15 @@ class TopicPartitionRecordGrouper implements RecordGrouper {
         return TopicPartitionRecordGrouper.acceptsTemplate(filenameTemplate);
     }
 
-    protected Instance renderFilename(final TopicPartition tp, final SinkRecord headRecord) {
+    protected Instance bindFilenameTemplate(final TopicPartition tp, final SinkRecord headRecord) {
         return filenameTemplate.instance()
-            .bindVariable(FilenameTemplateVariable.TOPIC.name, tp::topic)
-            .bindVariable(FilenameTemplateVariable.PARTITION.name, () -> Integer.toString(tp.partition()))
-            .bindVariable(FilenameTemplateVariable.START_OFFSET.name, () -> Long.toString(headRecord.kafkaOffset()));
+        .bindVariable(FilenameTemplateVariable.TOPIC.name, tp::topic)
+        .bindVariable(FilenameTemplateVariable.PARTITION.name, () -> Integer.toString(tp.partition()))
+        .bindVariable(FilenameTemplateVariable.START_OFFSET.name, () -> Long.toString(headRecord.kafkaOffset()));
+    }
+
+    protected String renderFilename(final TopicPartition tp, final SinkRecord headRecord) {
+        return this.bindFilenameTemplate(tp, headRecord).render();
     }
 
     private boolean shouldCreateNewFile(final String filename) {
