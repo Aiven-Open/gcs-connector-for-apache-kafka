@@ -46,8 +46,15 @@ public final class Template {
     private final List<String> variables = new ArrayList<>();
     private final List<TemplatePart> templateParts = new ArrayList<>();
 
+    private final boolean usePaddingForKafkaOffset;
+
     public Template(final String template) {
+        this(template, false);
+    }
+
+    public Template(final String template, final boolean usePaddingForKafkaOffset) {
         this.originalTemplateString = template;
+        this.usePaddingForKafkaOffset = usePaddingForKafkaOffset;
 
         final Matcher m = VARIABLE_PATTERN.matcher(template);
         int position = 0;
@@ -60,6 +67,10 @@ public final class Template {
             position = m.end();
         }
         templateParts.add(new StaticTemplatePart(template.substring(position)));
+    }
+
+    public final boolean usePaddingForKafkaOffset() {
+        return usePaddingForKafkaOffset;
     }
 
     public final List<String> variables() {

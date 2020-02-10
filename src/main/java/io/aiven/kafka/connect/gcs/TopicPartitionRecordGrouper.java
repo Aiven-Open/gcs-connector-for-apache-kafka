@@ -26,6 +26,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.sink.SinkRecord;
@@ -96,11 +97,21 @@ final class TopicPartitionRecordGrouper implements RecordGrouper {
     }
 
     private String renderFilename(final TopicPartition tp, final SinkRecord headRecord) {
+
+        final Supplier<String> setKafkaOffset =
+            () -> filenameTemplate.usePaddingForKafkaOffset()
+                ? String.format("%010d", headRecord.kafkaOffset())
+                : Long.toString(headRecord.kafkaOffset());
+
         return filenameTemplate.instance()
             .bindVariable(FilenameTemplateVariable.TOPIC.name, tp::topic)
-            .bindVariable(FilenameTemplateVariable.PARTITION.name, () -> Integer.toString(tp.partition()))
-            .bindVariable(FilenameTemplateVariable.START_OFFSET.name, () -> Long.toString(headRecord.kafkaOffset()))
-            .render();
+            .bindVariable(
+                FilenameTemplateVariable.PARTITION.name,
+                () -> Integer.toString(tp.partition())
+            ).bindVariable(
+                FilenameTemplateVariable.START_OFFSET.name,
+                setKafkaOffset
+            ).render();
     }
 
     private boolean shouldCreateNewFile(final String filename) {

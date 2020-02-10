@@ -39,8 +39,10 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests {@link GcsSinkConfig} class.
@@ -96,6 +98,7 @@ final class GcsSinkConfigTest {
         properties.put("file.compression.type", "gzip");
         properties.put("file.name.prefix", "test-prefix");
         properties.put("file.name.template", "{{topic}}-{{partition}}-{{start_offset}}.gz");
+        properties.put("file.name.padding", "true");
         properties.put("file.max.records", "42");
         properties.put("format.output.fields", "key,value,offset,timestamp");
         properties.put("format.output.fields.value.encoding", "base64");
@@ -106,6 +109,7 @@ final class GcsSinkConfigTest {
         assertEquals(CompressionType.GZIP, config.getCompressionType());
         assertEquals(42, config.getMaxRecordsPerFile());
         assertEquals("test-prefix", config.getPrefix());
+        assertTrue(config.getBoolean(GcsSinkConfig.FILE_NAME_PADDING));
         assertEquals("a-b-c.gz",
             config.getFilenameTemplate()
                 .instance()
@@ -283,6 +287,35 @@ final class GcsSinkConfigTest {
         properties.put("file.max.records", "42");
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         assertEquals(42, config.getMaxRecordsPerFile());
+    }
+
+    @Test
+    void fileNamePaddingSetCorrect() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.name.padding", "true");
+        final GcsSinkConfig config = new GcsSinkConfig(properties);
+        assertTrue(config.getBoolean(GcsSinkConfig.FILE_NAME_PADDING));
+    }
+
+    @Test
+    void fileNamePaddingSetFalseByDefault() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        final GcsSinkConfig config = new GcsSinkConfig(properties);
+        assertFalse(config.getBoolean(GcsSinkConfig.FILE_NAME_PADDING));
+    }
+
+    @Test
+    void fileNamePaddingSetIncorrect() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.name.padding", "asdsad");
+        final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
+        assertEquals(
+            "Invalid value asdsad for configuration file.name.padding: "
+                + "Expected value to be either true or false",
+            t.getMessage());
     }
 
     @Test

@@ -44,6 +44,7 @@ public final class GcsSinkConfig extends AbstractConfig {
     public static final String FILE_NAME_TEMPLATE_CONFIG = "file.name.template";
     public static final String FILE_COMPRESSION_TYPE_CONFIG = "file.compression.type";
     public static final String FILE_MAX_RECORDS = "file.max.records";
+    public static final String FILE_NAME_PADDING = "file.name.padding";
 
     private static final String GROUP_FORMAT = "Format";
     public static final String FORMAT_OUTPUT_FIELDS_CONFIG = "format.output.fields";
@@ -204,6 +205,18 @@ public final class GcsSinkConfig extends AbstractConfig {
             ConfigDef.Width.SHORT,
             FILE_MAX_RECORDS
         );
+
+        configDef.define(
+            FILE_NAME_PADDING,
+            ConfigDef.Type.BOOLEAN,
+            false,
+            ConfigDef.Importance.MEDIUM,
+            "Add leading 0 for kafka offset, or not. Must be a boolean value. By default is false",
+            GROUP_FILE,
+            fileGroupCounter++,
+            ConfigDef.Width.SHORT,
+            FILE_NAME_PADDING
+        );
     }
 
     private static void addFormatConfigGroup(final ConfigDef configDef) {
@@ -355,6 +368,6 @@ public final class GcsSinkConfig extends AbstractConfig {
                 templateStr += ".gz";
             }
         }
-        return new Template(templateStr);
+        return new Template(templateStr, getBoolean(FILE_NAME_PADDING));
     }
 }
