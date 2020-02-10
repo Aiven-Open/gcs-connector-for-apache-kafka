@@ -61,7 +61,7 @@ final class TopicPartitionRecordGrouper implements RecordGrouper {
      * @param maxRecordsPerFile the maximum number of records per file ({@code null} for unlimited).
      */
     public TopicPartitionRecordGrouper(final Template filenameTemplate, final Integer maxRecordsPerFile) {
-        Objects.requireNonNull(filenameTemplate);
+        Objects.requireNonNull(filenameTemplate, "filenameTemplate cannot be null");
 
         if (!acceptsTemplate(filenameTemplate)) {
             throw new IllegalArgumentException(
@@ -79,7 +79,7 @@ final class TopicPartitionRecordGrouper implements RecordGrouper {
 
     @Override
     public void put(final SinkRecord record) {
-        Objects.requireNonNull(record);
+        Objects.requireNonNull(record, "record cannot be null");
 
         final TopicPartition tp = new TopicPartition(record.topic(), record.kafkaPartition());
         final SinkRecord currentHeadRecord = currentHeadRecords.computeIfAbsent(tp, ignored -> record);

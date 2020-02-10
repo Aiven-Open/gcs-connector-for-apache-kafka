@@ -51,7 +51,7 @@ public final class GcsSinkConnector extends SinkConnector {
 
     @Override
     public void start(final Map<String, String> props) {
-        Objects.requireNonNull(props);
+        Objects.requireNonNull(props, "props cannot be null");
 
         this.configProps = Collections.unmodifiableMap(props);
         this.config = new GcsSinkConfig(props);

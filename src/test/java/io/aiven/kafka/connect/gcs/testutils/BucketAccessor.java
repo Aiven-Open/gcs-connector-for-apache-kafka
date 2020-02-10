@@ -51,8 +51,8 @@ public final class BucketAccessor {
     public BucketAccessor(final Storage storage,
                           final String bucketName,
                           final boolean cache) {
-        Objects.requireNonNull(storage);
-        Objects.requireNonNull(bucketName);
+        Objects.requireNonNull(storage, "storage cannot be null");
+        Objects.requireNonNull(bucketName, "bucketName cannot be null");
 
         this.storage = storage;
         this.bucketName = bucketName;
@@ -94,7 +94,7 @@ public final class BucketAccessor {
      * <p>Doesn't support caching.
      */
     public final List<String> getBlobNames(final String prefix) {
-        Objects.requireNonNull(prefix);
+        Objects.requireNonNull(prefix, "prefix cannot be null");
 
         final Storage.BlobListOption blobListOption = Storage.BlobListOption.prefix(prefix);
         return StreamSupport.stream(storage.list(bucketName, blobListOption).iterateAll().spliterator(), false)
@@ -104,7 +104,7 @@ public final class BucketAccessor {
     }
 
     public final void clear(final String prefix) {
-        Objects.requireNonNull(prefix);
+        Objects.requireNonNull(prefix, "prefix cannot be null");
 
         final Storage.BlobListOption blobListOption = Storage.BlobListOption.prefix(prefix);
         for (final Blob blob : storage.get(bucketName).list(blobListOption).iterateAll()) {
@@ -121,7 +121,7 @@ public final class BucketAccessor {
 
     public final String readStringContent(final String blobName,
                                           final boolean compressed) {
-        Objects.requireNonNull(blobName);
+        Objects.requireNonNull(blobName, "blobName cannot be null");
         if (cache) {
             return stringContentCache.computeIfAbsent(
                 blobName, k -> readStringContent0(blobName, compressed));
@@ -141,7 +141,7 @@ public final class BucketAccessor {
     }
 
     public final List<String> readLines(final String blobName, final boolean compressed) {
-        Objects.requireNonNull(blobName);
+        Objects.requireNonNull(blobName, "blobName cannot be null");
         if (cache) {
             return linesCache.computeIfAbsent(blobName, k -> readLines0(blobName, compressed));
         } else {
@@ -150,7 +150,7 @@ public final class BucketAccessor {
     }
 
     private List<String> readLines0(final String blobName, final boolean compressed) {
-        Objects.requireNonNull(blobName);
+        Objects.requireNonNull(blobName, "blobName cannot be null");
         final byte[] blobBytes = storage.readAllBytes(bucketName, blobName);
         try (final ByteArrayInputStream bais = new ByteArrayInputStream(blobBytes);
              final InputStream decompressedStream = getDecompressedStream(bais, compressed);
@@ -165,7 +165,7 @@ public final class BucketAccessor {
 
     private InputStream getDecompressedStream(final InputStream inputStream,
                                               final boolean compressed) throws IOException {
-        Objects.requireNonNull(inputStream);
+        Objects.requireNonNull(inputStream, "inputStream cannot be null");
 
         if (compressed) {
             return new GZIPInputStream(inputStream);
@@ -177,8 +177,8 @@ public final class BucketAccessor {
     public final List<List<String>> readAndDecodeLines(final String blobName,
                                                        final boolean compressed,
                                                        final int... fieldsToDecode) {
-        Objects.requireNonNull(blobName);
-        Objects.requireNonNull(fieldsToDecode);
+        Objects.requireNonNull(blobName, "blobName cannot be null");
+        Objects.requireNonNull(fieldsToDecode, "fieldsToDecode cannot be null");
 
         if (cache) {
             return decodedLinesCache.computeIfAbsent(
@@ -198,8 +198,8 @@ public final class BucketAccessor {
     }
 
     private List<String> decodeRequiredFields(final String[] originalFields, final int[] fieldsToDecode) {
-        Objects.requireNonNull(originalFields);
-        Objects.requireNonNull(fieldsToDecode);
+        Objects.requireNonNull(originalFields, "originalFields cannot be null");
+        Objects.requireNonNull(fieldsToDecode, "fieldsToDecode cannot be null");
 
         final List<String> result = Arrays.asList(originalFields);
         for (final int fieldIdx : fieldsToDecode) {
@@ -209,7 +209,7 @@ public final class BucketAccessor {
     }
 
     private String b64Decode(final String value) {
-        Objects.requireNonNull(value);
+        Objects.requireNonNull(value, "value cannot be null");
 
         return new String(Base64.getDecoder().decode(value), StandardCharsets.UTF_8);
     }

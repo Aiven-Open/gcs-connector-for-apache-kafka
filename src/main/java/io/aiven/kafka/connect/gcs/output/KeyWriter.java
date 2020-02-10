@@ -42,9 +42,9 @@ public final class KeyWriter implements OutputFieldWriter {
     @Override
     public void write(final SinkRecord record,
                       final OutputStream outputStream) throws IOException {
-        Objects.requireNonNull(record);
-        Objects.requireNonNull(record.keySchema());
-        Objects.requireNonNull(outputStream);
+        Objects.requireNonNull(record, "record cannot be null");
+        Objects.requireNonNull(record.keySchema(), "key schema cannot be null");
+        Objects.requireNonNull(outputStream, "outputStream cannot be null");
 
         if (record.keySchema().type() != Schema.Type.BYTES
             && record.keySchema().type() != Schema.Type.STRING) {

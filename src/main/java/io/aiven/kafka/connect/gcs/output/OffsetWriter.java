@@ -29,8 +29,8 @@ public final class OffsetWriter implements OutputFieldWriter {
     @Override
     public void write(final SinkRecord record,
                       final OutputStream outputStream) throws IOException {
-        Objects.requireNonNull(record);
-        Objects.requireNonNull(outputStream);
+        Objects.requireNonNull(record, "record cannot be null");
+        Objects.requireNonNull(outputStream, "outputStream cannot be null");
 
         outputStream.write(Long.toString(record.kafkaOffset()).getBytes(StandardCharsets.UTF_8));
     }

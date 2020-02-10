@@ -36,7 +36,7 @@ public enum OutputFieldType {
     }
 
     public static OutputFieldType forName(final String name) {
-        Objects.requireNonNull(name);
+        Objects.requireNonNull(name, "name cannot be null");
 
         if (KEY.name.equalsIgnoreCase(name)) {
             return KEY;

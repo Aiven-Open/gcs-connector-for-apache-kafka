@@ -39,12 +39,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class GoogleCredentialsBuilderTest {
+    private static final String BUCKET_PROPERTY = "integration-test.gcs.bucket";
+
     private static String testBucketName;
 
     @BeforeAll
     static void setUpAll() {
-        testBucketName = System.getProperty("integration-test.gcs.bucket");
-        Objects.requireNonNull(testBucketName);
+        testBucketName = System.getProperty(BUCKET_PROPERTY);
+        Objects.requireNonNull(testBucketName, BUCKET_PROPERTY + " must be set");
     }
 
     @Test

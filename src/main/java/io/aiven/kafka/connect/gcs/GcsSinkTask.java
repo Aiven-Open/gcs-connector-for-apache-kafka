@@ -61,8 +61,8 @@ public final class GcsSinkTask extends SinkTask {
     // for testing
     GcsSinkTask(final Map<String, String> props,
                 final Storage storage) {
-        Objects.requireNonNull(props);
-        Objects.requireNonNull(storage);
+        Objects.requireNonNull(props, "props cannot be null");
+        Objects.requireNonNull(storage, "storage cannot be null");
 
         this.config = new GcsSinkConfig(props);
         this.storage = storage;
@@ -71,7 +71,7 @@ public final class GcsSinkTask extends SinkTask {
 
     @Override
     public void start(final Map<String, String> props) {
-        Objects.requireNonNull(props);
+        Objects.requireNonNull(props, "props cannot be null");
 
         this.config = new GcsSinkConfig(props);
         this.storage = StorageOptions.newBuilder()
@@ -106,7 +106,7 @@ public final class GcsSinkTask extends SinkTask {
 
     @Override
     public void put(final Collection<SinkRecord> records) {
-        Objects.requireNonNull(records);
+        Objects.requireNonNull(records, "records cannot be null");
 
         log.debug("Processing {} records", records.size());
         for (final SinkRecord record : records) {
@@ -143,7 +143,7 @@ public final class GcsSinkTask extends SinkTask {
     }
 
     private OutputStream getCompressedStream(final OutputStream outputStream) throws IOException {
-        Objects.requireNonNull(outputStream);
+        Objects.requireNonNull(outputStream, "outputStream cannot be null");
 
         if (config.getCompressionType() == CompressionType.GZIP) {
             return new GZIPOutputStream(outputStream);
