@@ -18,15 +18,71 @@
 
 package io.aiven.kafka.connect.gcs.config;
 
+import java.util.Collections;
+import java.util.Set;
+
+import com.google.common.collect.ImmutableSet;
+
 public enum FilenameTemplateVariable {
     TOPIC("topic"),
     PARTITION("partition"),
-    START_OFFSET("start_offset"),
+    START_OFFSET(
+        "start_offset",
+        "padding",
+        ImmutableSet.of(Boolean.TRUE.toString(), Boolean.FALSE.toString())
+    ) {
+        @Override
+        public String parameterDescription() {
+            return String.join(
+                "=",
+                String.join(
+                    ":",
+                    name,
+                    parameterName
+                ),
+                String.join(
+                    "|",
+                    parameterValues)
+            );
+        }
+    },
     KEY("key");
 
     public final String name;
 
-    FilenameTemplateVariable(final String name) {
-        this.name = name;
+    public final String parameterName;
+
+    public final Set<String> parameterValues;
+
+    private static final String UNKNOWN_PARAMETER_NAME = "_unknown_";
+
+    public String parameterDescription() {
+        return "";
     }
+
+    FilenameTemplateVariable(final String name) {
+        this(name, UNKNOWN_PARAMETER_NAME, Collections.emptySet());
+    }
+
+    FilenameTemplateVariable(final String name,
+                             final String parameterName,
+                             final Set<String> parameterValues) {
+        this.name = name;
+        this.parameterName = parameterName;
+        this.parameterValues = parameterValues;
+    }
+
+    public static FilenameTemplateVariable of(final String name) {
+        for (final FilenameTemplateVariable v : FilenameTemplateVariable.values()) {
+            if (v.name.equals(name)) {
+                return v;
+            }
+        }
+        throw new IllegalArgumentException(
+            String.format(
+                "Unknown filename template variable: %s",
+                name)
+        );
+    }
+
 }

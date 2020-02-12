@@ -81,7 +81,7 @@ final class KeyRecordGrouperTest {
         "{{topic}}-{{partition}}-{{start_offset}}-{{key}}"
     })
     final void incorrectFilenameTemplates(final String template) {
-        final Template filenameTemplate = new Template(template);
+        final Template filenameTemplate = Template.of(template);
         assertFalse(KeyRecordGrouper.acceptsTemplate(filenameTemplate));
         final IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
             () -> new KeyRecordGrouper(filenameTemplate));
@@ -94,7 +94,7 @@ final class KeyRecordGrouperTest {
 
     @Test
     final void empty() {
-        final Template filenameTemplate = new Template("{{key}}");
+        final Template filenameTemplate = Template.of("{{key}}");
         assertTrue(KeyRecordGrouper.acceptsTemplate(filenameTemplate));
         final KeyRecordGrouper grouper = new KeyRecordGrouper(filenameTemplate);
         assertThat(grouper.records(), anEmptyMap());
@@ -102,7 +102,7 @@ final class KeyRecordGrouperTest {
 
     @Test
     final void eachKeyInSinglePartition() {
-        final Template filenameTemplate = new Template("{{key}}");
+        final Template filenameTemplate = Template.of("{{key}}");
         assertTrue(KeyRecordGrouper.acceptsTemplate(filenameTemplate));
         final KeyRecordGrouper grouper = new KeyRecordGrouper(filenameTemplate);
 
@@ -122,7 +122,7 @@ final class KeyRecordGrouperTest {
 
     @Test
     final void keysInMultiplePartitions() {
-        final Template filenameTemplate = new Template("{{key}}");
+        final Template filenameTemplate = Template.of("{{key}}");
         assertTrue(KeyRecordGrouper.acceptsTemplate(filenameTemplate));
         final KeyRecordGrouper grouper = new KeyRecordGrouper(filenameTemplate);
 

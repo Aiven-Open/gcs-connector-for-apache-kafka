@@ -18,8 +18,8 @@
 
 package io.aiven.kafka.connect.gcs.config;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -27,25 +27,32 @@ import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigException;
 
 import io.aiven.kafka.connect.gcs.templating.Template;
+import io.aiven.kafka.connect.gcs.templating.VariableTemplatePart;
 
-import com.google.common.collect.Sets;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 
 final class FilenameTemplateValidator implements ConfigDef.Validator {
 
     private final String configName;
 
-    private static final List<Set<String>> SUPPORTED_VARIABLES_SETS = new ArrayList<>();
-
-    static {
-        SUPPORTED_VARIABLES_SETS.add(
-            Sets.newHashSet(FilenameTemplateVariable.TOPIC.name,
+    private static final List<Set<String>> SUPPORTED_VARIABLES_SETS =
+        ImmutableList.of(
+            ImmutableSet.of(FilenameTemplateVariable.TOPIC.name,
                 FilenameTemplateVariable.PARTITION.name,
-                FilenameTemplateVariable.START_OFFSET.name)
+                FilenameTemplateVariable.START_OFFSET.name),
+            ImmutableSet.of(FilenameTemplateVariable.KEY.name)
         );
-        SUPPORTED_VARIABLES_SETS.add(
-            Sets.newHashSet(FilenameTemplateVariable.KEY.name)
+
+    private static final Map<String, Map<String, Set<String>>> SUPPORTED_VARIABLE_PARAMETERS_SET =
+        ImmutableMap.of(
+            FilenameTemplateVariable.START_OFFSET.name,
+            ImmutableMap.of(
+                FilenameTemplateVariable.START_OFFSET.parameterName,
+                ImmutableSet.copyOf(FilenameTemplateVariable.START_OFFSET.parameterValues)
+            )
         );
-    }
 
     FilenameTemplateValidator(final String configName) {
         this.configName = configName;
@@ -66,7 +73,7 @@ final class FilenameTemplateValidator implements ConfigDef.Validator {
                 "cannot start with '.well-known/acme-challenge'");
         }
 
-        final Template template = new Template((String) value);
+        final Template template = Template.of((String) value);
 
         boolean isVariableSetSupported = false;
         for (final Set<String> supportedVariablesSet : SUPPORTED_VARIABLES_SETS) {
@@ -82,6 +89,29 @@ final class FilenameTemplateValidator implements ConfigDef.Validator {
 
             throw new ConfigException(configName, value,
                 "unsupported set of template variables, supported sets are: " + supportedSetsStr);
+        }
+
+        boolean isVariableParametersSupported = true;
+        for (final Map.Entry<String, Map<String, Set<String>>> e
+            : SUPPORTED_VARIABLE_PARAMETERS_SET.entrySet()) {
+            if (template.variableParameters().containsKey(e.getKey())) {
+                final VariableTemplatePart.Parameter p =
+                    template.variableParameters().get(e.getKey());
+                if (e.getValue().containsKey(p.name())) {
+                    isVariableParametersSupported =
+                        e.getValue().get(p.name()).contains(p.value());
+                }
+            }
+        }
+        if (!isVariableParametersSupported) {
+            final String supportedParametersSet = SUPPORTED_VARIABLE_PARAMETERS_SET.keySet().stream()
+                .map(v -> FilenameTemplateVariable.of(v).parameterDescription())
+                .collect(Collectors.joining(","));
+            throw new ConfigException(configName, value,
+                String.format(
+                    "unsupported set of template variables parameters, supported sets are: %s",
+                    supportedParametersSet)
+            );
         }
     }
 }

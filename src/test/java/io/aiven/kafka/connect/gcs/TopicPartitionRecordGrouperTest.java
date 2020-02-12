@@ -81,7 +81,7 @@ final class TopicPartitionRecordGrouperTest {
         "{{topic}}-{{partition}}-{{start_offset}}-{{unknown}}"
     })
     final void incorrectFilenameTemplates(final String template) {
-        final Template filenameTemplate = new Template(template);
+        final Template filenameTemplate = Template.of(template);
         final IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
             () -> new TopicPartitionRecordGrouper(filenameTemplate, null));
         assertFalse(TopicPartitionRecordGrouper.acceptsTemplate(filenameTemplate));
@@ -96,7 +96,7 @@ final class TopicPartitionRecordGrouperTest {
     @NullSource
     @ValueSource(ints = 10)
     final void empty(final Integer maxRecordsPerFile) {
-        final Template filenameTemplate = new Template("{{topic}}-{{partition}}-{{start_offset}}");
+        final Template filenameTemplate = Template.of("{{topic}}-{{partition}}-{{start_offset}}");
         final TopicPartitionRecordGrouper grouper =
             new TopicPartitionRecordGrouper(filenameTemplate, maxRecordsPerFile);
         assertTrue(TopicPartitionRecordGrouper.acceptsTemplate(filenameTemplate));
@@ -105,7 +105,7 @@ final class TopicPartitionRecordGrouperTest {
 
     @Test
     final void unlimited() {
-        final Template filenameTemplate = new Template("{{topic}}-{{partition}}-{{start_offset}}");
+        final Template filenameTemplate = Template.of("{{topic}}-{{partition}}-{{start_offset}}");
         final TopicPartitionRecordGrouper grouper = new TopicPartitionRecordGrouper(filenameTemplate, null);
         assertTrue(TopicPartitionRecordGrouper.acceptsTemplate(filenameTemplate));
 
@@ -136,7 +136,7 @@ final class TopicPartitionRecordGrouperTest {
 
     @Test
     final void limited() {
-        final Template filenameTemplate = new Template("{{topic}}-{{partition}}-{{start_offset}}");
+        final Template filenameTemplate = Template.of("{{topic}}-{{partition}}-{{start_offset}}");
         final TopicPartitionRecordGrouper grouper = new TopicPartitionRecordGrouper(filenameTemplate, 2);
         assertTrue(TopicPartitionRecordGrouper.acceptsTemplate(filenameTemplate));
 
@@ -179,7 +179,7 @@ final class TopicPartitionRecordGrouperTest {
 
     @Test
     final void clear() {
-        final Template filenameTemplate = new Template("{{topic}}-{{partition}}-{{start_offset}}");
+        final Template filenameTemplate = Template.of("{{topic}}-{{partition}}-{{start_offset}}");
         final TopicPartitionRecordGrouper grouper = new TopicPartitionRecordGrouper(filenameTemplate, null);
         assertTrue(TopicPartitionRecordGrouper.acceptsTemplate(filenameTemplate));
 
@@ -212,7 +212,7 @@ final class TopicPartitionRecordGrouperTest {
 
     @Test
     final void setZeroPaddingForKafkaOffset() {
-        final Template filenameTemplate = new Template("{{topic}}-{{partition}}-{{start_offset}}", true);
+        final Template filenameTemplate = Template.of("{{topic}}-{{partition}}-{{start_offset:padding=true}}");
         final TopicPartitionRecordGrouper grouper = new TopicPartitionRecordGrouper(filenameTemplate, null);
         assertTrue(TopicPartitionRecordGrouper.acceptsTemplate(filenameTemplate));
 

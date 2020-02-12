@@ -26,7 +26,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Supplier;
 
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.sink.SinkRecord;
@@ -48,6 +47,16 @@ final class TopicPartitionRecordGrouper implements RecordGrouper {
         FilenameTemplateVariable.PARTITION.name,
         FilenameTemplateVariable.START_OFFSET.name
     );
+
+    private static final Map<String, String> EXPECTED_VARIABLE_PARAMETERS =
+        Collections.unmodifiableMap(
+            new HashMap<String, String>() {
+                {
+                    put(FilenameTemplateVariable.START_OFFSET.name,
+                        FilenameTemplateVariable.START_OFFSET.parameterName);
+                }
+            }
+        );
 
     private final Template filenameTemplate;
     private final Integer maxRecordsPerFile;
@@ -98,11 +107,6 @@ final class TopicPartitionRecordGrouper implements RecordGrouper {
 
     private String renderFilename(final TopicPartition tp, final SinkRecord headRecord) {
 
-        final Supplier<String> setKafkaOffset =
-            () -> filenameTemplate.usePaddingForKafkaOffset()
-                ? String.format("%010d", headRecord.kafkaOffset())
-                : Long.toString(headRecord.kafkaOffset());
-
         return filenameTemplate.instance()
             .bindVariable(FilenameTemplateVariable.TOPIC.name, tp::topic)
             .bindVariable(
@@ -110,7 +114,9 @@ final class TopicPartitionRecordGrouper implements RecordGrouper {
                 () -> Integer.toString(tp.partition())
             ).bindVariable(
                 FilenameTemplateVariable.START_OFFSET.name,
-                setKafkaOffset
+                usePaddingParameter -> usePaddingParameter.asBoolean()
+                    ? String.format("%010d", headRecord.kafkaOffset())
+                    : Long.toString(headRecord.kafkaOffset())
             ).render();
     }
 
