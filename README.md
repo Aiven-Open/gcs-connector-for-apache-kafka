@@ -32,7 +32,7 @@ template for file names. It supports placeholders with variable names:
 `{{ variable_name }}`. Currently supported variables are:
 - `topic` - the Kafka topic;
 - `partition` - the Kafka partition;
-- `start_offset` - the Kafka offset of the first record in the file;
+- `start_offset:padding=true|false` - the Kafka offset of the first record in the file, if `padding` sets to `true` will set leading zeroes for offset, default is `false`;
 - `key` - the Kafka key.
 
 Only the certain combinations of variables are allowed in the file name
