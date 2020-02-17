@@ -48,20 +48,12 @@ final class TopicPartitionRecordGrouper implements RecordGrouper {
         FilenameTemplateVariable.START_OFFSET.name
     );
 
-    private static final Map<String, String> EXPECTED_VARIABLE_PARAMETERS =
-        Collections.unmodifiableMap(
-            new HashMap<String, String>() {
-                {
-                    put(FilenameTemplateVariable.START_OFFSET.name,
-                        FilenameTemplateVariable.START_OFFSET.parameterName);
-                }
-            }
-        );
-
     private final Template filenameTemplate;
+
     private final Integer maxRecordsPerFile;
 
     private final Map<TopicPartition, SinkRecord> currentHeadRecords = new HashMap<>();
+
     private final Map<String, List<SinkRecord>> fileBuffers = new HashMap<>();
 
     /**
@@ -115,7 +107,7 @@ final class TopicPartitionRecordGrouper implements RecordGrouper {
             ).bindVariable(
                 FilenameTemplateVariable.START_OFFSET.name,
                 usePaddingParameter -> usePaddingParameter.asBoolean()
-                    ? String.format("%010d", headRecord.kafkaOffset())
+                    ? String.format("%020d", headRecord.kafkaOffset())
                     : Long.toString(headRecord.kafkaOffset())
             ).render();
     }

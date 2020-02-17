@@ -112,17 +112,20 @@ public final class GcsSinkConfig extends AbstractConfig {
             FILE_NAME_PREFIX_CONFIG,
             ConfigDef.Type.STRING,
             "",
-            (name, value) -> {
-                // See https://cloud.google.com/storage/docs/naming
-                assert value instanceof String;
-                final String valueStr = (String) value;
-                if (valueStr.length() > 1024) {
-                    throw new ConfigException(GCS_BUCKET_NAME_CONFIG, value,
-                        "cannot be longer than 1024 characters");
-                }
-                if (valueStr.startsWith(".well-known/acme-challenge")) {
-                    throw new ConfigException(GCS_BUCKET_NAME_CONFIG, value,
-                        "cannot start with '.well-known/acme-challenge'");
+            new ConfigDef.Validator() {
+                @Override
+                public void ensureValid(final String name, final Object value) {
+                    // See https://cloud.google.com/storage/docs/naming
+                    assert value instanceof String;
+                    final String valueStr = (String) value;
+                    if (valueStr.length() > 1024) {
+                        throw new ConfigException(GCS_BUCKET_NAME_CONFIG, value,
+                            "cannot be longer than 1024 characters");
+                    }
+                    if (valueStr.startsWith(".well-known/acme-challenge")) {
+                        throw new ConfigException(GCS_BUCKET_NAME_CONFIG, value,
+                            "cannot start with '.well-known/acme-challenge'");
+                    }
                 }
             },
             ConfigDef.Importance.MEDIUM,
@@ -158,13 +161,16 @@ public final class GcsSinkConfig extends AbstractConfig {
             FILE_COMPRESSION_TYPE_CONFIG,
             ConfigDef.Type.STRING,
             CompressionType.NONE.name,
-            (name, value) -> {
-                assert value instanceof String;
-                final String valueStr = (String) value;
-                if (!CompressionType.names().contains(valueStr)) {
-                    throw new ConfigException(
-                        FILE_COMPRESSION_TYPE_CONFIG, valueStr,
-                        "supported values are: " + supportedCompressionTypes);
+            new ConfigDef.Validator() {
+                @Override
+                public void ensureValid(final String name, final Object value) {
+                    assert value instanceof String;
+                    final String valueStr = (String) value;
+                    if (!CompressionType.names().contains(valueStr)) {
+                        throw new ConfigException(
+                            FILE_COMPRESSION_TYPE_CONFIG, valueStr,
+                            "supported values are: " + supportedCompressionTypes);
+                    }
                 }
             },
             ConfigDef.Importance.MEDIUM,
@@ -181,12 +187,15 @@ public final class GcsSinkConfig extends AbstractConfig {
             FILE_MAX_RECORDS,
             ConfigDef.Type.INT,
             0,
-            (name, value) -> {
-                assert value instanceof Integer;
-                if ((Integer) value < 0) {
-                    throw new ConfigException(
-                        FILE_MAX_RECORDS, value,
-                        "must be a non-negative integer number");
+            new ConfigDef.Validator() {
+                @Override
+                public void ensureValid(final String name, final Object value) {
+                    assert value instanceof Integer;
+                    if ((Integer) value < 0) {
+                        throw new ConfigException(
+                            FILE_MAX_RECORDS, value,
+                            "must be a non-negative integer number");
+                    }
                 }
             },
             ConfigDef.Importance.MEDIUM,
@@ -211,19 +220,22 @@ public final class GcsSinkConfig extends AbstractConfig {
             FORMAT_OUTPUT_FIELDS_CONFIG,
             ConfigDef.Type.LIST,
             OutputFieldType.VALUE.name,
-            (name, value) -> {
-                assert value instanceof List;
-                @SuppressWarnings("unchecked") final List<String> valueList = (List<String>) value;
-                if (valueList.isEmpty()) {
-                    throw new ConfigException(
-                        FORMAT_OUTPUT_FIELDS_CONFIG, valueList,
-                        "cannot be empty");
-                }
-                for (final String fieldName : valueList) {
-                    if (!OutputFieldType.isValidName(fieldName)) {
+            new ConfigDef.Validator() {
+                @Override
+                public void ensureValid(final String name, final Object value) {
+                    assert value instanceof List;
+                    @SuppressWarnings("unchecked") final List<String> valueList = (List<String>) value;
+                    if (valueList.isEmpty()) {
                         throw new ConfigException(
-                            FORMAT_OUTPUT_FIELDS_CONFIG, value,
-                            "supported values are: " + supportedOutputFields);
+                            FORMAT_OUTPUT_FIELDS_CONFIG, valueList,
+                            "cannot be empty");
+                    }
+                    for (final String fieldName : valueList) {
+                        if (!OutputFieldType.isValidName(fieldName)) {
+                            throw new ConfigException(
+                                FORMAT_OUTPUT_FIELDS_CONFIG, value,
+                                "supported values are: " + supportedOutputFields);
+                        }
                     }
                 }
             },
@@ -244,13 +256,16 @@ public final class GcsSinkConfig extends AbstractConfig {
             FORMAT_OUTPUT_FIELDS_VALUE_ENCODING_CONFIG,
             ConfigDef.Type.STRING,
             OutputFieldEncodingType.BASE64.name,
-            (name, value) -> {
-                assert value instanceof String;
-                final String valueStr = (String) value;
-                if (!OutputFieldEncodingType.names().contains(valueStr)) {
-                    throw new ConfigException(
-                        FORMAT_OUTPUT_FIELDS_VALUE_ENCODING_CONFIG, valueStr,
-                        "supported values are: " + supportedValueFieldEncodingTypes);
+            new ConfigDef.Validator() {
+                @Override
+                public void ensureValid(final String name, final Object value) {
+                    assert value instanceof String;
+                    final String valueStr = (String) value;
+                    if (!OutputFieldEncodingType.names().contains(valueStr)) {
+                        throw new ConfigException(
+                            FORMAT_OUTPUT_FIELDS_VALUE_ENCODING_CONFIG, valueStr,
+                            "supported values are: " + supportedValueFieldEncodingTypes);
+                    }
                 }
             },
             ConfigDef.Importance.MEDIUM,

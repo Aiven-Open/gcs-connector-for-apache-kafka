@@ -18,6 +18,27 @@
 
 package io.aiven.kafka.connect.gcs.templating;
 
-public interface TemplatePart {
-}
+public final class Pair<L, R> {
 
+    private final L left;
+
+    private final R right;
+
+    private Pair(final L left, final R right) {
+        this.left = left;
+        this.right = right;
+    }
+
+    public L left() {
+        return left;
+    }
+
+    public R right() {
+        return right;
+    }
+
+    public static <K, M> Pair<K, M> of(final K k, final M m) {
+        return new Pair<>(k, m);
+    }
+
+}

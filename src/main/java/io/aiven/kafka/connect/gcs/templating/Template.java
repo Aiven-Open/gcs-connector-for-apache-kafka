@@ -25,12 +25,10 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
+import io.aiven.kafka.connect.gcs.templating.VariableTemplatePart.Parameter;
 
 /**
  * A simple templating engine that allows to bind variables to supplier functions.
@@ -45,34 +43,34 @@ public final class Template {
     private static final Pattern VARIABLE_PATTERN =
         Pattern.compile("\\{\\{\\s*(([\\w_]+)(:([\\w]+)=([\\w]+))?)\\s*}}");
 
-    private final List<String> variables;
+    private final List<Pair<String, Parameter>> variablesAndParameters;
 
     private final List<TemplatePart> templateParts;
 
     private final String originalTemplateString;
 
     private Template(final String template,
-                     final List<String> variables,
+                     final List<Pair<String, Parameter>> variablesAndParameters,
                      final List<TemplatePart> templateParts) {
         this.originalTemplateString = template;
-        this.variables = variables;
+        this.variablesAndParameters = variablesAndParameters;
         this.templateParts = templateParts;
     }
 
     public final List<String> variables() {
-        return variables;
+        return variablesAndParameters.stream()
+            .map(Pair::left)
+            .collect(Collectors.toList());
+    }
+
+    public final List<Pair<String, Parameter>> variablesWithNonEmptyParameters() {
+        return variablesAndParameters.stream()
+            .filter(e -> !e.right().isEmpty())
+            .collect(Collectors.toList());
     }
 
     public final Set<String> variablesSet() {
-        return ImmutableSet.copyOf(variables);
-    }
-
-    public final Map<String, VariableTemplatePart.Parameter> variableParameters() {
-        return templateParts
-            .stream()
-            .filter(tp -> tp instanceof VariableTemplatePart)
-            .map(tp -> (VariableTemplatePart) tp)
-            .collect(Collectors.toMap(VariableTemplatePart::variableName, VariableTemplatePart::parameter));
+        return variablesAndParameters.stream().map(Pair::left).collect(Collectors.toSet());
     }
 
     public final Instance instance() {
@@ -80,27 +78,11 @@ public final class Template {
     }
 
     public static Template of(final String template) {
-        final ImmutableList.Builder<String> imVariableBuilder =
-            ImmutableList.builder();
-        final ImmutableList.Builder<TemplatePart> imTemplateParts =
-            ImmutableList.builder();
-        final Matcher m = VARIABLE_PATTERN.matcher(template);
-        int position = 0;
-        while (m.find()) {
-            imTemplateParts.add(new TextTemplatePart(template.substring(position, m.start())));
-            final String variableName = m.group(2);
-            imVariableBuilder.add(variableName);
-            final VariableTemplatePart.Parameter p =
-                VariableTemplatePart.Parameter.of(m.group(4), m.group(5));
-            imTemplateParts.add(new VariableTemplatePart(variableName, p, m.group()));
-            position = m.end();
-        }
-        imTemplateParts.add(new TextTemplatePart(template.substring(position)));
-        return new Template(
-            template,
-            imVariableBuilder.build(),
-            imTemplateParts.build()
-        );
+
+        final Pair<List<Pair<String, Parameter>>, List<TemplatePart>>
+            parsingResult = TemplateParser.parse(template);
+
+        return new Template(template, parsingResult.left(), parsingResult.right());
     }
 
     @Override
@@ -109,7 +91,7 @@ public final class Template {
     }
 
     public final class Instance {
-        private final Map<String, Function<VariableTemplatePart.Parameter, String>> bindings =
+        private final Map<String, Function<Parameter, String>> bindings =
             new HashMap<>();
 
         private Instance() {
@@ -121,9 +103,9 @@ public final class Template {
         }
 
         public final Instance bindVariable(final String name,
-                                           final Function<VariableTemplatePart.Parameter, String> binding) {
+                                           final Function<Parameter, String> binding) {
             Objects.requireNonNull(name, "name cannot be null");
-            Objects.requireNonNull(binding, "supplier cannot be null");
+            Objects.requireNonNull(binding, "binding cannot be null");
             if (name.trim().isEmpty()) {
                 throw new IllegalArgumentException("name must not be empty");
             }
@@ -139,7 +121,7 @@ public final class Template {
                     sb.append(((TextTemplatePart) templatePart).text());
                 } else if (templatePart instanceof VariableTemplatePart) {
                     final VariableTemplatePart variableTemplatePart = (VariableTemplatePart) templatePart;
-                    final Function<VariableTemplatePart.Parameter, String> binding =
+                    final Function<Parameter, String> binding =
                         bindings.get(variableTemplatePart.variableName());
                     // Substitute for bound variables, pass the variable pattern as is for non-bound.
                     if (Objects.nonNull(binding)) {

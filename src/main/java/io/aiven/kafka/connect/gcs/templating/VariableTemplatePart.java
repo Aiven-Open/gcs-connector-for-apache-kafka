@@ -1,6 +1,6 @@
 /*
  * Aiven Kafka GCS Connector
- * Copyright (c) 2019 Aiven Oy
+ * Copyright (c) 2020 Aiven Oy
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -27,6 +27,12 @@ public class VariableTemplatePart implements TemplatePart {
     private final Parameter parameter;
 
     private final String originalPlaceholder;
+
+    protected VariableTemplatePart(
+        final String variableName,
+        final String originalPlaceholder) {
+        this(variableName, Parameter.EMPTY, originalPlaceholder);
+    }
 
     protected VariableTemplatePart(
         final String variableName,
@@ -61,6 +67,10 @@ public class VariableTemplatePart implements TemplatePart {
         private Parameter(final String name, final String value) {
             this.name = name;
             this.value = value;
+        }
+
+        public boolean isEmpty() {
+            return this == EMPTY;
         }
 
         public String name() {
