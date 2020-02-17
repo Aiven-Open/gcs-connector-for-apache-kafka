@@ -25,4 +25,8 @@
               files="(IntegrationTest|ConnectRunner).java"/>
     <suppress checks="ClassDataAbstractionCoupling"
               files="(IntegrationTest|ConnectRunner).java"/>
+    <suppress checks="CyclomaticComplexity"
+              files="(FilenameTemplateValidator).java" />
+    <suppress checks="NPathComplexity"
+              files="(FilenameTemplateValidator).java" />
 </suppressions>

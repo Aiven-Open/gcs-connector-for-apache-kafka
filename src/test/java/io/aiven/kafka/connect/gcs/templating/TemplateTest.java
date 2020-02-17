@@ -55,9 +55,15 @@ final class TemplateTest {
     @Test
     void emptyVariableName() {
         final String templateStr = "foo{{ }}bar";
-        final Template te = Template.of(templateStr);
-        final Template.Instance instance = te.instance();
-        assertThrows(IllegalArgumentException.class, () -> instance.bindVariable("", () -> "foo"));
+        final Throwable t =
+            assertThrows(
+                IllegalArgumentException.class,
+                () -> Template.of(templateStr)
+            );
+        assertEquals(
+            "Variable name has't been set for template: foo{{ }}bar",
+            t.getMessage()
+        );
     }
 
     @Test
@@ -112,6 +118,51 @@ final class TemplateTest {
                     assertTrue(parameter.asBoolean());
                     return "";
                 }).render();
+    }
+
+    @Test
+    void invalidVariableWithoutParameter() {
+        final Throwable t = assertThrows(
+            IllegalArgumentException.class,
+            () -> Template.of("{{foo:}}"));
+        assertEquals(
+            "Wrong variable with parameter definition",
+            t.getMessage()
+        );
+    }
+
+    @Test
+    void invalidVariableWithEmptyVariableNameAndWithParameter() {
+        final Throwable t =
+            assertThrows(
+                IllegalArgumentException.class,
+                () -> Template.of("{{:foo=bar}}")
+            );
+        assertEquals(
+            "Variable name has't been set for template: {{:foo=bar}}",
+            t.getMessage()
+        );
+    }
+
+    @Test
+    void invalidVariableWithEmptyParameterValue() {
+        final Throwable t =
+            assertThrows(
+                IllegalArgumentException.class,
+                () -> Template.of("{{foo:tt=}}"));
+        assertEquals(
+            "Parameter value for variable `foo` and parameter `tt` has not been set",
+            t.getMessage()
+        );
+    }
+
+    @Test
+    void invalidVariableWithoutParameterName() {
+        final Throwable t = assertThrows(IllegalArgumentException.class, () -> Template.of("{{foo:=bar}}"));
+        assertEquals(
+            "Parameter name for variable `foo` has not been set",
+            t.getMessage()
+        );
     }
 
     @Test

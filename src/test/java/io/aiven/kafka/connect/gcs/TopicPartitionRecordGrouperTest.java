@@ -226,14 +226,16 @@ final class TopicPartitionRecordGrouperTest {
         final Map<String, List<SinkRecord>> records = grouper.records();
         assertThat(
             records.keySet(),
-            containsInAnyOrder("topic0-0-0000000004", "topic1-0-0000001000")
+            containsInAnyOrder(
+                "topic0-0-00000000000000000004",
+                "topic1-0-00000000000000001000")
         );
         assertThat(
-            records.get("topic0-0-0000000004"),
+            records.get("topic0-0-00000000000000000004"),
             contains(T0P0R4, T0P0R5)
         );
         assertThat(
-            records.get("topic1-0-0000001000"),
+            records.get("topic1-0-00000000000000001000"),
             contains(T1P1R0, T1P1R1, T1P1R2, T1P1R3)
         );
     }

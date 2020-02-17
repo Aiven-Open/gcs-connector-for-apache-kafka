@@ -97,7 +97,6 @@ final class GcsSinkConfigTest {
         properties.put("file.compression.type", "gzip");
         properties.put("file.name.prefix", "test-prefix");
         properties.put("file.name.template", "{{topic}}-{{partition}}-{{start_offset}}.gz");
-        properties.put("file.name.padding", "true");
         properties.put("file.max.records", "42");
         properties.put("format.output.fields", "key,value,offset,timestamp");
         properties.put("format.output.fields.value.encoding", "base64");
@@ -447,6 +446,70 @@ final class GcsSinkConfigTest {
                 + "for configuration file.name.template: "
                 + "unsupported set of template variables parameters, "
                 + "supported sets are: start_offset:padding=true|false", t.getMessage());
+    }
+
+    @Test
+    void wrongVariableWithoutParameter() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.name.template", "{{start_offset:}}-{{partition}}-{{topic}}");
+        final Throwable t = assertThrows(
+            ConfigException.class,
+            () -> new GcsSinkConfig(properties)
+        );
+        assertEquals(
+            "Invalid value {{start_offset:}}-{{partition}}-{{topic}} "
+                + "for configuration file.name.template: "
+                + "Wrong variable with parameter definition", t.getMessage());
+    }
+
+    @Test
+    void noVariableWithParameter() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.name.template", "{{:padding=true}}-{{partition}}-{{topic}}");
+        final Throwable t = assertThrows(
+            ConfigException.class,
+            () -> new GcsSinkConfig(properties)
+        );
+        assertEquals(
+            "Invalid value {{:padding=true}}-{{partition}}-{{topic}} "
+                + "for configuration file.name.template: "
+                + "Variable name has't been set for template: {{:padding=true}}-{{partition}}-{{topic}}",
+            t.getMessage()
+        );
+    }
+
+    @Test
+    void wrongVariableWithoutParameterValue() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.name.template", "{{start_offset:padding=}}-{{partition}}-{{topic}}");
+        final Throwable t = assertThrows(
+            ConfigException.class,
+            () -> new GcsSinkConfig(properties)
+        );
+        assertEquals(
+            "Invalid value {{start_offset:padding=}}-{{partition}}-{{topic}} "
+                + "for configuration file.name.template: "
+                + "Parameter value for variable `start_offset` and parameter `padding` has not been set",
+            t.getMessage()
+        );
+    }
+
+    @Test
+    void wrongVariableWithoutParameterName() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.name.template", "{{start_offset:=true}}-{{partition}}-{{topic}}");
+        final Throwable t = assertThrows(
+            ConfigException.class,
+            () -> new GcsSinkConfig(properties)
+        );
+        assertEquals(
+            "Invalid value {{start_offset:=true}}-{{partition}}-{{topic}} "
+                + "for configuration file.name.template: "
+                + "Parameter name for variable `start_offset` has not been set", t.getMessage());
     }
 
     @Test
