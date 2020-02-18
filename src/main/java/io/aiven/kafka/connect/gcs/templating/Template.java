@@ -33,8 +33,12 @@ import io.aiven.kafka.connect.gcs.templating.VariableTemplatePart.Parameter;
 /**
  * A simple templating engine that allows to bind variables to supplier functions.
  *
- * <p>Variable syntax: {@code {{ variable_name }}}. Only alphanumeric characters and {@code _} are
- * allowed as a variable name. Any number of spaces/tabs inside the braces is allowed.
+ * <p>Variable syntax: {@code {{ variable_name:parameter_name=parameter_value }}}.
+ * Only alphanumeric characters and {@code _} are
+ * allowed as a variable name.
+ * Any number of spaces/tabs inside the braces is allowed.
+ * Parameters for variable name are optional, same as for variable only alphanumeric characters
+ * are allowed as a parameter name or a parameter value.
  *
  * <p>Non-bound variables are left as is.
  */
