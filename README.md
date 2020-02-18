@@ -37,7 +37,7 @@ template for file names. It supports placeholders with variable names:
 
 To add zero padding to Kafka offsets, you need to add additional parameter padding in the start_offset variable, 
 which value can be true or false (the default). 
-For example: {{topic}}-{{start_offset:padding=true}}.gz will produce file names like mytopic-00000000000000000001.gz.
+For example: `{{topic}}-{{start_offset:padding=true}}.gz` will produce file names like `mytopic-00000000000000000001.gz`.
 
 Only the certain combinations of variables and parameters are allowed in the file name
 template (however, variables in a template can be in any order). Each
