@@ -48,7 +48,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * (see {@link PbtBase#recordBatches()}, put them into a task, and check certain properties
  * of the written files afterwards. Files are written virtually using the in-memory GCS mock.
  */
-final class GcsSinkTaskGroupByKeyProperties extends PbtBase {
+final class GcsSinkTaskGroupByKeyPropertiesTest extends PbtBase {
 
     @Property
     final void groupByKey(@ForAll("recordBatches") final List<List<SinkRecord>> recordBatches) {

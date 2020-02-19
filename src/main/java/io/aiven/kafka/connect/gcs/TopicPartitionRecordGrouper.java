@@ -49,9 +49,11 @@ final class TopicPartitionRecordGrouper implements RecordGrouper {
     );
 
     private final Template filenameTemplate;
+
     private final Integer maxRecordsPerFile;
 
     private final Map<TopicPartition, SinkRecord> currentHeadRecords = new HashMap<>();
+
     private final Map<String, List<SinkRecord>> fileBuffers = new HashMap<>();
 
     /**
@@ -96,11 +98,18 @@ final class TopicPartitionRecordGrouper implements RecordGrouper {
     }
 
     private String renderFilename(final TopicPartition tp, final SinkRecord headRecord) {
+
         return filenameTemplate.instance()
             .bindVariable(FilenameTemplateVariable.TOPIC.name, tp::topic)
-            .bindVariable(FilenameTemplateVariable.PARTITION.name, () -> Integer.toString(tp.partition()))
-            .bindVariable(FilenameTemplateVariable.START_OFFSET.name, () -> Long.toString(headRecord.kafkaOffset()))
-            .render();
+            .bindVariable(
+                FilenameTemplateVariable.PARTITION.name,
+                () -> Integer.toString(tp.partition())
+            ).bindVariable(
+                FilenameTemplateVariable.START_OFFSET.name,
+                usePaddingParameter -> usePaddingParameter.asBoolean()
+                    ? String.format("%020d", headRecord.kafkaOffset())
+                    : Long.toString(headRecord.kafkaOffset())
+            ).render();
     }
 
     private boolean shouldCreateNewFile(final String filename) {

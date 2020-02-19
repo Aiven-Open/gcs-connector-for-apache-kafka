@@ -32,10 +32,14 @@ template for file names. It supports placeholders with variable names:
 `{{ variable_name }}`. Currently supported variables are:
 - `topic` - the Kafka topic;
 - `partition` - the Kafka partition;
-- `start_offset` - the Kafka offset of the first record in the file;
+- `start_offset:padding=true|false` - the Kafka offset of the first record in the file, if `padding` sets to `true` will set leading zeroes for offset, default is `false`;
 - `key` - the Kafka key.
 
-Only the certain combinations of variables are allowed in the file name
+To add zero padding to Kafka offsets, you need to add additional parameter `padding` in the `start_offset` variable, 
+which value can be `true` or `false` (the default). 
+For example: `{{topic}}-{{start_offset:padding=true}}.gz` will produce file names like `mytopic-00000000000000000001.gz`.
+
+Only the certain combinations of variables and parameters are allowed in the file name
 template (however, variables in a template can be in any order). Each
 combination determines the mode of record grouping the connector will
 use. Currently supported combinations of variables and the corresponding

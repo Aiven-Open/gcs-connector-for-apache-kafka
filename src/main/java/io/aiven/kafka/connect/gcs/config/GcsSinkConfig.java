@@ -21,6 +21,7 @@ package io.aiven.kafka.connect.gcs.config;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.common.config.AbstractConfig;
@@ -50,6 +51,8 @@ public final class GcsSinkConfig extends AbstractConfig {
     public static final String FORMAT_OUTPUT_FIELDS_VALUE_ENCODING_CONFIG = "format.output.fields.value.encoding";
 
     public static final String NAME_CONFIG = "name";
+
+    private static final String DEFAULT_FILENAME_TEMPLATE = "{{topic}}-{{partition}}-{{start_offset}}";
 
     public static ConfigDef configDef() {
         final ConfigDef configDef = new ConfigDef();
@@ -204,6 +207,7 @@ public final class GcsSinkConfig extends AbstractConfig {
             ConfigDef.Width.SHORT,
             FILE_MAX_RECORDS
         );
+
     }
 
     private static void addFormatConfigGroup(final ConfigDef configDef) {
@@ -348,13 +352,18 @@ public final class GcsSinkConfig extends AbstractConfig {
     }
 
     public final Template getFilenameTemplate() {
-        String templateStr = getString(FILE_NAME_TEMPLATE_CONFIG);
-        if (templateStr == null) {
-            templateStr = "{{topic}}-{{partition}}-{{start_offset}}";
+        return Template.of(resolveFilenameTemplate());
+    }
+
+    private String resolveFilenameTemplate() {
+        String fileNameTemplate = getString(FILE_NAME_TEMPLATE_CONFIG);
+        if (Objects.isNull(fileNameTemplate)) {
+            fileNameTemplate = DEFAULT_FILENAME_TEMPLATE;
             if (getCompressionType() == CompressionType.GZIP) {
-                templateStr += ".gz";
+                fileNameTemplate += ".gz";
             }
         }
-        return new Template(templateStr);
+        return fileNameTemplate;
     }
+
 }

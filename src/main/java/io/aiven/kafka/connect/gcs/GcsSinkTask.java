@@ -59,8 +59,8 @@ public final class GcsSinkTask extends SinkTask {
     }
 
     // for testing
-    GcsSinkTask(final Map<String, String> props,
-                final Storage storage) {
+    protected GcsSinkTask(final Map<String, String> props,
+                          final Storage storage) {
         Objects.requireNonNull(props, "props cannot be null");
         Objects.requireNonNull(storage, "storage cannot be null");
 

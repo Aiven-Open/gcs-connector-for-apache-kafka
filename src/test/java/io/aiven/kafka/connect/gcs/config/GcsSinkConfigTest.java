@@ -41,6 +41,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests {@link GcsSinkConfig} class.
@@ -356,6 +357,25 @@ final class GcsSinkConfigTest {
     }
 
     @Test
+    void acceptFilenameTemplateVariablesParameters() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.name.template", "{{start_offset:padding=true}}-{{partition}}-{{topic}}");
+        final GcsSinkConfig config = new GcsSinkConfig(properties);
+        final String actual = config.getFilenameTemplate()
+            .instance()
+            .bindVariable("topic", () -> "a")
+            .bindVariable("partition", () -> "b")
+            .bindVariable("start_offset", parameter -> {
+                assertEquals("padding", parameter.name());
+                assertTrue(parameter.asBoolean());
+                return "c";
+            })
+            .render();
+        assertEquals("c-b-a", actual);
+    }
+
+    @Test
     void keyFilenameTemplateVariable() {
         final Map<String, String> properties = new HashMap<>();
         properties.put("gcs.bucket.name", "test-bucket");
@@ -410,6 +430,86 @@ final class GcsSinkConfigTest {
         assertEquals("Invalid value {{ partition }}{{ start_offset }} for configuration file.name.template: "
                 + "unsupported set of template variables, supported sets are: topic,partition,start_offset; key",
             t.getMessage());
+    }
+
+    @Test
+    void wrongVariableParameterValue() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.name.template", "{{start_offset:padding=FALSE}}-{{partition}}-{{topic}}");
+        final Throwable t = assertThrows(
+            ConfigException.class,
+            () -> new GcsSinkConfig(properties)
+        );
+        assertEquals(
+            "Invalid value {{start_offset:padding=FALSE}}-{{partition}}-{{topic}} "
+                + "for configuration file.name.template: "
+                + "unsupported set of template variables parameters, "
+                + "supported sets are: start_offset:padding=true|false", t.getMessage());
+    }
+
+    @Test
+    void wrongVariableWithoutParameter() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.name.template", "{{start_offset:}}-{{partition}}-{{topic}}");
+        final Throwable t = assertThrows(
+            ConfigException.class,
+            () -> new GcsSinkConfig(properties)
+        );
+        assertEquals(
+            "Invalid value {{start_offset:}}-{{partition}}-{{topic}} "
+                + "for configuration file.name.template: "
+                + "Wrong variable with parameter definition", t.getMessage());
+    }
+
+    @Test
+    void noVariableWithParameter() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.name.template", "{{:padding=true}}-{{partition}}-{{topic}}");
+        final Throwable t = assertThrows(
+            ConfigException.class,
+            () -> new GcsSinkConfig(properties)
+        );
+        assertEquals(
+            "Invalid value {{:padding=true}}-{{partition}}-{{topic}} "
+                + "for configuration file.name.template: "
+                + "Variable name has't been set for template: {{:padding=true}}-{{partition}}-{{topic}}",
+            t.getMessage()
+        );
+    }
+
+    @Test
+    void wrongVariableWithoutParameterValue() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.name.template", "{{start_offset:padding=}}-{{partition}}-{{topic}}");
+        final Throwable t = assertThrows(
+            ConfigException.class,
+            () -> new GcsSinkConfig(properties)
+        );
+        assertEquals(
+            "Invalid value {{start_offset:padding=}}-{{partition}}-{{topic}} "
+                + "for configuration file.name.template: "
+                + "Parameter value for variable `start_offset` and parameter `padding` has not been set",
+            t.getMessage()
+        );
+    }
+
+    @Test
+    void wrongVariableWithoutParameterName() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.name.template", "{{start_offset:=true}}-{{partition}}-{{topic}}");
+        final Throwable t = assertThrows(
+            ConfigException.class,
+            () -> new GcsSinkConfig(properties)
+        );
+        assertEquals(
+            "Invalid value {{start_offset:=true}}-{{partition}}-{{topic}} "
+                + "for configuration file.name.template: "
+                + "Parameter name for variable `start_offset` has not been set", t.getMessage());
     }
 
     @Test

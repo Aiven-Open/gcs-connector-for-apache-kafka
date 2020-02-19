@@ -18,81 +18,75 @@
 
 package io.aiven.kafka.connect.gcs.templating;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import io.aiven.kafka.connect.gcs.templating.VariableTemplatePart.Parameter;
 
 /**
  * A simple templating engine that allows to bind variables to supplier functions.
  *
- * <p>Variable syntax: {@code {{ variable_name }}}. Only alphanumeric characters and {@code _} are
- * allowed as a variable name. Any number of spaces/tabs inside the braces is allowed.
+ * <p>Variable syntax: {@code {{ variable_name:parameter_name=parameter_value }}}.
+ * Only alphanumeric characters and {@code _} are
+ * allowed as a variable name.
+ * Any number of spaces/tabs inside the braces is allowed.
+ * Parameters for variable name are optional, same as for variable only alphanumeric characters
+ * are allowed as a parameter name or a parameter value.
  *
  * <p>Non-bound variables are left as is.
  */
 public final class Template {
-    private static final Pattern VARIABLE_PATTERN = Pattern.compile("\\{\\{\\s*([\\w_]+)\\s*}}"); // {{ var }}
+
+    private static final Pattern VARIABLE_PATTERN =
+        Pattern.compile("\\{\\{\\s*(([\\w_]+)(:([\\w]+)=([\\w]+))?)\\s*}}");
+
+    private final List<Pair<String, Parameter>> variablesAndParameters;
+
+    private final List<TemplatePart> templateParts;
 
     private final String originalTemplateString;
 
-    private final List<String> variables = new ArrayList<>();
-    private final List<TemplatePart> templateParts = new ArrayList<>();
-
-    public Template(final String template) {
+    private Template(final String template,
+                     final List<Pair<String, Parameter>> variablesAndParameters,
+                     final List<TemplatePart> templateParts) {
         this.originalTemplateString = template;
-
-        final Matcher m = VARIABLE_PATTERN.matcher(template);
-        int position = 0;
-        while (m.find()) {
-            templateParts.add(new StaticTemplatePart(template.substring(position, m.start())));
-
-            final String variableName = m.group(1);
-            variables.add(variableName);
-            templateParts.add(new DynamicTemplatePart(variableName, m.group()));
-            position = m.end();
-        }
-        templateParts.add(new StaticTemplatePart(template.substring(position)));
+        this.variablesAndParameters = variablesAndParameters;
+        this.templateParts = templateParts;
     }
 
     public final List<String> variables() {
-        return Collections.unmodifiableList(variables);
+        return variablesAndParameters.stream()
+            .map(Pair::left)
+            .collect(Collectors.toList());
+    }
+
+    public final List<Pair<String, Parameter>> variablesWithNonEmptyParameters() {
+        return variablesAndParameters.stream()
+            .filter(e -> !e.right().isEmpty())
+            .collect(Collectors.toList());
     }
 
     public final Set<String> variablesSet() {
-        return Collections.unmodifiableSet(new HashSet<>(variables));
+        return variablesAndParameters.stream().map(Pair::left).collect(Collectors.toSet());
     }
 
     public final Instance instance() {
         return new Instance();
     }
 
-    private abstract static class TemplatePart {
-    }
+    public static Template of(final String template) {
 
-    private static final class StaticTemplatePart extends TemplatePart {
-        final String text;
+        final Pair<List<Pair<String, Parameter>>, List<TemplatePart>>
+            parsingResult = TemplateParser.parse(template);
 
-        StaticTemplatePart(final String text) {
-            this.text = text;
-        }
-    }
-
-    private static final class DynamicTemplatePart extends TemplatePart {
-        final String variableName;
-        final String originalPlaceholder;
-
-        DynamicTemplatePart(final String variableName, final String originalPlaceholder) {
-            this.variableName = variableName;
-            this.originalPlaceholder = originalPlaceholder;
-        }
+        return new Template(template, parsingResult.left(), parsingResult.right());
     }
 
     @Override
@@ -100,35 +94,44 @@ public final class Template {
         return originalTemplateString;
     }
 
-    public class Instance {
-        private final Map<String, Supplier<String>> bindings = new HashMap<>();
+    public final class Instance {
+        private final Map<String, Function<Parameter, String>> bindings =
+            new HashMap<>();
 
         private Instance() {
         }
 
-        public final Instance bindVariable(final String name, final Supplier<String> supplier) {
+        public final Instance bindVariable(final String name,
+                                           final Supplier<String> binding) {
+            return bindVariable(name, x -> binding.get());
+        }
+
+        public final Instance bindVariable(final String name,
+                                           final Function<Parameter, String> binding) {
             Objects.requireNonNull(name, "name cannot be null");
-            Objects.requireNonNull(supplier, "supplier cannot be null");
+            Objects.requireNonNull(binding, "binding cannot be null");
             if (name.trim().isEmpty()) {
                 throw new IllegalArgumentException("name must not be empty");
             }
-            bindings.put(name, supplier);
+            bindings.put(name, binding);
             return this;
         }
 
         public final String render() {
             final StringBuilder sb = new StringBuilder();
+            //FIXME we need better solution instead of instanceof
             for (final TemplatePart templatePart : templateParts) {
-                if (templatePart instanceof StaticTemplatePart) {
-                    sb.append(((StaticTemplatePart) templatePart).text);
-                } else if (templatePart instanceof DynamicTemplatePart) {
-                    final DynamicTemplatePart dynamicTemplatePart = (DynamicTemplatePart) templatePart;
-                    final Supplier<String> supplier = bindings.get(dynamicTemplatePart.variableName);
+                if (templatePart instanceof TextTemplatePart) {
+                    sb.append(((TextTemplatePart) templatePart).text());
+                } else if (templatePart instanceof VariableTemplatePart) {
+                    final VariableTemplatePart variableTemplatePart = (VariableTemplatePart) templatePart;
+                    final Function<Parameter, String> binding =
+                        bindings.get(variableTemplatePart.variableName());
                     // Substitute for bound variables, pass the variable pattern as is for non-bound.
-                    if (supplier != null) {
-                        sb.append(supplier.get());
+                    if (Objects.nonNull(binding)) {
+                        sb.append(binding.apply(variableTemplatePart.parameter()));
                     } else {
-                        sb.append(dynamicTemplatePart.originalPlaceholder);
+                        sb.append(variableTemplatePart.originalPlaceholder());
                     }
                 }
             }
