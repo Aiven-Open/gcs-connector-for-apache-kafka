@@ -268,9 +268,9 @@ file.compression.type=gzip
 
 # The file name template.
 # See "File name format" section.
-# Optional, the default is `{{topic}}-{{partition}}-{{start_offset}}` or
-# `{{topic}}-{{partition}}-{{start_offset}}.gz` if the compression is enabled.
-file.name.template={{topic}}-{{partition}}-{{start_offset}}.gz
+# Optional, the default is `{{topic}}-{{partition}}-{{start_offset:padding=false}}` or
+# `{{topic}}-{{partition}}-{{start_offset:padding=false}}.gz` if the compression is enabled.
+file.name.template={{topic}}-{{partition}}-{{start_offset:padding=true}}.gz
 ```
 
 ## Development
