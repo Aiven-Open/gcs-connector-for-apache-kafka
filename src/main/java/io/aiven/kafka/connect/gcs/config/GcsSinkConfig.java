@@ -27,6 +27,7 @@ import java.util.stream.Collectors;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigException;
+import org.apache.kafka.common.config.types.Password;
 
 import io.aiven.kafka.connect.gcs.gcs.GoogleCredentialsBuilder;
 import io.aiven.kafka.connect.gcs.templating.Template;
@@ -80,7 +81,7 @@ public final class GcsSinkConfig extends AbstractConfig {
 
         configDef.define(
             GCS_CREDENTIALS_JSON_CONFIG,
-            ConfigDef.Type.STRING,
+            ConfigDef.Type.PASSWORD,
             null,
             ConfigDef.Importance.LOW,
             "GCP credentials as a JSON string. "
@@ -286,7 +287,7 @@ public final class GcsSinkConfig extends AbstractConfig {
 
     private void validate() {
         final String credentialsPath = getString(GCS_CREDENTIALS_PATH_CONFIG);
-        final String credentialsJson = getString(GCS_CREDENTIALS_JSON_CONFIG);
+        final Password credentialsJson = getPassword(GCS_CREDENTIALS_JSON_CONFIG);
         if (credentialsPath != null && credentialsJson != null) {
             final String msg = String.format(
                 "\"%s\" and \"%s\" are mutually exclusive options, but both are set.",
@@ -308,8 +309,12 @@ public final class GcsSinkConfig extends AbstractConfig {
 
     public final GoogleCredentials getCredentials() {
         final String credentialsPath = getString(GCS_CREDENTIALS_PATH_CONFIG);
-        final String credentialsJson = getString(GCS_CREDENTIALS_JSON_CONFIG);
+        final Password credentialsJsonPwd = getPassword(GCS_CREDENTIALS_JSON_CONFIG);
         try {
+            String credentialsJson = null;
+            if (credentialsJsonPwd != null) {
+                credentialsJson = credentialsJsonPwd.value();
+            }
             return GoogleCredentialsBuilder.build(credentialsPath, credentialsJson);
         } catch (final Exception e) {
             throw new ConfigException("Failed to create GCS credentials: " + e.getMessage());
