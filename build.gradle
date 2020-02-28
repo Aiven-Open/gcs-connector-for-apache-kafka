@@ -93,6 +93,8 @@ dependencies {
 
     testImplementation "org.apache.kafka:connect-api:$kafkaVersion"
     testImplementation 'com.google.cloud:google-cloud-nio:0.84.0-alpha'
+    testImplementation  'org.mockito:mockito-core:3.3.3'
+
     testRuntime 'ch.qos.logback:logback-classic:1.2.3'
 
     integrationTestImplementation "org.apache.kafka:connect-api:$kafkaVersion"

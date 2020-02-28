@@ -19,6 +19,7 @@
 package io.aiven.kafka.connect.gcs.config;
 
 import java.util.Collections;
+import java.util.Objects;
 import java.util.Set;
 
 import com.google.common.collect.ImmutableSet;
@@ -28,48 +29,47 @@ public enum FilenameTemplateVariable {
     PARTITION("partition"),
     START_OFFSET(
         "start_offset",
-        "padding",
-        ImmutableSet.of(Boolean.TRUE.toString(), Boolean.FALSE.toString())
-    ) {
-        @Override
-        public String parameterDescription() {
-            return String.join(
-                "=",
-                String.join(
-                    ":",
-                    name,
-                    parameterName
-                ),
-                String.join(
-                    "|",
-                    parameterValues)
-            );
-        }
-    },
+        new ParameterDescriptor(
+            "padding",
+            false,
+            ImmutableSet.of(Boolean.TRUE.toString(), Boolean.FALSE.toString())
+        )
+    ),
+    TIMESTAMP(
+        "timestamp",
+        new ParameterDescriptor(
+            "unit",
+            true,
+            ImmutableSet.of("YYYY", "MM", "dd", "HH")
+        )
+    ),
     KEY("key");
 
     public final String name;
 
-    public final String parameterName;
+    public final ParameterDescriptor parameterDescriptor;
 
-    public final Set<String> parameterValues;
-
-    private static final String UNKNOWN_PARAMETER_NAME = "_unknown_";
-
-    public String parameterDescription() {
-        return "";
+    public String description() {
+        return
+            (parameterDescriptor != ParameterDescriptor.NO_PARAMETER && !parameterDescriptor.values.isEmpty())
+                ? String.join(
+                    "=",
+                        String.join(
+                            ":",
+                            name,
+                            parameterDescriptor.name),
+                    parameterDescriptor.toString()
+                ) : name;
     }
 
     FilenameTemplateVariable(final String name) {
-        this(name, UNKNOWN_PARAMETER_NAME, Collections.emptySet());
+        this(name, ParameterDescriptor.NO_PARAMETER);
     }
 
     FilenameTemplateVariable(final String name,
-                             final String parameterName,
-                             final Set<String> parameterValues) {
+                             final ParameterDescriptor parameterDescriptor) {
         this.name = name;
-        this.parameterName = parameterName;
-        this.parameterValues = parameterValues;
+        this.parameterDescriptor = parameterDescriptor;
     }
 
     public static FilenameTemplateVariable of(final String name) {
@@ -83,6 +83,55 @@ public enum FilenameTemplateVariable {
                 "Unknown filename template variable: %s",
                 name)
         );
+    }
+
+    public static class ParameterDescriptor {
+
+        public static final ParameterDescriptor NO_PARAMETER =
+            new ParameterDescriptor(
+                "__no_parameter__",
+                false,
+                Collections.emptySet());
+
+        public final String name;
+
+        public final boolean required;
+
+        public Set<String> values;
+
+        public ParameterDescriptor(final String name,
+                                   final boolean required,
+                                   final Set<String> values) {
+            this.name = name;
+            this.required = required;
+            this.values = values;
+        }
+
+        @Override
+        public String toString() {
+            return !values.isEmpty()
+                ? String.join("|", values)
+                : "";
+        }
+
+        @Override
+        public boolean equals(final Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof ParameterDescriptor)) {
+                return false;
+            }
+            final ParameterDescriptor that = (ParameterDescriptor) o;
+            return required == that.required
+                && Objects.equals(name, that.name)
+                && Objects.equals(values, that.values);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(name, required, values);
+        }
     }
 
 }

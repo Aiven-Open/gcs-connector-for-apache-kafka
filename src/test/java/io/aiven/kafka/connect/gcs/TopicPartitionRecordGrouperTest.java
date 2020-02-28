@@ -18,12 +18,16 @@
 
 package io.aiven.kafka.connect.gcs;
 
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
 
+import io.aiven.kafka.connect.gcs.config.TimestampSource;
 import io.aiven.kafka.connect.gcs.templating.Template;
 
 import org.junit.jupiter.api.Test;
@@ -36,9 +40,8 @@ import static org.hamcrest.Matchers.anEmptyMap;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 final class TopicPartitionRecordGrouperTest {
 
@@ -73,24 +76,8 @@ final class TopicPartitionRecordGrouperTest {
     private static final SinkRecord T1P1R3 = new SinkRecord(
         "topic1", 0, Schema.OPTIONAL_STRING_SCHEMA, "some_key", null, null, 1003);
 
-    @ParameterizedTest
-    @ValueSource(strings = {
-        "",
-        "{{topic}}", "{{partition}}", "{{start_offset}}",
-        "{{topic}}-{{partition}}", "{{topic}}-{{start_offset}}", "{{partition}}-{{start_offset}}",
-        "{{topic}}-{{partition}}-{{start_offset}}-{{unknown}}"
-    })
-    final void incorrectFilenameTemplates(final String template) {
-        final Template filenameTemplate = Template.of(template);
-        final IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-            () -> new TopicPartitionRecordGrouper(filenameTemplate, null));
-        assertFalse(TopicPartitionRecordGrouper.acceptsTemplate(filenameTemplate));
-        assertEquals(
-            "filenameTemplate must have set of variables {topic,partition,start_offset}, but {"
-                + String.join(",", filenameTemplate.variables())
-                + "} was given",
-            ex.getMessage());
-    }
+    private static final TimestampSource DEFAULT_TS_SOURCE =
+        TimestampSource.of(TimestampSource.Type.WALLCLOCK);
 
     @ParameterizedTest
     @NullSource
@@ -98,16 +85,15 @@ final class TopicPartitionRecordGrouperTest {
     final void empty(final Integer maxRecordsPerFile) {
         final Template filenameTemplate = Template.of("{{topic}}-{{partition}}-{{start_offset}}");
         final TopicPartitionRecordGrouper grouper =
-            new TopicPartitionRecordGrouper(filenameTemplate, maxRecordsPerFile);
-        assertTrue(TopicPartitionRecordGrouper.acceptsTemplate(filenameTemplate));
+            new TopicPartitionRecordGrouper(filenameTemplate, maxRecordsPerFile, DEFAULT_TS_SOURCE);
         assertThat(grouper.records(), anEmptyMap());
     }
 
     @Test
     final void unlimited() {
         final Template filenameTemplate = Template.of("{{topic}}-{{partition}}-{{start_offset}}");
-        final TopicPartitionRecordGrouper grouper = new TopicPartitionRecordGrouper(filenameTemplate, null);
-        assertTrue(TopicPartitionRecordGrouper.acceptsTemplate(filenameTemplate));
+        final TopicPartitionRecordGrouper grouper =
+            new TopicPartitionRecordGrouper(filenameTemplate, null, DEFAULT_TS_SOURCE);
 
         grouper.put(T0P1R0);
         grouper.put(T0P0R0);
@@ -125,7 +111,10 @@ final class TopicPartitionRecordGrouperTest {
         grouper.put(T0P1R3);
 
         final Map<String, List<SinkRecord>> records = grouper.records();
-        assertThat(records.keySet(), containsInAnyOrder("topic0-0-0", "topic0-1-10", "topic1-0-1000"));
+        assertThat(
+            records.keySet(),
+            containsInAnyOrder("topic0-0-0", "topic0-1-10", "topic1-0-1000")
+        );
         assertThat(records.get("topic0-0-0"),
             contains(T0P0R0, T0P0R1, T0P0R2, T0P0R3, T0P0R4, T0P0R5));
         assertThat(records.get("topic0-1-10"),
@@ -137,8 +126,8 @@ final class TopicPartitionRecordGrouperTest {
     @Test
     final void limited() {
         final Template filenameTemplate = Template.of("{{topic}}-{{partition}}-{{start_offset}}");
-        final TopicPartitionRecordGrouper grouper = new TopicPartitionRecordGrouper(filenameTemplate, 2);
-        assertTrue(TopicPartitionRecordGrouper.acceptsTemplate(filenameTemplate));
+        final TopicPartitionRecordGrouper grouper =
+            new TopicPartitionRecordGrouper(filenameTemplate, 2, DEFAULT_TS_SOURCE);
 
         grouper.put(T0P1R0);
         grouper.put(T0P0R0);
@@ -156,11 +145,13 @@ final class TopicPartitionRecordGrouperTest {
         grouper.put(T0P1R3);
 
         final Map<String, List<SinkRecord>> records = grouper.records();
-        assertThat(records.keySet(),
+        assertThat(
+            records.keySet(),
             containsInAnyOrder(
                 "topic0-0-0", "topic0-0-2", "topic0-0-4",
-                "topic0-1-10", "topic0-1-12",
-                "topic1-0-1000", "topic1-0-1002"));
+                "topic0-1-10", "topic0-1-12", "topic1-0-1000",
+                "topic1-0-1002")
+        );
         assertThat(records.get("topic0-0-0"),
             contains(T0P0R0, T0P0R1));
         assertThat(records.get("topic0-0-2"),
@@ -180,8 +171,8 @@ final class TopicPartitionRecordGrouperTest {
     @Test
     final void clear() {
         final Template filenameTemplate = Template.of("{{topic}}-{{partition}}-{{start_offset}}");
-        final TopicPartitionRecordGrouper grouper = new TopicPartitionRecordGrouper(filenameTemplate, null);
-        assertTrue(TopicPartitionRecordGrouper.acceptsTemplate(filenameTemplate));
+        final TopicPartitionRecordGrouper grouper =
+            new TopicPartitionRecordGrouper(filenameTemplate, null, DEFAULT_TS_SOURCE);
 
         grouper.put(T0P1R0);
         grouper.put(T0P0R0);
@@ -203,7 +194,10 @@ final class TopicPartitionRecordGrouperTest {
         grouper.put(T0P0R5);
 
         final Map<String, List<SinkRecord>> records = grouper.records();
-        assertThat(records.keySet(), containsInAnyOrder("topic0-0-4", "topic1-0-1000"));
+        assertThat(
+            records.keySet(),
+            containsInAnyOrder("topic0-0-4", "topic1-0-1000")
+        );
         assertThat(records.get("topic0-0-4"),
             contains(T0P0R4, T0P0R5));
         assertThat(records.get("topic1-0-1000"),
@@ -213,8 +207,8 @@ final class TopicPartitionRecordGrouperTest {
     @Test
     final void setZeroPaddingForKafkaOffset() {
         final Template filenameTemplate = Template.of("{{topic}}-{{partition}}-{{start_offset:padding=true}}");
-        final TopicPartitionRecordGrouper grouper = new TopicPartitionRecordGrouper(filenameTemplate, null);
-        assertTrue(TopicPartitionRecordGrouper.acceptsTemplate(filenameTemplate));
+        final TopicPartitionRecordGrouper grouper =
+            new TopicPartitionRecordGrouper(filenameTemplate, null, DEFAULT_TS_SOURCE);
 
         grouper.put(T1P1R0);
         grouper.put(T1P1R1);
@@ -237,6 +231,305 @@ final class TopicPartitionRecordGrouperTest {
         assertThat(
             records.get("topic1-0-00000000000000001000"),
             contains(T1P1R0, T1P1R1, T1P1R2, T1P1R3)
+        );
+    }
+
+    @Test
+    final void addTimeUnitsToTheFileName() {
+        final Template filenameTemplate =
+            Template.of(
+                "{{topic}}-"
+                    + "{{partition}}-"
+                    + "{{start_offset}}-"
+                    + "{{timestamp:unit=YYYY}}"
+                    + "{{timestamp:unit=MM}}"
+                    + "{{timestamp:unit=dd}}"
+            );
+        final ZonedDateTime t = TimestampSource.of(TimestampSource.Type.WALLCLOCK).time();
+        final String expectedTs =
+            t.format(DateTimeFormatter.ofPattern("YYYY"))
+                + t.format(DateTimeFormatter.ofPattern("MM"))
+                + t.format(DateTimeFormatter.ofPattern("dd"));
+
+        final TopicPartitionRecordGrouper grouper =
+            new TopicPartitionRecordGrouper(
+                filenameTemplate,
+                null,
+                TimestampSource.of(TimestampSource.Type.WALLCLOCK)
+            );
+
+        grouper.put(T1P1R0);
+        grouper.put(T1P1R1);
+        grouper.put(T0P0R4);
+        grouper.put(T1P1R2);
+        grouper.put(T1P1R3);
+        grouper.put(T0P0R5);
+
+        final Map<String, List<SinkRecord>> records = grouper.records();
+
+        assertThat(
+            records.keySet(),
+            containsInAnyOrder(
+                "topic0-0-4-" + expectedTs,
+                "topic1-0-1000-" + expectedTs
+            )
+        );
+        assertThat(
+            records.keySet(),
+            containsInAnyOrder(
+                "topic0-0-4-" + expectedTs,
+                "topic1-0-1000-" + expectedTs
+            )
+        );
+        assertThat(
+            records.get("topic0-0-4-" + expectedTs),
+            contains(T0P0R4, T0P0R5)
+        );
+        assertThat(
+            records.get("topic1-0-1000-" + expectedTs),
+            contains(T1P1R0, T1P1R1, T1P1R2, T1P1R3)
+        );
+    }
+
+    @Test
+    void rotateKeysHourly() {
+        final Template filenameTemplate =
+            Template.of(
+                "{{topic}}-"
+                    + "{{partition}}-"
+                    + "{{start_offset}}-"
+                    + "{{timestamp:unit=YYYY}}"
+                    + "{{timestamp:unit=MM}}"
+                    + "{{timestamp:unit=dd}}"
+                    + "{{timestamp:unit=HH}}"
+            );
+        final TimestampSource timestampSourceMock = mock(TimestampSource.class);
+
+        final ZonedDateTime firstHourTime = ZonedDateTime.now();
+        final ZonedDateTime secondHourTime = firstHourTime.plusHours(1);
+        final String firstHourTs =
+            firstHourTime.format(DateTimeFormatter.ofPattern("YYYY"))
+                + firstHourTime.format(DateTimeFormatter.ofPattern("MM"))
+                + firstHourTime.format(DateTimeFormatter.ofPattern("dd"))
+                + firstHourTime.format(DateTimeFormatter.ofPattern("HH"));
+        final String secondHourTs =
+            secondHourTime.format(DateTimeFormatter.ofPattern("YYYY"))
+                + secondHourTime.format(DateTimeFormatter.ofPattern("MM"))
+                + secondHourTime.format(DateTimeFormatter.ofPattern("dd"))
+                + secondHourTime.format(DateTimeFormatter.ofPattern("HH"));
+
+        when(timestampSourceMock.time()).thenReturn(firstHourTime);
+        final TopicPartitionRecordGrouper grouper =
+            new TopicPartitionRecordGrouper(
+                filenameTemplate,
+                null,
+                timestampSourceMock
+            );
+
+        grouper.put(T0P0R1);
+        grouper.put(T0P0R2);
+        grouper.put(T0P0R3);
+
+        when(timestampSourceMock.time()).thenReturn(secondHourTime);
+
+        grouper.put(T0P0R4);
+        grouper.put(T0P0R5);
+
+        final Map<String, List<SinkRecord>> records = grouper.records();
+
+        assertEquals(2, records.size());
+
+        assertThat(
+            records.keySet(),
+            containsInAnyOrder(
+                "topic0-0-1-" + firstHourTs,
+                "topic0-0-1-" + secondHourTs
+            )
+        );
+        assertThat(
+            records.get("topic0-0-1-" + firstHourTs),
+            contains(T0P0R1, T0P0R2, T0P0R3)
+        );
+        assertThat(
+            records.get("topic0-0-1-" + secondHourTs),
+            contains(T0P0R4, T0P0R5)
+        );
+    }
+
+    @Test
+    void rotateKeysDaily() {
+        final Template filenameTemplate =
+            Template.of(
+                "{{topic}}-"
+                    + "{{partition}}-"
+                    + "{{start_offset}}-"
+                    + "{{timestamp:unit=YYYY}}"
+                    + "{{timestamp:unit=MM}}"
+                    + "{{timestamp:unit=dd}}"
+            );
+        final TimestampSource timestampSourceMock = mock(TimestampSource.class);
+
+        final ZonedDateTime firstDayTime = ZonedDateTime.now();
+        final ZonedDateTime secondDayTime = firstDayTime.plusDays(1);
+        final String firstDayTs =
+            firstDayTime.format(DateTimeFormatter.ofPattern("YYYY"))
+                + firstDayTime.format(DateTimeFormatter.ofPattern("MM"))
+                + firstDayTime.format(DateTimeFormatter.ofPattern("dd"));
+        final String secondDayTs =
+            secondDayTime.format(DateTimeFormatter.ofPattern("YYYY"))
+                + secondDayTime.format(DateTimeFormatter.ofPattern("MM"))
+                + secondDayTime.format(DateTimeFormatter.ofPattern("dd"));
+
+        when(timestampSourceMock.time()).thenReturn(firstDayTime);
+        final TopicPartitionRecordGrouper grouper =
+            new TopicPartitionRecordGrouper(
+                filenameTemplate,
+                null,
+                timestampSourceMock
+            );
+
+        grouper.put(T0P1R0);
+        grouper.put(T0P1R1);
+        grouper.put(T0P1R2);
+
+        when(timestampSourceMock.time()).thenReturn(secondDayTime);
+
+        grouper.put(T0P1R3);
+
+        final Map<String, List<SinkRecord>> records = grouper.records();
+
+        assertEquals(2, records.size());
+
+        assertThat(
+            records.keySet(),
+            containsInAnyOrder(
+                "topic0-1-10-" + firstDayTs,
+                "topic0-1-10-" + secondDayTs
+            )
+        );
+        assertThat(
+            records.get("topic0-1-10-" + firstDayTs),
+            contains(T0P1R0, T0P1R1, T0P1R2)
+        );
+        assertThat(
+            records.get("topic0-1-10-" + secondDayTs),
+            contains(T0P1R3)
+        );
+    }
+
+    @Test
+    void rotateKeysMonthly() {
+        final Template filenameTemplate =
+            Template.of(
+                "{{topic}}-"
+                    + "{{partition}}-"
+                    + "{{start_offset}}-"
+                    + "{{timestamp:unit=YYYY}}"
+                    + "{{timestamp:unit=MM}}"
+            );
+        final TimestampSource timestampSourceMock = mock(TimestampSource.class);
+
+        final ZonedDateTime firstMonthTime = ZonedDateTime.now().with(TemporalAdjusters.lastDayOfMonth());
+        final ZonedDateTime secondMonth = firstMonthTime.plusDays(1);
+        final String firstMonthTs =
+            firstMonthTime.format(DateTimeFormatter.ofPattern("YYYY"))
+                + firstMonthTime.format(DateTimeFormatter.ofPattern("MM"));
+        final String secondMonthTs =
+            secondMonth.format(DateTimeFormatter.ofPattern("YYYY"))
+                + secondMonth.format(DateTimeFormatter.ofPattern("MM"));
+
+        when(timestampSourceMock.time()).thenReturn(firstMonthTime);
+        final TopicPartitionRecordGrouper grouper =
+            new TopicPartitionRecordGrouper(
+                filenameTemplate,
+                null,
+                timestampSourceMock
+            );
+
+        grouper.put(T0P1R0);
+        grouper.put(T0P1R1);
+        grouper.put(T0P1R2);
+
+        when(timestampSourceMock.time()).thenReturn(secondMonth);
+
+        grouper.put(T0P1R3);
+
+        final Map<String, List<SinkRecord>> records = grouper.records();
+
+        assertEquals(2, records.size());
+
+        assertThat(
+            records.keySet(),
+            containsInAnyOrder(
+                "topic0-1-10-" + firstMonthTs,
+                "topic0-1-10-" + secondMonthTs
+            )
+        );
+        assertThat(
+            records.get("topic0-1-10-" + firstMonthTs),
+            contains(T0P1R0, T0P1R1, T0P1R2)
+        );
+        assertThat(
+            records.get("topic0-1-10-" + secondMonthTs),
+            contains(T0P1R3)
+        );
+    }
+
+    @Test
+    void rotateKeysYearly() {
+        final Template filenameTemplate =
+            Template.of(
+                "{{topic}}-"
+                    + "{{partition}}-"
+                    + "{{start_offset}}-"
+                    + "{{timestamp:unit=YYYY}}"
+                    + "{{timestamp:unit=MM}}"
+            );
+        final TimestampSource timestampSourceMock = mock(TimestampSource.class);
+
+        final ZonedDateTime firstYearTime = ZonedDateTime.now();
+        final ZonedDateTime secondYearMonth = firstYearTime.plusYears(1);
+        final String firstYearTs =
+            firstYearTime.format(DateTimeFormatter.ofPattern("YYYY"))
+                + firstYearTime.format(DateTimeFormatter.ofPattern("MM"));
+        final String secondYearTs =
+            secondYearMonth.format(DateTimeFormatter.ofPattern("YYYY"))
+                + secondYearMonth.format(DateTimeFormatter.ofPattern("MM"));
+
+        when(timestampSourceMock.time()).thenReturn(firstYearTime);
+        final TopicPartitionRecordGrouper grouper =
+            new TopicPartitionRecordGrouper(
+                filenameTemplate,
+                null,
+                timestampSourceMock
+            );
+
+        grouper.put(T0P1R0);
+        grouper.put(T0P1R1);
+        grouper.put(T0P1R2);
+
+        when(timestampSourceMock.time()).thenReturn(secondYearMonth);
+
+        grouper.put(T0P1R3);
+
+        final Map<String, List<SinkRecord>> records = grouper.records();
+
+        assertEquals(2, records.size());
+
+        assertThat(
+            records.keySet(),
+            containsInAnyOrder(
+                "topic0-1-10-" + firstYearTs,
+                "topic0-1-10-" + secondYearTs
+            )
+        );
+        assertThat(
+            records.get("topic0-1-10-" + firstYearTs),
+            contains(T0P1R0, T0P1R1, T0P1R2)
+        );
+        assertThat(
+            records.get("topic0-1-10-" + secondYearTs),
+            contains(T0P1R3)
         );
     }
 

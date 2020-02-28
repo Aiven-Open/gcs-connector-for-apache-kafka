@@ -18,10 +18,11 @@
 
 package io.aiven.kafka.connect.gcs.config;
 
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.common.config.AbstractConfig;
@@ -29,13 +30,14 @@ import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.config.types.Password;
 
+import io.aiven.kafka.connect.gcs.RecordGrouperFactory;
 import io.aiven.kafka.connect.gcs.gcs.GoogleCredentialsBuilder;
 import io.aiven.kafka.connect.gcs.templating.Template;
 
 import com.google.auth.oauth2.GoogleCredentials;
-import com.google.common.collect.ImmutableSet;
 
 public final class GcsSinkConfig extends AbstractConfig {
+
     private static final String GROUP_GCS = "GCS";
     public static final String GCS_CREDENTIALS_PATH_CONFIG = "gcs.credentials.path";
     public static final String GCS_CREDENTIALS_JSON_CONFIG = "gcs.credentials.json";
@@ -46,6 +48,8 @@ public final class GcsSinkConfig extends AbstractConfig {
     public static final String FILE_NAME_TEMPLATE_CONFIG = "file.name.template";
     public static final String FILE_COMPRESSION_TYPE_CONFIG = "file.compression.type";
     public static final String FILE_MAX_RECORDS = "file.max.records";
+    public static final String FILE_NAME_TIMESTAMP_TIMEZONE = "file.name.timestamp.timezone";
+    public static final String FILE_NAME_TIMESTAMP_SOURCE = "file.name.timestamp.source";
 
     private static final String GROUP_FORMAT = "Format";
     public static final String FORMAT_OUTPUT_FIELDS_CONFIG = "format.output.fields";
@@ -209,6 +213,57 @@ public final class GcsSinkConfig extends AbstractConfig {
             FILE_MAX_RECORDS
         );
 
+        configDef.define(
+            FILE_NAME_TIMESTAMP_TIMEZONE,
+            ConfigDef.Type.STRING,
+            ZoneOffset.UTC.toString(),
+            new ConfigDef.Validator() {
+                @Override
+                public void ensureValid(final String name, final Object value) {
+                    try {
+                        ZoneId.of(value.toString());
+                    } catch (final Exception e) {
+                        throw new ConfigException(
+                            FILE_NAME_TIMESTAMP_TIMEZONE,
+                            value,
+                            e.getMessage());
+                    }
+                }
+            },
+            ConfigDef.Importance.LOW,
+            "Specifies the timezone in which the dates and time for the timestamp variable will be treated. "
+                + "Use standard shot and long names. Default is UTC",
+            GROUP_FILE,
+            fileGroupCounter++,
+            ConfigDef.Width.SHORT,
+            FILE_NAME_TIMESTAMP_TIMEZONE
+        );
+
+        configDef.define(
+            FILE_NAME_TIMESTAMP_SOURCE,
+            ConfigDef.Type.STRING,
+            TimestampSource.Type.WALLCLOCK.name(),
+            new ConfigDef.Validator() {
+                @Override
+                public void ensureValid(final String name, final Object value) {
+                    try {
+                        TimestampSource.Type.of(value.toString());
+                    } catch (final Exception e) {
+                        throw new ConfigException(
+                            FILE_NAME_TIMESTAMP_SOURCE,
+                            value,
+                            e.getMessage());
+                    }
+                }
+            },
+            ConfigDef.Importance.LOW,
+            "Specifies the the timestamp variable source. Default is wall-clock.",
+            GROUP_FILE,
+            fileGroupCounter++,
+            ConfigDef.Width.SHORT,
+            FILE_NAME_TIMESTAMP_SOURCE
+        );
+
     }
 
     private static void addFormatConfigGroup(final ConfigDef configDef) {
@@ -297,14 +352,14 @@ public final class GcsSinkConfig extends AbstractConfig {
 
         // Special checks for {{key}} filename template.
         final Template filenameTemplate = getFilenameTemplate();
-        if (ImmutableSet.of(FilenameTemplateVariable.KEY.name).equals(filenameTemplate.variablesSet())) {
+        if (RecordGrouperFactory.KEY_RECORD.equals(RecordGrouperFactory.resolveRecordGrouperType(filenameTemplate))) {
             if (getMaxRecordsPerFile() > 1) {
                 final String msg = String.format("When %s is %s, %s must be either 1 or not set",
                     FILE_NAME_TEMPLATE_CONFIG, filenameTemplate, FILE_MAX_RECORDS);
                 throw new ConfigException(msg);
             }
-
         }
+
     }
 
     public final GoogleCredentials getCredentials() {
@@ -356,19 +411,34 @@ public final class GcsSinkConfig extends AbstractConfig {
         return getInt(FILE_MAX_RECORDS);
     }
 
-    public final Template getFilenameTemplate() {
-        return Template.of(resolveFilenameTemplate());
+    public final String getFilename() {
+        return resolveFilenameTemplate();
     }
 
     private String resolveFilenameTemplate() {
         String fileNameTemplate = getString(FILE_NAME_TEMPLATE_CONFIG);
-        if (Objects.isNull(fileNameTemplate)) {
+        if (fileNameTemplate == null) {
             fileNameTemplate = DEFAULT_FILENAME_TEMPLATE;
             if (getCompressionType() == CompressionType.GZIP) {
                 fileNameTemplate += ".gz";
             }
         }
         return fileNameTemplate;
+    }
+
+    public final Template getFilenameTemplate() {
+        return Template.of(getFilename());
+    }
+
+    public final ZoneId getFilenameTimezone() {
+        return ZoneId.of(getString(FILE_NAME_TIMESTAMP_TIMEZONE));
+    }
+
+    public final TimestampSource getFilenameTimestampSource() {
+        return TimestampSource.of(
+            getFilenameTimezone(),
+            TimestampSource.Type.of(getString(FILE_NAME_TIMESTAMP_SOURCE))
+        );
     }
 
 }

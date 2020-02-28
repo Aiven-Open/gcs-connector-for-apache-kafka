@@ -19,13 +19,12 @@
 package io.aiven.kafka.connect.gcs;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
@@ -41,9 +40,6 @@ import io.aiven.kafka.connect.gcs.templating.Template;
  * <p>The class supports one record per file.
  */
 final class KeyRecordGrouper implements RecordGrouper {
-    private static final List<String> EXPECTED_VARIABLE_LIST = Arrays.asList(
-        FilenameTemplateVariable.KEY.name
-    );
 
     private final Template filenameTemplate;
 
@@ -57,17 +53,6 @@ final class KeyRecordGrouper implements RecordGrouper {
      */
     public KeyRecordGrouper(final Template filenameTemplate) {
         Objects.requireNonNull(filenameTemplate, "filenameTemplate cannot be null");
-
-        if (!acceptsTemplate(filenameTemplate)) {
-            throw new IllegalArgumentException(
-                "filenameTemplate must have set of variables {"
-                    + String.join(",", EXPECTED_VARIABLE_LIST)
-                    + "}, but {"
-                    + String.join(",", filenameTemplate.variables())
-                    + "} was given"
-            );
-        }
-
         this.filenameTemplate = filenameTemplate;
     }
 
@@ -75,28 +60,29 @@ final class KeyRecordGrouper implements RecordGrouper {
     public void put(final SinkRecord record) {
         Objects.requireNonNull(record, "records cannot be null");
 
-        final String filename = renderFilename(record);
+        final String recordKey = generateRecordKey(record);
 
-        fileBuffers.putIfAbsent(filename, new ArrayList<>());
+        fileBuffers.putIfAbsent(recordKey, new ArrayList<>());
 
         // one record per file
-        final List<SinkRecord> records = fileBuffers.get(filename);
+        final List<SinkRecord> records = fileBuffers.get(recordKey);
         records.clear();
         records.add(record);
     }
 
-    private String renderFilename(final SinkRecord record) {
-        final String keyString;
-        if (record.key() == null) {
-            keyString = "null";
-        } else if (record.keySchema().type() == Schema.Type.STRING) {
-            keyString = (String) record.key();
-        } else {
-            keyString = record.key().toString();
-        }
+    private String generateRecordKey(final SinkRecord record) {
+        final Supplier<String> setKey = () -> {
+            if (record.key() == null) {
+                return "null";
+            } else if (record.keySchema().type() == Schema.Type.STRING) {
+                return (String) record.key();
+            } else {
+                return record.key().toString();
+            }
+        };
 
         return filenameTemplate.instance()
-            .bindVariable(FilenameTemplateVariable.KEY.name, () -> keyString)
+            .bindVariable(FilenameTemplateVariable.KEY.name, setKey)
             .render();
     }
 
@@ -110,10 +96,4 @@ final class KeyRecordGrouper implements RecordGrouper {
         return Collections.unmodifiableMap(fileBuffers);
     }
 
-    /**
-     * Checks if the template is acceptable for this grouper.
-     */
-    static boolean acceptsTemplate(final Template filenameTemplate) {
-        return new HashSet<>(EXPECTED_VARIABLE_LIST).equals(filenameTemplate.variablesSet());
-    }
 }

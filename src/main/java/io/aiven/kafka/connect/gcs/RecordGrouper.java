@@ -26,7 +26,7 @@ import org.apache.kafka.connect.sink.SinkRecord;
 /**
  * The interface for classes that associates {@link SinkRecord}s with files by some criteria.
  */
-interface RecordGrouper {
+public interface RecordGrouper {
     /**
      * Associate the record with the appropriate file.
      */
@@ -41,4 +41,5 @@ interface RecordGrouper {
      * Get all records associated with files, grouped by the file name.
      */
     Map<String, List<SinkRecord>> records();
+
 }

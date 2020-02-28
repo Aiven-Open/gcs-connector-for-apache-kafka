@@ -33,19 +33,34 @@ template for file names. It supports placeholders with variable names:
 - `topic` - the Kafka topic;
 - `partition` - the Kafka partition;
 - `start_offset:padding=true|false` - the Kafka offset of the first record in the file, if `padding` sets to `true` will set leading zeroes for offset, default is `false`;
+- `timestamp:unit=YYYY|MM|dd|HH` - the timestamp of when the Kafka record has been processed by the connector.
+   - `unit` parameter values:
+     - `YYYY` - year, e.g. `2020`
+     - `MM` - month, e.g. `03`
+     - `dd` - day, e.g. `01`
+     - `HH` - hour, e.g. `24` 
 - `key` - the Kafka key.
 
 To add zero padding to Kafka offsets, you need to add additional parameter `padding` in the `start_offset` variable, 
 which value can be `true` or `false` (the default). 
-For example: `{{topic}}-{{start_offset:padding=true}}.gz` will produce file names like `mytopic-00000000000000000001.gz`.
+For example: `{{topic}}-{{partition}}-{{start_offset:padding=true}}.gz` 
+will produce file names like `mytopic-1-00000000000000000001.gz`.
+
+To add formatted timestamps, use `timestamp` variable.<br/>
+For example: `{{topic}}-{{partition}}-{{start_offset}}-{{timestamp:unit=YYYY}}{{timestamp:unit=MM}}{{timestamp:unit=dd}}.gz` 
+will produce file names like `mytopic-2-1-20200301.gz`.
+
+To configure the time zone for the `timestamp` variable,
+use `file.name.timestamp.timezone` property. 
+Please see the description of properties in the "Configuration" section.
 
 Only the certain combinations of variables and parameters are allowed in the file name
 template (however, variables in a template can be in any order). Each
 combination determines the mode of record grouping the connector will
 use. Currently supported combinations of variables and the corresponding
 record grouping modes are:
-- `topic`, `partition`, `start_offset` - grouping by the topic and
-  partition;
+- `topic`, `partition`, `start_offset`, and `timestamp` - grouping by the topic,
+  partition, and timestamp;
 - `key` - grouping by the key.
 
 If the file name template is not specified, the default value is
@@ -223,7 +238,6 @@ value.converter=org.apache.kafka.connect.converters.ByteArrayConverter
 # See https://kafka.apache.org/documentation/#connect_configuring
 topics=topic1,topic2
 
-
 ### Connector-specific configuration
 ### Fill in you values
 
@@ -265,6 +279,17 @@ file.name.prefix=some-prefix/
 # The supported values are: `gzip`, `none`.
 # Optional, the default is `none`.
 file.compression.type=gzip
+
+# The time zone in which timestamps are represented.
+# Accepts short and long standard names like: `UTC`, `PST`, `ECT`,
+# `Europe/Berlin`, `Europe/Helsinki`, or `America/New_York`. 
+# For more information please refer to https://docs.oracle.com/javase/tutorial/datetime/iso/timezones.html.
+# The default is `UTC`.
+file.name.timestamp.timezone=Europe/Berlin
+
+# The source of timestamps.
+# Supports only `wallclock` which is the default value.
+file.name.timestamp.source=wallclock
 
 # The file name template.
 # See "File name format" section.

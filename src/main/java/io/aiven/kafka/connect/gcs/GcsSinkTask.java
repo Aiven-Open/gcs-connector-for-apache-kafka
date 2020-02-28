@@ -36,7 +36,6 @@ import org.apache.kafka.connect.sink.SinkTask;
 import io.aiven.kafka.connect.gcs.config.CompressionType;
 import io.aiven.kafka.connect.gcs.config.GcsSinkConfig;
 import io.aiven.kafka.connect.gcs.output.OutputWriter;
-import io.aiven.kafka.connect.gcs.templating.Template;
 
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
@@ -52,6 +51,7 @@ public final class GcsSinkTask extends SinkTask {
     private OutputWriter outputWriter;
 
     private GcsSinkConfig config;
+
     private Storage storage;
 
     // required by Connect
@@ -83,24 +83,10 @@ public final class GcsSinkTask extends SinkTask {
 
     private void initRest() {
         this.outputWriter = OutputWriter.builder().addFields(config.getOutputFields()).build();
-
-        final Integer maxRecordsPerFile;
-        if (config.getMaxRecordsPerFile() == 0) {
-            maxRecordsPerFile = null;
-        } else {
-            maxRecordsPerFile = config.getMaxRecordsPerFile();
-        }
-
-        final Template filenameTemplate = config.getFilenameTemplate();
-        if (TopicPartitionRecordGrouper.acceptsTemplate(filenameTemplate)) {
-            this.recordGrouper = new TopicPartitionRecordGrouper(filenameTemplate, maxRecordsPerFile);
-        } else if (KeyRecordGrouper.acceptsTemplate(filenameTemplate)) {
-            if (maxRecordsPerFile == null) {
-                log.info("File name template is {}, 1 record per file is used", filenameTemplate);
-            }
-            this.recordGrouper = new KeyRecordGrouper(filenameTemplate);
-        } else {
-            throw new ConnectException("Unsupported file name template " + filenameTemplate);
+        try {
+            this.recordGrouper = RecordGrouperFactory.newRecordGrouper(config);
+        } catch (final Exception e) {
+            throw new ConnectException("Unsupported file name template " + config.getFilename(), e);
         }
     }
 

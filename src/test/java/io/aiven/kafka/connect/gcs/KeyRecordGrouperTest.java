@@ -27,17 +27,11 @@ import org.apache.kafka.connect.sink.SinkRecord;
 import io.aiven.kafka.connect.gcs.templating.Template;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anEmptyMap;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class KeyRecordGrouperTest {
 
@@ -72,30 +66,9 @@ final class KeyRecordGrouperTest {
     private static final SinkRecord T1P1R3 =
         new SinkRecord("topic1", 0, Schema.OPTIONAL_STRING_SCHEMA, "a", null, null, 1003);
 
-    @ParameterizedTest
-    @ValueSource(strings = {
-        "",
-        "{{topic}}", "{{partition}}", "{{start_offset}}",
-        "{{topic}}-{{partition}}", "{{topic}}-{{start_offset}}", "{{partition}}-{{start_offset}}",
-        "{{topic}}-{{partition}}-{{start_offset}}",
-        "{{topic}}-{{partition}}-{{start_offset}}-{{key}}"
-    })
-    final void incorrectFilenameTemplates(final String template) {
-        final Template filenameTemplate = Template.of(template);
-        assertFalse(KeyRecordGrouper.acceptsTemplate(filenameTemplate));
-        final IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-            () -> new KeyRecordGrouper(filenameTemplate));
-        assertEquals(
-            "filenameTemplate must have set of variables {key}, but {"
-                + String.join(",", filenameTemplate.variables())
-                + "} was given",
-            ex.getMessage());
-    }
-
     @Test
     final void empty() {
         final Template filenameTemplate = Template.of("{{key}}");
-        assertTrue(KeyRecordGrouper.acceptsTemplate(filenameTemplate));
         final KeyRecordGrouper grouper = new KeyRecordGrouper(filenameTemplate);
         assertThat(grouper.records(), anEmptyMap());
     }
@@ -103,7 +76,6 @@ final class KeyRecordGrouperTest {
     @Test
     final void eachKeyInSinglePartition() {
         final Template filenameTemplate = Template.of("{{key}}");
-        assertTrue(KeyRecordGrouper.acceptsTemplate(filenameTemplate));
         final KeyRecordGrouper grouper = new KeyRecordGrouper(filenameTemplate);
 
         grouper.put(T0P0R0);
@@ -114,7 +86,10 @@ final class KeyRecordGrouperTest {
         grouper.put(T0P0R5);
 
         final Map<String, List<SinkRecord>> records = grouper.records();
-        assertThat(records.keySet(), containsInAnyOrder("a", "b", "null"));
+        assertThat(
+            records.keySet(),
+            containsInAnyOrder("a", "b", "null")
+        );
         assertThat(records.get("a"), contains(T0P0R4));
         assertThat(records.get("b"), contains(T0P0R5));
         assertThat(records.get("null"), contains(T0P0R3));
@@ -123,7 +98,6 @@ final class KeyRecordGrouperTest {
     @Test
     final void keysInMultiplePartitions() {
         final Template filenameTemplate = Template.of("{{key}}");
-        assertTrue(KeyRecordGrouper.acceptsTemplate(filenameTemplate));
         final KeyRecordGrouper grouper = new KeyRecordGrouper(filenameTemplate);
 
         grouper.put(T0P0R0);
@@ -144,7 +118,10 @@ final class KeyRecordGrouperTest {
         grouper.put(T1P1R3);
 
         final Map<String, List<SinkRecord>> records = grouper.records();
-        assertThat(records.keySet(), containsInAnyOrder("a", "b", "c", "d", "null"));
+        assertThat(
+            records.keySet(),
+            containsInAnyOrder("a", "b", "c", "d", "null")
+        );
         assertThat(records.get("a"), contains(T1P1R3));
         assertThat(records.get("b"), contains(T0P1R1));
         assertThat(records.get("c"), contains(T0P1R3));

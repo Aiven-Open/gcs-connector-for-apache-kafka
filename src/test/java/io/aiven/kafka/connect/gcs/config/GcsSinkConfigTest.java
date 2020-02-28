@@ -21,6 +21,8 @@ package io.aiven.kafka.connect.gcs.config;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -31,6 +33,7 @@ import java.util.stream.Stream;
 import org.apache.kafka.common.config.ConfigException;
 
 import com.google.auth.oauth2.UserCredentials;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Resources;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -47,6 +50,41 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Tests {@link GcsSinkConfig} class.
  */
 final class GcsSinkConfigTest {
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+        "",
+        "{{topic}}", "{{partition}}", "{{start_offset}}",
+        "{{topic}}-{{partition}}", "{{topic}}-{{start_offset}}", "{{partition}}-{{start_offset}}",
+        "{{topic}}-{{partition}}-{{start_offset}}",
+        "{{topic}}-{{partition}}-{{start_offset}}-{{key}}"
+    })
+    final void incorrectFilenameTemplatesForKey(final String template) {
+        final Map<String, String> properties =
+            ImmutableMap.of(
+                GcsSinkConfig.FILE_NAME_TEMPLATE_CONFIG, template);
+        assertThrows(
+            ConfigException.class,
+            () -> new GcsSinkConfig(properties)
+        );
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+        "",
+        "{{topic}}", "{{partition}}", "{{start_offset}}",
+        "{{topic}}-{{partition}}", "{{topic}}-{{start_offset}}", "{{partition}}-{{start_offset}}",
+        "{{topic}}-{{partition}}-{{start_offset}}-{{unknown}}"
+    })
+    final void incorrectFilenameTemplatesForTopicPartitionRecord(final String template) {
+        final Map<String, String> properties =
+            ImmutableMap.of(
+                GcsSinkConfig.FILE_NAME_TEMPLATE_CONFIG, template);
+        assertThrows(
+            ConfigException.class,   
+            () -> new GcsSinkConfig(properties)
+        );
+    }
 
     @Test
     void requiredConfigurations() {
@@ -96,7 +134,7 @@ final class GcsSinkConfigTest {
         properties.put("gcs.bucket.name", "test-bucket");
         properties.put("file.compression.type", "gzip");
         properties.put("file.name.prefix", "test-prefix");
-        properties.put("file.name.template", "{{topic}}-{{partition}}-{{start_offset}}.gz");
+        properties.put("file.name.template", "{{topic}}-{{partition}}-{{start_offset}}-{{timestamp:unit=YYYY}}.gz");
         properties.put("file.max.records", "42");
         properties.put("format.output.fields", "key,value,offset,timestamp");
         properties.put("format.output.fields.value.encoding", "base64");
@@ -107,18 +145,26 @@ final class GcsSinkConfigTest {
         assertEquals(CompressionType.GZIP, config.getCompressionType());
         assertEquals(42, config.getMaxRecordsPerFile());
         assertEquals("test-prefix", config.getPrefix());
-        assertEquals("a-b-c.gz",
+        assertEquals("a-b-c-d.gz",
             config.getFilenameTemplate()
                 .instance()
                 .bindVariable("topic", () -> "a")
                 .bindVariable("partition", () -> "b")
                 .bindVariable("start_offset", () -> "c")
+                .bindVariable("timestamp", () -> "d")
                 .render());
         assertIterableEquals(Arrays.asList(
             new OutputField(OutputFieldType.KEY, OutputFieldEncodingType.NONE),
             new OutputField(OutputFieldType.VALUE, OutputFieldEncodingType.BASE64),
             new OutputField(OutputFieldType.OFFSET, OutputFieldEncodingType.NONE),
             new OutputField(OutputFieldType.TIMESTAMP, OutputFieldEncodingType.NONE)), config.getOutputFields());
+
+        assertEquals(ZoneOffset.UTC, config.getFilenameTimezone());
+        assertEquals(
+            TimestampSource.WallclockTimestampSource.class,
+            config.getFilenameTimestampSource().getClass()
+        );
+
     }
 
     @ParameterizedTest
@@ -399,7 +445,8 @@ final class GcsSinkConfigTest {
             ConfigException.class,
             () -> new GcsSinkConfig(properties));
         assertEquals("Invalid value  for configuration file.name.template: "
-                + "unsupported set of template variables, supported sets are: topic,partition,start_offset; key",
+                + "unsupported set of template variables, "
+                + "supported sets are: topic,partition,start_offset,timestamp; key",
             t.getMessage());
     }
 
@@ -414,7 +461,8 @@ final class GcsSinkConfigTest {
             () -> new GcsSinkConfig(properties));
         assertEquals("Invalid value {{ aaa }}{{ topic }}{{ partition }}{{ start_offset }} "
                 + "for configuration file.name.template: "
-                + "unsupported set of template variables, supported sets are: topic,partition,start_offset; key",
+                + "unsupported set of template variables, "
+                + "supported sets are: topic,partition,start_offset,timestamp; key",
             t.getMessage());
     }
 
@@ -428,7 +476,8 @@ final class GcsSinkConfigTest {
             ConfigException.class,
             () -> new GcsSinkConfig(properties));
         assertEquals("Invalid value {{ partition }}{{ start_offset }} for configuration file.name.template: "
-                + "unsupported set of template variables, supported sets are: topic,partition,start_offset; key",
+                + "unsupported set of template variables, "
+                + "supported sets are: topic,partition,start_offset,timestamp; key",
             t.getMessage());
     }
 
@@ -445,7 +494,23 @@ final class GcsSinkConfigTest {
             "Invalid value {{start_offset:padding=FALSE}}-{{partition}}-{{topic}} "
                 + "for configuration file.name.template: "
                 + "unsupported set of template variables parameters, "
-                + "supported sets are: start_offset:padding=true|false", t.getMessage());
+                + "supported sets are: start_offset:padding=true|false,timestamp:unit=YYYY|MM|dd|HH", t.getMessage());
+    }
+
+    @Test
+    void variableWithoutRequiredParameterValue() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put("file.name.template", "{{start_offset}}-{{partition}}-{{topic}}-{{timestamp}}");
+        final Throwable t = assertThrows(
+            ConfigException.class,
+            () -> new GcsSinkConfig(properties)
+        );
+        assertEquals(
+            "Invalid value {{start_offset}}-{{partition}}-{{topic}}-{{timestamp}} "
+                + "for configuration file.name.template: "
+                + "parameter unit is required for the the variable timestamp, "
+                + "supported values are: YYYY|MM|dd|HH", t.getMessage());
     }
 
     @Test
@@ -522,7 +587,8 @@ final class GcsSinkConfigTest {
             ConfigException.class,
             () -> new GcsSinkConfig(properties));
         assertEquals("Invalid value {{ topic }}{{ start_offset }} for configuration file.name.template: "
-                + "unsupported set of template variables, supported sets are: topic,partition,start_offset; key",
+                + "unsupported set of template variables, "
+                + "supported sets are: topic,partition,start_offset,timestamp; key",
             t.getMessage());
     }
 
@@ -536,7 +602,8 @@ final class GcsSinkConfigTest {
             ConfigException.class,
             () -> new GcsSinkConfig(properties));
         assertEquals("Invalid value {{ topic }}{{ partition }} for configuration file.name.template: "
-                + "unsupported set of template variables, supported sets are: topic,partition,start_offset; key",
+                + "unsupported set of template variables, "
+                + "supported sets are: topic,partition,start_offset,timestamp; key",
             t.getMessage());
     }
 
@@ -572,4 +639,59 @@ final class GcsSinkConfigTest {
         assertEquals("When file.name.template is {{key}}, file.max.records must be either 1 or not set",
             t.getMessage());
     }
+
+    @Test
+    void correctShortFilenameTimezone() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put(GcsSinkConfig.FILE_NAME_TIMESTAMP_TIMEZONE, "CET");
+
+        final GcsSinkConfig c = new GcsSinkConfig(properties);
+        assertEquals(ZoneId.of("CET"), c.getFilenameTimezone());
+    }
+
+    @Test
+    void correctLongFilenameTimezone() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put(GcsSinkConfig.FILE_NAME_TIMESTAMP_TIMEZONE, "Europe/Berlin");
+
+        final GcsSinkConfig c = new GcsSinkConfig(properties);
+        assertEquals(ZoneId.of("Europe/Berlin"), c.getFilenameTimezone());
+    }
+
+    @Test
+    void wrongFilenameTimestampSource() {
+
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put(GcsSinkConfig.FILE_NAME_TIMESTAMP_TIMEZONE, "Europe/Berlin");
+        properties.put(GcsSinkConfig.FILE_NAME_TIMESTAMP_SOURCE, "UNKNOWN_TIMESTAMP_SOURCE");
+
+        final Throwable t =
+            assertThrows(
+                ConfigException.class,
+                () -> new GcsSinkConfig(properties)
+            );
+        assertEquals(
+            "Invalid value UNKNOWN_TIMESTAMP_SOURCE for configuration "
+                + "file.name.timestamp.source: Unknown timestamp source: UNKNOWN_TIMESTAMP_SOURCE",
+            t.getMessage()
+        );
+
+    }
+
+    @Test
+    void correctFilenameTimestampSource() {
+
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put(GcsSinkConfig.FILE_NAME_TIMESTAMP_TIMEZONE, "Europe/Berlin");
+        properties.put(GcsSinkConfig.FILE_NAME_TIMESTAMP_SOURCE, "wallclock");
+
+        final GcsSinkConfig c = new GcsSinkConfig(properties);
+        assertEquals(TimestampSource.WallclockTimestampSource.class, c.getFilenameTimestampSource().getClass());
+
+    }
+
 }
