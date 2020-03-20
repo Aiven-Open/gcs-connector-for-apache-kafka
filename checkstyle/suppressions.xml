@@ -29,4 +29,6 @@
               files="(FilenameTemplateValidator).java" />
     <suppress checks="NPathComplexity"
               files="(FilenameTemplateValidator).java" />
+    <suppress checks="MethodLength"
+              files="(GcsSinkConfig).java" />
 </suppressions>

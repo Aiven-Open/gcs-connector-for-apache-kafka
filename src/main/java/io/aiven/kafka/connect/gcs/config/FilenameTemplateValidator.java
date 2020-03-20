@@ -18,7 +18,6 @@
 
 package io.aiven.kafka.connect.gcs.config;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -26,34 +25,28 @@ import java.util.stream.Collectors;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigException;
 
-import io.aiven.kafka.connect.gcs.templating.Pair;
+import io.aiven.kafka.connect.gcs.RecordGrouperFactory;
+import io.aiven.kafka.connect.gcs.config.FilenameTemplateVariable.ParameterDescriptor;
 import io.aiven.kafka.connect.gcs.templating.Template;
 import io.aiven.kafka.connect.gcs.templating.VariableTemplatePart.Parameter;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
+
+import static io.aiven.kafka.connect.gcs.RecordGrouperFactory.ALL_SUPPORTED_VARIABLES;
+import static io.aiven.kafka.connect.gcs.RecordGrouperFactory.SUPPORTED_VARIABLES_LIST;
 
 final class FilenameTemplateValidator implements ConfigDef.Validator {
 
-    private final String configName;
-
-    private static final List<Set<String>> SUPPORTED_VARIABLES_SETS =
-        ImmutableList.of(
-            ImmutableSet.of(FilenameTemplateVariable.TOPIC.name,
-                FilenameTemplateVariable.PARTITION.name,
-                FilenameTemplateVariable.START_OFFSET.name),
-            ImmutableSet.of(FilenameTemplateVariable.KEY.name)
-        );
-
-    private static final Map<String, Map<String, Set<String>>> SUPPORTED_VARIABLE_PARAMETERS_SET =
+    private static final Map<String, ParameterDescriptor> SUPPORTED_VARIABLE_PARAMETERS =
         ImmutableMap.of(
             FilenameTemplateVariable.START_OFFSET.name,
-            ImmutableMap.of(
-                FilenameTemplateVariable.START_OFFSET.parameterName,
-                ImmutableSet.copyOf(FilenameTemplateVariable.START_OFFSET.parameterValues)
-            )
+            FilenameTemplateVariable.START_OFFSET.parameterDescriptor,
+
+            FilenameTemplateVariable.TIMESTAMP.name,
+            FilenameTemplateVariable.TIMESTAMP.parameterDescriptor
         );
+
+    private final String configName;
 
     protected FilenameTemplateValidator(final String configName) {
         this.configName = configName;
@@ -76,51 +69,73 @@ final class FilenameTemplateValidator implements ConfigDef.Validator {
 
         try {
             final Template template = Template.of((String) value);
-
-            boolean isVariableSetSupported = false;
-            for (final Set<String> supportedVariablesSet : SUPPORTED_VARIABLES_SETS) {
-                if (supportedVariablesSet.equals(template.variablesSet())) {
-                    isVariableSetSupported = true;
-                    break;
-                }
-            }
-            if (!isVariableSetSupported) {
-                final String supportedSetsStr = SUPPORTED_VARIABLES_SETS.stream()
-                    .map(set -> String.join(",", set))
-                    .collect(Collectors.joining("; "));
-
-                throw new ConfigException(configName, value,
-                    "unsupported set of template variables, supported sets are: " + supportedSetsStr);
-            }
-
-            boolean isVariableParametersSupported = true;
-            for (final Pair<String, Parameter> e : template.variablesWithNonEmptyParameters()) {
-                if (SUPPORTED_VARIABLE_PARAMETERS_SET.containsKey(e.left())) {
-                    final Map<String, Set<String>> expectedParameter =
-                        SUPPORTED_VARIABLE_PARAMETERS_SET.get(e.left());
-                    final Parameter p = e.right();
-                    if (!expectedParameter.containsKey(p.name())) {
-                        isVariableParametersSupported = false;
-                        break;
-                    } else if (!expectedParameter.get(p.name()).contains(p.value())) {
-                        isVariableParametersSupported = false;
-                        break;
-                    }
-                }
-            }
-            if (!isVariableParametersSupported) {
-                final String supportedParametersSet = SUPPORTED_VARIABLE_PARAMETERS_SET.keySet().stream()
-                    .map(v -> FilenameTemplateVariable.of(v).parameterDescription())
-                    .collect(Collectors.joining(","));
-                throw new ConfigException(configName, value,
-                    String.format(
-                        "unsupported set of template variables parameters, supported sets are: %s",
-                        supportedParametersSet)
-                );
-            }
+            validateVariables(template.variablesSet());
+            validateVariableParameters(template.variablesWithNonEmptyParameters());
+            validateVariablesWithRequiredParameters(template.variablesWithParameterSet());
+            RecordGrouperFactory.resolveRecordGrouperType(template);
         } catch (final IllegalArgumentException e) {
             throw new ConfigException(configName, value, e.getMessage());
         }
 
+
+    }
+
+    private static void validateVariables(final Set<String> variables) {
+        for (final String variable : variables) {
+            if (!ALL_SUPPORTED_VARIABLES.contains(variable)) {
+                throw new IllegalArgumentException(
+                    String.format(
+                        "unsupported set of template variables, supported sets are: %s",
+                        SUPPORTED_VARIABLES_LIST
+                    )
+                );
+            }
+        }
+    }
+
+    public void validateVariableParameters(final Map<String, Parameter> variablesWithNonEmptyParameters) {
+        boolean isVariableParametersSupported = true;
+        for (final Map.Entry<String, Parameter> e : variablesWithNonEmptyParameters.entrySet()) {
+            final String varName = e.getKey();
+            final Parameter varParam = e.getValue();
+            if (SUPPORTED_VARIABLE_PARAMETERS.containsKey(varName)) {
+                final ParameterDescriptor expectedParameter =
+                    SUPPORTED_VARIABLE_PARAMETERS.get(varName);
+                if (!expectedParameter.values.contains(varParam.value())) {
+                    isVariableParametersSupported = false;
+                    break;
+                }
+            }
+        }
+        if (!isVariableParametersSupported) {
+            final String supportedParametersSet = SUPPORTED_VARIABLE_PARAMETERS.keySet().stream()
+                .map(v -> FilenameTemplateVariable.of(v).description())
+                .collect(Collectors.joining(","));
+            throw new IllegalArgumentException(
+                String.format(
+                    "unsupported set of template variables parameters, supported sets are: %s",
+                    supportedParametersSet
+                )
+            );
+        }
+    }
+
+    public static void validateVariablesWithRequiredParameters(final Map<String, Parameter> variablesWithParameters) {
+        for (final Map.Entry<String, Parameter> e : variablesWithParameters.entrySet()) {
+            final String varName = e.getKey();
+            final Parameter varParam = e.getValue();
+            if (SUPPORTED_VARIABLE_PARAMETERS.containsKey(varName)) {
+                final ParameterDescriptor expectedParameter =
+                    SUPPORTED_VARIABLE_PARAMETERS.get(varName);
+                if (varParam.isEmpty() && expectedParameter.required) {
+                    throw new IllegalArgumentException(
+                        String.format(
+                            "parameter %s is required for the the variable %s, supported values are: %s",
+                            expectedParameter.name, varName, expectedParameter.toString()
+                        )
+                    );
+                }
+            }
+        }
     }
 }

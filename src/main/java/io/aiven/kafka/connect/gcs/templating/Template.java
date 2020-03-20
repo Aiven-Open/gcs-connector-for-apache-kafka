@@ -61,20 +61,29 @@ public final class Template {
         this.templateParts = templateParts;
     }
 
+    public String originalTemplate() {
+        return originalTemplateString;
+    }
+
     public final List<String> variables() {
         return variablesAndParameters.stream()
             .map(Pair::left)
             .collect(Collectors.toList());
     }
 
-    public final List<Pair<String, Parameter>> variablesWithNonEmptyParameters() {
-        return variablesAndParameters.stream()
-            .filter(e -> !e.right().isEmpty())
-            .collect(Collectors.toList());
-    }
-
     public final Set<String> variablesSet() {
         return variablesAndParameters.stream().map(Pair::left).collect(Collectors.toSet());
+    }
+
+    public final Map<String, Parameter> variablesWithParameterSet() {
+        return variablesAndParameters.stream()
+            .collect(Collectors.toMap(Pair::left, Pair::right));
+    }
+
+    public final Map<String, Parameter>  variablesWithNonEmptyParameters() {
+        return variablesAndParameters.stream()
+            .filter(e -> !e.right().isEmpty())
+            .collect(Collectors.toMap(Pair::left, Pair::right));
     }
 
     public final Instance instance() {

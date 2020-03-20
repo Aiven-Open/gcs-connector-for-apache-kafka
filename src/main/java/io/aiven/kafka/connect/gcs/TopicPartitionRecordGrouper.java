@@ -18,20 +18,24 @@
 
 package io.aiven.kafka.connect.gcs;
 
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.sink.SinkRecord;
 
 import io.aiven.kafka.connect.gcs.config.FilenameTemplateVariable;
+import io.aiven.kafka.connect.gcs.config.TimestampSource;
 import io.aiven.kafka.connect.gcs.templating.Template;
+import io.aiven.kafka.connect.gcs.templating.VariableTemplatePart.Parameter;
+
+import com.google.common.collect.ImmutableMap;
 
 /**
  * A {@link RecordGrouper} that groups records by topic and partition.
@@ -42,11 +46,6 @@ import io.aiven.kafka.connect.gcs.templating.Template;
  * <p>The class supports limited and unlimited number of records in files.
  */
 final class TopicPartitionRecordGrouper implements RecordGrouper {
-    private static final List<String> EXPECTED_VARIABLE_LIST = Arrays.asList(
-        FilenameTemplateVariable.TOPIC.name,
-        FilenameTemplateVariable.PARTITION.name,
-        FilenameTemplateVariable.START_OFFSET.name
-    );
 
     private final Template filenameTemplate;
 
@@ -56,27 +55,38 @@ final class TopicPartitionRecordGrouper implements RecordGrouper {
 
     private final Map<String, List<SinkRecord>> fileBuffers = new HashMap<>();
 
+    private final Function<Parameter, String> setTimestamp;
+
     /**
      * A constructor.
      *
      * @param filenameTemplate  the filename template.
      * @param maxRecordsPerFile the maximum number of records per file ({@code null} for unlimited).
      */
-    public TopicPartitionRecordGrouper(final Template filenameTemplate, final Integer maxRecordsPerFile) {
+    public TopicPartitionRecordGrouper(final Template filenameTemplate,
+                                       final Integer maxRecordsPerFile,
+                                       final TimestampSource tsSource) {
         Objects.requireNonNull(filenameTemplate, "filenameTemplate cannot be null");
-
-        if (!acceptsTemplate(filenameTemplate)) {
-            throw new IllegalArgumentException(
-                "filenameTemplate must have set of variables {"
-                    + String.join(",", EXPECTED_VARIABLE_LIST)
-                    + "}, but {"
-                    + String.join(",", filenameTemplate.variables())
-                    + "} was given"
-            );
-        }
-
+        Objects.requireNonNull(tsSource, "tsSource cannot be null");
         this.filenameTemplate = filenameTemplate;
         this.maxRecordsPerFile = maxRecordsPerFile;
+        this.setTimestamp = new Function<Parameter, String>() {
+
+            //FIXME move into commons lib
+            private final Map<String, DateTimeFormatter> timestampFormatters =
+                ImmutableMap.of(
+                    "YYYY", DateTimeFormatter.ofPattern("YYYY"),
+                    "MM", DateTimeFormatter.ofPattern("MM"),
+                    "dd", DateTimeFormatter.ofPattern("dd"),
+                    "HH", DateTimeFormatter.ofPattern("HH")
+                );
+
+            @Override
+            public String apply(final Parameter parameter) {
+                return tsSource.time().format(timestampFormatters.get(parameter.value()));
+            }
+
+        };
     }
 
     @Override
@@ -85,19 +95,24 @@ final class TopicPartitionRecordGrouper implements RecordGrouper {
 
         final TopicPartition tp = new TopicPartition(record.topic(), record.kafkaPartition());
         final SinkRecord currentHeadRecord = currentHeadRecords.computeIfAbsent(tp, ignored -> record);
-        final String filename = renderFilename(tp, currentHeadRecord);
+        final String recordKey = generateRecordKey(tp, currentHeadRecord);
 
-        if (shouldCreateNewFile(filename)) {
+        if (shouldCreateNewFile(recordKey)) {
             // Create new file using this record as the head record.
             currentHeadRecords.put(tp, record);
-            final String newFilename = renderFilename(tp, record);
-            fileBuffers.computeIfAbsent(newFilename, ignored -> new ArrayList<>()).add(record);
+            final String newRecordKey = generateRecordKey(tp, record);
+            fileBuffers.computeIfAbsent(newRecordKey, ignored -> new ArrayList<>()).add(record);
         } else {
-            fileBuffers.computeIfAbsent(filename, ignored -> new ArrayList<>()).add(record);
+            fileBuffers.computeIfAbsent(recordKey, ignored -> new ArrayList<>()).add(record);
         }
     }
 
-    private String renderFilename(final TopicPartition tp, final SinkRecord headRecord) {
+    private String generateRecordKey(final TopicPartition tp, final SinkRecord headRecord) {
+        //FIXME move into commons lib
+        final Function<Parameter, String> setKafkaOffset =
+            usePaddingParameter -> usePaddingParameter.asBoolean()
+                ? String.format("%020d", headRecord.kafkaOffset())
+                : Long.toString(headRecord.kafkaOffset());
 
         return filenameTemplate.instance()
             .bindVariable(FilenameTemplateVariable.TOPIC.name, tp::topic)
@@ -106,18 +121,19 @@ final class TopicPartitionRecordGrouper implements RecordGrouper {
                 () -> Integer.toString(tp.partition())
             ).bindVariable(
                 FilenameTemplateVariable.START_OFFSET.name,
-                usePaddingParameter -> usePaddingParameter.asBoolean()
-                    ? String.format("%020d", headRecord.kafkaOffset())
-                    : Long.toString(headRecord.kafkaOffset())
+                setKafkaOffset
+            ).bindVariable(
+                FilenameTemplateVariable.TIMESTAMP.name,
+                setTimestamp
             ).render();
     }
 
-    private boolean shouldCreateNewFile(final String filename) {
+    private boolean shouldCreateNewFile(final String recordKey) {
         final boolean unlimited = maxRecordsPerFile == null;
         if (unlimited) {
             return false;
         } else {
-            final List<SinkRecord> buffer = fileBuffers.get(filename);
+            final List<SinkRecord> buffer = fileBuffers.get(recordKey);
             return buffer == null || buffer.size() >= maxRecordsPerFile;
         }
     }
@@ -133,10 +149,4 @@ final class TopicPartitionRecordGrouper implements RecordGrouper {
         return Collections.unmodifiableMap(fileBuffers);
     }
 
-    /**
-     * Checks if the template is acceptable for this grouper.
-     */
-    static boolean acceptsTemplate(final Template filenameTemplate) {
-        return new HashSet<>(EXPECTED_VARIABLE_LIST).equals(filenameTemplate.variablesSet());
-    }
 }
