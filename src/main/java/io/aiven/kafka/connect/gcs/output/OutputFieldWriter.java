@@ -24,5 +24,7 @@ import java.io.OutputStream;
 import org.apache.kafka.connect.sink.SinkRecord;
 
 public interface OutputFieldWriter {
+
     void write(SinkRecord record, OutputStream outputStream) throws IOException;
+
 }

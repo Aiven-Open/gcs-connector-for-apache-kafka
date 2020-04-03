@@ -18,6 +18,7 @@
 
 package io.aiven.kafka.connect.gcs.config;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -27,6 +28,7 @@ import org.apache.kafka.common.config.ConfigException;
 
 import io.aiven.kafka.connect.gcs.RecordGrouperFactory;
 import io.aiven.kafka.connect.gcs.config.FilenameTemplateVariable.ParameterDescriptor;
+import io.aiven.kafka.connect.gcs.templating.Pair;
 import io.aiven.kafka.connect.gcs.templating.Template;
 import io.aiven.kafka.connect.gcs.templating.VariableTemplatePart.Parameter;
 
@@ -71,7 +73,7 @@ final class FilenameTemplateValidator implements ConfigDef.Validator {
             final Template template = Template.of((String) value);
             validateVariables(template.variablesSet());
             validateVariableParameters(template.variablesWithNonEmptyParameters());
-            validateVariablesWithRequiredParameters(template.variablesWithParameterSet());
+            validateVariablesWithRequiredParameters(template.variablesWithParameters());
             RecordGrouperFactory.resolveRecordGrouperType(template);
         } catch (final IllegalArgumentException e) {
             throw new ConfigException(configName, value, e.getMessage());
@@ -93,11 +95,11 @@ final class FilenameTemplateValidator implements ConfigDef.Validator {
         }
     }
 
-    public void validateVariableParameters(final Map<String, Parameter> variablesWithNonEmptyParameters) {
+    public void validateVariableParameters(final List<Pair<String, Parameter>> variablesWithNonEmptyParameters) {
         boolean isVariableParametersSupported = true;
-        for (final Map.Entry<String, Parameter> e : variablesWithNonEmptyParameters.entrySet()) {
-            final String varName = e.getKey();
-            final Parameter varParam = e.getValue();
+        for (final Pair<String, Parameter> e : variablesWithNonEmptyParameters) {
+            final String varName = e.left();
+            final Parameter varParam = e.right();
             if (SUPPORTED_VARIABLE_PARAMETERS.containsKey(varName)) {
                 final ParameterDescriptor expectedParameter =
                     SUPPORTED_VARIABLE_PARAMETERS.get(varName);
@@ -120,10 +122,11 @@ final class FilenameTemplateValidator implements ConfigDef.Validator {
         }
     }
 
-    public static void validateVariablesWithRequiredParameters(final Map<String, Parameter> variablesWithParameters) {
-        for (final Map.Entry<String, Parameter> e : variablesWithParameters.entrySet()) {
-            final String varName = e.getKey();
-            final Parameter varParam = e.getValue();
+    public static void validateVariablesWithRequiredParameters(
+        final List<Pair<String, Parameter>> variablesWithParameters) {
+        for (final Pair<String, Parameter> p : variablesWithParameters) {
+            final String varName = p.left();
+            final Parameter varParam = p.right();
             if (SUPPORTED_VARIABLE_PARAMETERS.containsKey(varName)) {
                 final ParameterDescriptor expectedParameter =
                     SUPPORTED_VARIABLE_PARAMETERS.get(varName);

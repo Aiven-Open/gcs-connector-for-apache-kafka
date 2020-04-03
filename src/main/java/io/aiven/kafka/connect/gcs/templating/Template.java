@@ -75,15 +75,14 @@ public final class Template {
         return variablesAndParameters.stream().map(Pair::left).collect(Collectors.toSet());
     }
 
-    public final Map<String, Parameter> variablesWithParameterSet() {
-        return variablesAndParameters.stream()
-            .collect(Collectors.toMap(Pair::left, Pair::right));
+    public final List<Pair<String, Parameter>> variablesWithParameters() {
+        return variablesAndParameters;
     }
 
-    public final Map<String, Parameter>  variablesWithNonEmptyParameters() {
+    public final List<Pair<String, Parameter>>  variablesWithNonEmptyParameters() {
         return variablesAndParameters.stream()
             .filter(e -> !e.right().isEmpty())
-            .collect(Collectors.toMap(Pair::left, Pair::right));
+            .collect(Collectors.toList());
     }
 
     public final Instance instance() {
