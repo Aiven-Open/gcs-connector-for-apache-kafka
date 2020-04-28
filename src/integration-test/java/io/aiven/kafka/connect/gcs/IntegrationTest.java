@@ -21,6 +21,7 @@ package io.aiven.kafka.connect.gcs;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -87,7 +88,7 @@ final class IntegrationTest {
 
     @Container
     private final KafkaContainer kafka = new KafkaContainer()
-        .withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false");
+            .withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false");
 
     private AdminClient adminClient;
     private KafkaProducer<byte[], byte[]> producer;
@@ -103,14 +104,14 @@ final class IntegrationTest {
         testBucketName = System.getProperty("integration-test.gcs.bucket");
 
         storage = StorageOptions.newBuilder()
-            .setCredentials(GoogleCredentialsBuilder.build(gcsCredentialsPath, gcsCredentialsJson))
-            .build()
-            .getService();
+                .setCredentials(GoogleCredentialsBuilder.build(gcsCredentialsPath, gcsCredentialsJson))
+                .build()
+                .getService();
         testBucketAccessor = new BucketAccessor(storage, testBucketName);
         testBucketAccessor.ensureWorking();
 
         gcsPrefix = "aiven-kafka-connect-gcs-test-"
-            + ZonedDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) + "/";
+                + ZonedDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) + "/";
 
         final File testDir = Files.createTempDirectory("aiven-kafka-connect-gcs-test-").toFile();
 
@@ -121,7 +122,7 @@ final class IntegrationTest {
         assert distFile.exists();
 
         final String cmd = String.format("tar -xf %s --strip-components=1 -C %s",
-            distFile.toString(), pluginDir.toString());
+                distFile.toString(), pluginDir.toString());
         final Process p = Runtime.getRuntime().exec(cmd);
         assert p.waitFor() == 0;
     }
@@ -137,9 +138,9 @@ final class IntegrationTest {
         final Map<String, Object> producerProps = new HashMap<>();
         producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBootstrapServers());
         producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
-            "org.apache.kafka.common.serialization.ByteArraySerializer");
+                "org.apache.kafka.common.serialization.ByteArraySerializer");
         producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-            "org.apache.kafka.common.serialization.ByteArraySerializer");
+                "org.apache.kafka.common.serialization.ByteArraySerializer");
         producer = new KafkaProducer<>(producerProps);
 
         final NewTopic newTopic0 = new NewTopic(TEST_TOPIC_0, 4, (short) 1);
@@ -162,7 +163,7 @@ final class IntegrationTest {
     }
 
     @Test
-    final void basicTest() throws ExecutionException, InterruptedException, IOException {
+    final void basicTest() throws ExecutionException, InterruptedException {
         final Map<String, String> connectorConfig = basicConnectorConfig();
         connectorConfig.put("format.output.fields", "key,value");
         connectorConfig.put("file.compression.type", "gzip");
@@ -188,18 +189,18 @@ final class IntegrationTest {
         Thread.sleep(OFFSET_FLUSH_INTERVAL_MS * 2);
 
         final List<String> expectedBlobs = Arrays.asList(
-            getBlobName(0, 0, true),
-            getBlobName(1, 0, true),
-            getBlobName(2, 0, true),
-            getBlobName(3, 0, true));
+                getBlobName(0, 0, true),
+                getBlobName(1, 0, true),
+                getBlobName(2, 0, true),
+                getBlobName(3, 0, true));
         assertIterableEquals(expectedBlobs, testBucketAccessor.getBlobNames(gcsPrefix));
 
         final Map<String, List<String>> blobContents = new HashMap<>();
         for (final String blobName : expectedBlobs) {
             blobContents.put(blobName,
-                testBucketAccessor.readAndDecodeLines(blobName, true, 0, 1).stream()
-                    .map(fields -> String.join(",", fields))
-                    .collect(Collectors.toList())
+                    testBucketAccessor.readAndDecodeLines(blobName, true, 0, 1).stream()
+                            .map(fields -> String.join(",", fields))
+                            .collect(Collectors.toList())
             );
         }
 
@@ -216,6 +217,76 @@ final class IntegrationTest {
                 assertEquals(expectedLine, actualLine);
             }
         }
+    }
+
+    @Test
+    final void groupByTimestampVariable() throws ExecutionException, InterruptedException {
+        final Map<String, String> connectorConfig = basicConnectorConfig();
+        connectorConfig.put("format.output.fields", "key,value");
+        connectorConfig.put("file.compression.type", "gzip");
+        connectorConfig.put(
+                "file.name.template",
+                "{{topic}}-{{partition}}-{{start_offset}}-"
+                        + "{{timestamp:unit=YYYY}}-{{timestamp:unit=MM}}-{{timestamp:unit=dd}}"
+        );
+        connectRunner.createConnector(connectorConfig);
+
+        final List<Future<RecordMetadata>> sendFutures = new ArrayList<>();
+        sendFutures.add(sendMessageAsync(TEST_TOPIC_0, 0, "key-0", "value-0"));
+        sendFutures.add(sendMessageAsync(TEST_TOPIC_0, 0, "key-1", "value-1"));
+        sendFutures.add(sendMessageAsync(TEST_TOPIC_0, 0, "key-2", "value-2"));
+        sendFutures.add(sendMessageAsync(TEST_TOPIC_0, 1, "key-3", "value-3"));
+        sendFutures.add(sendMessageAsync(TEST_TOPIC_0, 3, "key-4", "value-4"));
+
+        producer.flush();
+        for (final Future<RecordMetadata> sendFuture : sendFutures) {
+            sendFuture.get();
+        }
+
+        // TODO more robust way to detect that Connect finished processing
+        Thread.sleep(OFFSET_FLUSH_INTERVAL_MS * 2);
+
+        final Map<String, String[]> expectedBlobsAndContent = new HashMap<>();
+        expectedBlobsAndContent.put(
+                getTimestampBlobName(0, 0),
+                new String[]{"key-0,value-0", "key-1,value-1", "key-2,value-2"}
+        );
+        expectedBlobsAndContent.put(
+                getTimestampBlobName(1, 0),
+                new String[]{"key-3,value-3"}
+        );
+        expectedBlobsAndContent.put(
+                getTimestampBlobName(3, 0),
+                new String[]{"key-4,value-4"}
+        );
+
+        final List<String> expectedBlobsNames =
+                expectedBlobsAndContent.keySet().stream().sorted().collect(Collectors.toList());
+        assertIterableEquals(expectedBlobsNames, testBucketAccessor.getBlobNames(gcsPrefix));
+
+        for (final String expectedBlobName : expectedBlobsNames) {
+            final List<String> blobContent = testBucketAccessor
+                    .readAndDecodeLines(expectedBlobName, true, 0, 1)
+                    .stream()
+                    .map(fields -> String.join(",", fields).trim())
+                    .collect(Collectors.toList());
+
+            assertThat(blobContent, containsInAnyOrder(expectedBlobsAndContent.get(expectedBlobName)));
+        }
+    }
+
+    private String getTimestampBlobName(final int partition, final int startOffset) {
+        final ZonedDateTime time = ZonedDateTime.now(ZoneId.of("UTC"));
+        return String.format(
+                "%s%s-%d-%d-%s-%s-%s",
+                gcsPrefix,
+                TEST_TOPIC_0,
+                partition,
+                startOffset,
+                time.format(DateTimeFormatter.ofPattern("YYYY")),
+                time.format(DateTimeFormatter.ofPattern("MM")),
+                time.format(DateTimeFormatter.ofPattern("dd"))
+        );
     }
 
     @Test
@@ -249,13 +320,13 @@ final class IntegrationTest {
         expectedBlobsAndContent.put(getBlobName(1, 0, false), "value-3");
         expectedBlobsAndContent.put(getBlobName(3, 0, false), "value-4");
         final List<String> expectedBlobsNames =
-            expectedBlobsAndContent.keySet().stream().sorted().collect(Collectors.toList());
+                expectedBlobsAndContent.keySet().stream().sorted().collect(Collectors.toList());
         assertIterableEquals(expectedBlobsNames, testBucketAccessor.getBlobNames(gcsPrefix));
 
         for (final String blobName : expectedBlobsAndContent.keySet()) {
             assertEquals(
-                expectedBlobsAndContent.get(blobName),
-                testBucketAccessor.readStringContent(blobName, false)
+                    expectedBlobsAndContent.get(blobName),
+                    testBucketAccessor.readStringContent(blobName, false)
             );
         }
     }
@@ -271,7 +342,7 @@ final class IntegrationTest {
 
         final Map<TopicPartition, List<String>> keysPerTopicPartition = new HashMap<>();
         keysPerTopicPartition.put(
-            new TopicPartition(TEST_TOPIC_0, 0), Arrays.asList("key-0", "key-1", "key-2", "key-3"));
+                new TopicPartition(TEST_TOPIC_0, 0), Arrays.asList("key-0", "key-1", "key-2", "key-3"));
         keysPerTopicPartition.put(new TopicPartition(TEST_TOPIC_0, 1), Arrays.asList("key-4", "key-5", "key-6"));
         keysPerTopicPartition.put(new TopicPartition(TEST_TOPIC_1, 0), Arrays.asList(null, "key-7"));
         keysPerTopicPartition.put(new TopicPartition(TEST_TOPIC_1, 1), Arrays.asList("key-8"));
@@ -303,15 +374,15 @@ final class IntegrationTest {
         Thread.sleep(OFFSET_FLUSH_INTERVAL_MS * 2);
 
         final List<String> expectedBlobs = keysPerTopicPartition.values().stream()
-            .flatMap(keys -> keys.stream().map(k -> getBlobName(k, true)))
-            .collect(Collectors.toList());
+                .flatMap(keys -> keys.stream().map(k -> getBlobName(k, true)))
+                .collect(Collectors.toList());
         assertThat(testBucketAccessor.getBlobNames(gcsPrefix), containsInAnyOrder(expectedBlobs.toArray()));
 
         final Map<String, List<String>> blobContents = new HashMap<>();
         for (final String blobName : expectedBlobs) {
             final String blobContent = testBucketAccessor.readAndDecodeLines(blobName, true, 0, 1).stream()
-                .map(fields -> String.join(",", fields))
-                .collect(Collectors.joining());
+                    .map(fields -> String.join(",", fields))
+                    .collect(Collectors.joining());
             final String keyInBlobName = blobName.replace(gcsPrefix, "").replace(".gz", "");
             final String value;
             final String expectedBlobContent;
@@ -331,9 +402,9 @@ final class IntegrationTest {
                                                     final String key,
                                                     final String value) {
         final ProducerRecord<byte[], byte[]> msg = new ProducerRecord<>(
-            topicName, partition,
-            key == null ? null : key.getBytes(),
-            value == null ? null : value.getBytes());
+                topicName, partition,
+                key == null ? null : key.getBytes(),
+                value == null ? null : value.getBytes());
         return producer.send(msg);
     }
 
