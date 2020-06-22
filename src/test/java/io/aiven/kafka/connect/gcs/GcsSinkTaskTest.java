@@ -32,14 +32,18 @@ import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
 
+import io.aiven.kafka.connect.gcs.config.CompressionType;
 import io.aiven.kafka.connect.gcs.config.GcsSinkConfig;
 import io.aiven.kafka.connect.gcs.testutils.BucketAccessor;
 
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.contrib.nio.testing.LocalStorageHelper;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
@@ -82,130 +86,144 @@ final class GcsSinkTaskTest {
         assertEquals("test-version", task.version());
     }
 
-    @Test
-    final void basic() {
+    @ParameterizedTest
+    @ValueSource(strings = {"none", "gzip", "snappy", "zstd"})
+    final void basic(final String compression) {
+        properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
         final GcsSinkTask task = new GcsSinkTask(properties, storage);
 
         task.put(basicRecords);
         task.flush(null);
 
-        assertIterableEquals(
-            Lists.newArrayList("topic0-0-10", "topic0-1-20", "topic0-2-50", "topic1-0-30", "topic1-1-40"),
-            testBucketAccessor.getBlobNames());
-        assertIterableEquals(
-            Lists.newArrayList(Arrays.asList("value0"), Arrays.asList("value5")),
-            readSplittedAndDecodedLinesFromBlob("topic0-0-10", false, 0));
-        assertIterableEquals(
-            Lists.newArrayList(Arrays.asList("value1"), Arrays.asList("value6")),
-            readSplittedAndDecodedLinesFromBlob("topic0-1-20", false, 0));
-        assertIterableEquals(
-            Lists.newArrayList(Arrays.asList("value4"), Arrays.asList("value9")),
-            readSplittedAndDecodedLinesFromBlob("topic0-2-50", false, 0));
-        assertIterableEquals(
-            Lists.newArrayList(Arrays.asList("value2"), Arrays.asList("value7")),
-            readSplittedAndDecodedLinesFromBlob("topic1-0-30", false, 0));
-        assertIterableEquals(
-            Lists.newArrayList(Arrays.asList("value3"), Arrays.asList("value8")),
-            readSplittedAndDecodedLinesFromBlob("topic1-1-40", false, 0));
+        final Map<String, Collection<List<String>>> blobNameWithExtensionValuesMap =
+                buildBlobNameValuesMap(compression);
+
+        assertEquals(
+                blobNameWithExtensionValuesMap.keySet(),
+                Sets.newHashSet(testBucketAccessor.getBlobNames()));
+
+        blobNameWithExtensionValuesMap.keySet().forEach(blobNameWithExtension -> {
+            final Collection<List<String>> expected = blobNameWithExtensionValuesMap.get(blobNameWithExtension);
+            final Collection<List<String>> actual = readSplittedAndDecodedLinesFromBlob(
+                    blobNameWithExtension, compression, 0);
+            assertIterableEquals(expected, actual);
+        });
     }
 
-    @Test
-    final void basicValuesPlain() {
+    @ParameterizedTest
+    @ValueSource(strings = {"none", "gzip", "snappy", "zstd"})
+    final void basicValuesPlain(final String compression) {
+        properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
         properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_VALUE_ENCODING_CONFIG, "none");
         final GcsSinkTask task = new GcsSinkTask(properties, storage);
 
         task.put(basicRecords);
         task.flush(null);
 
-        assertIterableEquals(
-            Lists.newArrayList("topic0-0-10", "topic0-1-20", "topic0-2-50", "topic1-0-30", "topic1-1-40"),
-            testBucketAccessor.getBlobNames());
-        assertIterableEquals(
-            Lists.newArrayList(Arrays.asList("value0"), Arrays.asList("value5")),
-            readSplittedAndDecodedLinesFromBlob("topic0-0-10", false));
-        assertIterableEquals(
-            Lists.newArrayList(Arrays.asList("value1"), Arrays.asList("value6")),
-            readSplittedAndDecodedLinesFromBlob("topic0-1-20", false));
-        assertIterableEquals(
-            Lists.newArrayList(Arrays.asList("value4"), Arrays.asList("value9")),
-            readSplittedAndDecodedLinesFromBlob("topic0-2-50", false));
-        assertIterableEquals(
-            Lists.newArrayList(Arrays.asList("value2"), Arrays.asList("value7")),
-            readSplittedAndDecodedLinesFromBlob("topic1-0-30", false));
-        assertIterableEquals(
-            Lists.newArrayList(Arrays.asList("value3"), Arrays.asList("value8")),
-            readSplittedAndDecodedLinesFromBlob("topic1-1-40", false));
+        final Map<String, Collection<List<String>>> blobNameWithExtensionValuesMap =
+                buildBlobNameValuesMap(compression);
+
+        assertEquals(
+                blobNameWithExtensionValuesMap.keySet(),
+                Sets.newHashSet(testBucketAccessor.getBlobNames()));
+
+        blobNameWithExtensionValuesMap.keySet().forEach(blobNameWithExtension -> {
+            final Collection<List<String>> expected = blobNameWithExtensionValuesMap.get(blobNameWithExtension);
+            final Collection<List<String>> actual = readSplittedAndDecodedLinesFromBlob(
+                    blobNameWithExtension, compression);
+            assertIterableEquals(expected, actual);
+        });
     }
 
-    @Test
-    final void compression() {
-        properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, "gzip");
+    @ParameterizedTest
+    @ValueSource(strings = {"none", "gzip", "snappy", "zstd"})
+    final void compression(final String compression) {
+        properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
         final GcsSinkTask task = new GcsSinkTask(properties, storage);
 
         task.put(basicRecords);
         task.flush(null);
 
+        final CompressionType compressionType = CompressionType.forName(compression);
+
+        final List<String> names = Lists.newArrayList("topic0-0-10",
+                "topic0-1-20", "topic0-2-50", "topic1-0-30", "topic1-1-40");
+        final List<String> blobNames = names.stream()
+                .map(n -> n + compressionType.extension()).collect(Collectors.toList());
+
+        assertIterableEquals(blobNames, testBucketAccessor.getBlobNames());
         assertIterableEquals(
-            Lists.newArrayList("topic0-0-10.gz",
-                "topic0-1-20.gz", "topic0-2-50.gz", "topic1-0-30.gz", "topic1-1-40.gz"),
-            testBucketAccessor.getBlobNames());
+            Lists.newArrayList(Collections.singletonList("value0"), Collections.singletonList("value5")),
+            readSplittedAndDecodedLinesFromBlob("topic0-0-10" + compressionType.extension(), compression, 0));
         assertIterableEquals(
-            Lists.newArrayList(Arrays.asList("value0"), Arrays.asList("value5")),
-            readSplittedAndDecodedLinesFromBlob("topic0-0-10.gz", true, 0));
+            Lists.newArrayList(Collections.singletonList("value1"), Collections.singletonList("value6")),
+            readSplittedAndDecodedLinesFromBlob("topic0-1-20" + compressionType.extension(), compression, 0));
         assertIterableEquals(
-            Lists.newArrayList(Arrays.asList("value1"), Arrays.asList("value6")),
-            readSplittedAndDecodedLinesFromBlob("topic0-1-20.gz", true, 0));
+            Lists.newArrayList(Collections.singletonList("value4"), Collections.singletonList("value9")),
+            readSplittedAndDecodedLinesFromBlob("topic0-2-50" + compressionType.extension(), compression, 0));
         assertIterableEquals(
-            Lists.newArrayList(Arrays.asList("value4"), Arrays.asList("value9")),
-            readSplittedAndDecodedLinesFromBlob("topic0-2-50.gz", true, 0));
+            Lists.newArrayList(Collections.singletonList("value2"), Collections.singletonList("value7")),
+            readSplittedAndDecodedLinesFromBlob("topic1-0-30" + compressionType.extension(), compression, 0));
         assertIterableEquals(
-            Lists.newArrayList(Arrays.asList("value2"), Arrays.asList("value7")),
-            readSplittedAndDecodedLinesFromBlob("topic1-0-30.gz", true, 0));
-        assertIterableEquals(
-            Lists.newArrayList(Arrays.asList("value3"), Arrays.asList("value8")),
-            readSplittedAndDecodedLinesFromBlob("topic1-1-40.gz", true, 0));
+            Lists.newArrayList(Collections.singletonList("value3"), Collections.singletonList("value8")),
+            readSplittedAndDecodedLinesFromBlob("topic1-1-40" + compressionType.extension(), compression, 0));
     }
 
-    @Test
-    final void allFields() {
+    @ParameterizedTest
+    @ValueSource(strings = {"none", "gzip", "snappy", "zstd"})
+    final void allFields(final String compression) {
+        properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
         properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_CONFIG, "key,value,timestamp,offset");
         final GcsSinkTask task = new GcsSinkTask(properties, storage);
 
         task.put(basicRecords);
         task.flush(null);
 
+        final CompressionType compressionType = CompressionType.forName(compression);
+
         assertIterableEquals(
-            Lists.newArrayList("topic0-0-10", "topic0-1-20", "topic0-2-50", "topic1-0-30", "topic1-1-40"),
+            Lists.newArrayList("topic0-0-10" + compressionType.extension(),
+                    "topic0-1-20" + compressionType.extension(),
+                    "topic0-2-50" + compressionType.extension(),
+                    "topic1-0-30" + compressionType.extension(),
+                    "topic1-1-40" + compressionType.extension()),
             testBucketAccessor.getBlobNames());
         assertIterableEquals(
             Lists.newArrayList(
                 Arrays.asList("key0", "value0", "1000", "10"),
                 Arrays.asList("key5", "value5", "1005", "11")),
-            readSplittedAndDecodedLinesFromBlob("topic0-0-10", false, 0, 1));
+            readSplittedAndDecodedLinesFromBlob("topic0-0-10" + compressionType.extension(),
+                    compression, 0, 1));
         assertIterableEquals(
             Lists.newArrayList(
                 Arrays.asList("key1", "value1", "1001", "20"),
                 Arrays.asList("key6", "value6", "1006", "21")),
-            readSplittedAndDecodedLinesFromBlob("topic0-1-20", false, 0, 1));
+            readSplittedAndDecodedLinesFromBlob("topic0-1-20" + compressionType.extension(),
+                    compression, 0, 1));
         assertIterableEquals(
             Lists.newArrayList(
                 Arrays.asList("key4", "value4", "1004", "50"),
                 Arrays.asList("key9", "value9", "1009", "51")),
-            readSplittedAndDecodedLinesFromBlob("topic0-2-50", false, 0, 1));
+            readSplittedAndDecodedLinesFromBlob("topic0-2-50" + compressionType.extension(),
+                    compression, 0, 1));
         assertIterableEquals(
             Lists.newArrayList(
                 Arrays.asList("key2", "value2", "1002", "30"),
                 Arrays.asList("key7", "value7", "1007", "31")),
-            readSplittedAndDecodedLinesFromBlob("topic1-0-30", false, 0, 1));
+            readSplittedAndDecodedLinesFromBlob("topic1-0-30" + compressionType.extension(),
+                    compression, 0, 1));
         assertIterableEquals(
             Lists.newArrayList(
                 Arrays.asList("key3", "value3", "1003", "40"),
                 Arrays.asList("key8", "value8", "1008", "41")),
-            readSplittedAndDecodedLinesFromBlob("topic1-1-40", false, 0, 1));
+            readSplittedAndDecodedLinesFromBlob("topic1-1-40" + compressionType.extension(),
+                    compression, 0, 1));
     }
 
-    @Test
-    final void nullKeyValueAndTimestamp() {
+    @ParameterizedTest
+    @ValueSource(strings = {"none", "gzip", "snappy", "zstd"})
+    final void nullKeyValueAndTimestamp(final String compression) {
+        properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
         properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_CONFIG, "key,value,timestamp,offset");
         final GcsSinkTask task = new GcsSinkTask(properties, storage);
 
@@ -217,16 +235,20 @@ final class GcsSinkTaskTest {
         task.put(records);
         task.flush(null);
 
+        final CompressionType compressionType = CompressionType.forName(compression);
+
         assertIterableEquals(
-            Lists.newArrayList("topic0-0-10"),
+            Lists.newArrayList("topic0-0-10" + compressionType.extension()),
             testBucketAccessor.getBlobNames());
         assertIterableEquals(
             Lists.newArrayList(",,,10", ",,,11", ",,,12"),
-            readRawLinesFromBlob("topic0-0-10", false));
+            readRawLinesFromBlob("topic0-0-10" + compressionType.extension(), compression));
     }
 
-    @Test
-    final void multipleFlush() {
+    @ParameterizedTest
+    @ValueSource(strings = {"none", "gzip", "snappy", "zstd"})
+    final void multipleFlush(final String compression) {
+        properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
         final GcsSinkTask task = new GcsSinkTask(properties, storage);
 
         task.put(Arrays.asList(
@@ -245,19 +267,28 @@ final class GcsSinkTaskTest {
             createRecord("topic0", 0, "key5", "value5", 105, 1005)));
         task.flush(null);
 
+        final CompressionType compressionType = CompressionType.forName(compression);
+
         assertIterableEquals(
-            Lists.newArrayList("topic0-0-100", "topic0-0-102", "topic0-0-104"),
+            Lists.newArrayList(
+                    "topic0-0-100" + compressionType.extension(),
+                    "topic0-0-102" + compressionType.extension(),
+                    "topic0-0-104" + compressionType.extension()),
             testBucketAccessor.getBlobNames());
         assertIterableEquals(
             Lists.newArrayList(Arrays.asList("value0"), Arrays.asList("value1")),
-            readSplittedAndDecodedLinesFromBlob("topic0-0-100", false, 0));
+            readSplittedAndDecodedLinesFromBlob("topic0-0-100" + compressionType.extension(),
+                    compression, 0));
         assertIterableEquals(
             Lists.newArrayList(Arrays.asList("value2"), Arrays.asList("value3")),
-            readSplittedAndDecodedLinesFromBlob("topic0-0-102", false, 0));
+            readSplittedAndDecodedLinesFromBlob("topic0-0-102" + compressionType.extension(),
+                    compression, 0));
     }
 
-    @Test
-    final void maxRecordPerFile() {
+    @ParameterizedTest
+    @ValueSource(strings = {"none", "gzip", "snappy", "zstd"})
+    final void maxRecordPerFile(final String compression) {
+        properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
         properties.put(GcsSinkConfig.FILE_MAX_RECORDS, "1");
         final GcsSinkTask task = new GcsSinkTask(properties, storage);
 
@@ -269,14 +300,17 @@ final class GcsSinkTaskTest {
         }
         task.flush(null);
 
+        final CompressionType compressionType = CompressionType.forName(compression);
+
         assertIterableEquals(
-            IntStream.range(0, recordNum).mapToObj(i -> "topic0-0-" + i).sorted().collect(Collectors.toList()),
+            IntStream.range(0, recordNum).mapToObj(i -> "topic0-0-" + i + compressionType.extension())
+                    .sorted().collect(Collectors.toList()),
             testBucketAccessor.getBlobNames()
         );
         for (int i = 0; i < recordNum; i++) {
             assertIterableEquals(
                 Collections.singletonList(Collections.singletonList("value" + i)),
-                readSplittedAndDecodedLinesFromBlob("topic0-0-" + i, false, 0)
+                readSplittedAndDecodedLinesFromBlob("topic0-0-" + i + compressionType.extension(), compression, 0)
             );
         }
     }
@@ -300,8 +334,10 @@ final class GcsSinkTaskTest {
         );
     }
 
-    @Test
-    final void groupByKey() {
+    @ParameterizedTest
+    @ValueSource(strings = {"none", "gzip", "snappy", "zstd"})
+    final void groupByKey(final String compression) {
+        properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
         properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_CONFIG, "key,value");
         properties.put("file.name.template", "{{key}}");
 
@@ -330,16 +366,16 @@ final class GcsSinkTaskTest {
 
         assertIterableEquals(
             Arrays.asList(Arrays.asList("key0", "value6")),
-            readSplittedAndDecodedLinesFromBlob("key0", false, 0, 1));
+            readSplittedAndDecodedLinesFromBlob("key0", compression, 0, 1));
         assertIterableEquals(
             Arrays.asList(Arrays.asList("key1", "value8")),
-            readSplittedAndDecodedLinesFromBlob("key1", false, 0, 1));
+            readSplittedAndDecodedLinesFromBlob("key1", compression, 0, 1));
         assertIterableEquals(
             Arrays.asList(Arrays.asList("key2", "value2")),
-            readSplittedAndDecodedLinesFromBlob("key2", false, 0, 1));
+            readSplittedAndDecodedLinesFromBlob("key2", compression, 0, 1));
         assertIterableEquals(
             Arrays.asList(Arrays.asList("", "value5")), // null is written as an empty string to files
-            readSplittedAndDecodedLinesFromBlob("null", false, 0, 1));
+            readSplittedAndDecodedLinesFromBlob("null", compression, 0, 1));
     }
 
     private SinkRecord createRecord(final String topic,
@@ -395,14 +431,39 @@ final class GcsSinkTaskTest {
 
     private Collection<String> readRawLinesFromBlob(
         final String blobName,
-        final boolean compressed) {
-        return testBucketAccessor.readLines(blobName, compressed);
+        final String compression) {
+        return testBucketAccessor.readLines(blobName, compression);
     }
 
     private Collection<List<String>> readSplittedAndDecodedLinesFromBlob(
         final String blobName,
-        final boolean compressed,
+        final String compression,
         final int... fieldsToDecode) {
-        return testBucketAccessor.readAndDecodeLines(blobName, compressed, fieldsToDecode);
+        return testBucketAccessor.readAndDecodeLines(blobName, compression, fieldsToDecode);
+    }
+
+    private Map<String, Collection<List<String>>> buildBlobNameValuesMap(final String compression) {
+        final CompressionType compressionType = CompressionType.forName(compression);
+        final String extension = compressionType.extension();
+        final Map<String, Collection<List<String>>> blobNameValuesMap = new HashMap<>();
+        blobNameValuesMap.put("topic0-0-10" + extension, toCollectionOfLists("value0", "value5"));
+        blobNameValuesMap.put("topic0-1-20" + extension, toCollectionOfLists("value1", "value6"));
+        blobNameValuesMap.put("topic1-0-30" + extension, toCollectionOfLists("value2", "value7"));
+        blobNameValuesMap.put("topic1-1-40" + extension, toCollectionOfLists("value3", "value8"));
+        blobNameValuesMap.put("topic0-2-50" + extension, toCollectionOfLists("value4", "value9"));
+        return blobNameValuesMap;
+    }
+
+    /*
+     * example
+     * Input: "value0", "value5"
+     * Output: Collection[List["value0"], List["value5"]]
+     */
+    private Collection<List<String>> toCollectionOfLists(final String... values) {
+        return toCollectionOfLists(Lists.newArrayList(values));
+    }
+
+    private Collection<List<String>> toCollectionOfLists(final List<String> values) {
+        return values.stream().map(Collections::singletonList).collect(Collectors.toList());
     }
 }

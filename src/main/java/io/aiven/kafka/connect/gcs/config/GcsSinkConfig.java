@@ -418,10 +418,7 @@ public final class GcsSinkConfig extends AbstractConfig {
     private String resolveFilenameTemplate() {
         String fileNameTemplate = getString(FILE_NAME_TEMPLATE_CONFIG);
         if (fileNameTemplate == null) {
-            fileNameTemplate = DEFAULT_FILENAME_TEMPLATE;
-            if (getCompressionType() == CompressionType.GZIP) {
-                fileNameTemplate += ".gz";
-            }
+            fileNameTemplate = DEFAULT_FILENAME_TEMPLATE + getCompressionType().extension();
         }
         return fileNameTemplate;
     }

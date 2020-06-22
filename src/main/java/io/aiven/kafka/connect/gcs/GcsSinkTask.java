@@ -33,15 +33,16 @@ import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
 
-import io.aiven.kafka.connect.gcs.config.CompressionType;
 import io.aiven.kafka.connect.gcs.config.GcsSinkConfig;
 import io.aiven.kafka.connect.gcs.output.OutputWriter;
 
+import com.github.luben.zstd.ZstdOutputStream;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xerial.snappy.SnappyOutputStream;
 
 public final class GcsSinkTask extends SinkTask {
     private static final Logger log = LoggerFactory.getLogger(GcsSinkConnector.class);
@@ -102,9 +103,7 @@ public final class GcsSinkTask extends SinkTask {
 
     @Override
     public void flush(final Map<TopicPartition, OffsetAndMetadata> currentOffsets) {
-        for (final Map.Entry<String, List<SinkRecord>> entry : recordGrouper.records().entrySet()) {
-            flushFile(entry.getKey(), entry.getValue());
-        }
+        recordGrouper.records().forEach(this::flushFile);
         recordGrouper.clear();
     }
 
@@ -131,10 +130,15 @@ public final class GcsSinkTask extends SinkTask {
     private OutputStream getCompressedStream(final OutputStream outputStream) throws IOException {
         Objects.requireNonNull(outputStream, "outputStream cannot be null");
 
-        if (config.getCompressionType() == CompressionType.GZIP) {
-            return new GZIPOutputStream(outputStream);
-        } else {
-            return outputStream;
+        switch (config.getCompressionType()) {
+            case ZSTD:
+                return new ZstdOutputStream(outputStream);
+            case GZIP:
+                return new GZIPOutputStream(outputStream);
+            case SNAPPY:
+                return new SnappyOutputStream(outputStream);
+            default:
+                return outputStream;
         }
     }
 

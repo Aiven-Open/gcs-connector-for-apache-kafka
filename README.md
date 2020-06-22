@@ -276,7 +276,7 @@ format.output.fields=key,value,offset,timestamp
 file.name.prefix=some-prefix/
 
 # The compression type used for files put on GCS.
-# The supported values are: `gzip`, `none`.
+# The supported values are: `gzip`, `snappy`, `zstd`, `none`.
 # Optional, the default is `none`.
 file.compression.type=gzip
 

@@ -148,14 +148,15 @@ final class GcsSinkConfigTest {
             new OutputField(OutputFieldType.VALUE, OutputFieldEncodingType.BASE64)), config.getOutputFields());
     }
 
-    @Test
-    void correctFullConfig() {
+    @ParameterizedTest
+    @ValueSource(strings = {"none", "gzip", "snappy", "zstd"})
+    void correctFullConfig(final String compression) {
         final Map<String, String> properties = new HashMap<>();
         properties.put(
             "gcs.credentials.path",
             getClass().getClassLoader().getResource("test_gcs_credentials.json").getPath());
         properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("file.compression.type", "gzip");
+        properties.put("file.compression.type", compression);
         properties.put("file.name.prefix", "test-prefix");
         properties.put("file.name.template", "{{topic}}-{{partition}}-{{start_offset}}-{{timestamp:unit=YYYY}}.gz");
         properties.put("file.max.records", "42");
@@ -165,7 +166,7 @@ final class GcsSinkConfigTest {
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         assertDoesNotThrow(config::getCredentials);
         assertEquals("test-bucket", config.getBucketName());
-        assertEquals(CompressionType.GZIP, config.getCompressionType());
+        assertEquals(CompressionType.forName(compression), config.getCompressionType());
         assertEquals(42, config.getMaxRecordsPerFile());
         assertEquals("test-prefix", config.getPrefix());
         assertEquals("a-b-c-d.gz",
@@ -192,7 +193,7 @@ final class GcsSinkConfigTest {
 
     @ParameterizedTest
     @NullSource
-    @ValueSource(strings = {"none", "gzip"})
+    @ValueSource(strings = {"none", "gzip", "snappy", "zstd"})
     void supportedCompression(final String compression) {
         final Map<String, String> properties = new HashMap<>();
         properties.put("gcs.bucket.name", "test-bucket");
@@ -201,14 +202,8 @@ final class GcsSinkConfigTest {
         }
 
         final GcsSinkConfig config = new GcsSinkConfig(properties);
-        final CompressionType expectedCompressionType;
-        if (compression == null || "none".equals(compression)) {
-            expectedCompressionType = CompressionType.NONE;
-        } else if ("gzip".equals(compression)) {
-            expectedCompressionType = CompressionType.GZIP;
-        } else {
-            throw new RuntimeException("Shouldn't be here");
-        }
+        final CompressionType expectedCompressionType =
+                compression == null ? CompressionType.NONE : CompressionType.forName(compression);
         assertEquals(expectedCompressionType, config.getCompressionType());
     }
 
@@ -222,7 +217,7 @@ final class GcsSinkConfigTest {
             ConfigException.class, () -> new GcsSinkConfig(properties)
         );
         assertEquals("Invalid value unsupported for configuration file.compression.type: "
-                + "supported values are: 'none', 'gzip'",
+                + "supported values are: 'none', 'gzip', 'snappy', 'zstd'",
             t.getMessage());
     }
 
@@ -370,7 +365,7 @@ final class GcsSinkConfigTest {
 
     @ParameterizedTest
     @NullSource
-    @ValueSource(strings = {"none", "gzip"})
+    @ValueSource(strings = {"none", "gzip", "snappy", "zstd"})
     void filenameTemplateNotSet(final String compression) {
         final Map<String, String> properties = new HashMap<>();
         properties.put("gcs.bucket.name", "test-bucket");
@@ -378,10 +373,9 @@ final class GcsSinkConfigTest {
             properties.put("file.compression.type", compression);
         }
 
-        String expected = "a-b-c";
-        if ("gzip".equals(compression)) {
-            expected += ".gz";
-        }
+        final CompressionType compressionType =
+                compression == null ? CompressionType.NONE : CompressionType.forName(compression);
+        final String expected = "a-b-c" + compressionType.extension();
 
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         final String actual = config.getFilenameTemplate()

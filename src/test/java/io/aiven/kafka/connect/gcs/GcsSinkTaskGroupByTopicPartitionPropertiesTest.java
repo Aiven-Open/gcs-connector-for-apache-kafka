@@ -126,7 +126,7 @@ final class GcsSinkTaskGroupByTopicPartitionPropertiesTest extends PbtBase {
         final int effectiveMax = effectiveMaxRecordsPerFile(maxRecordsPerFile);
         for (final String filename : bucketAccessor.getBlobNames()) {
             assertThat(
-                bucketAccessor.readLines(filename, false),
+                bucketAccessor.readLines(filename, "none"),
                 hasSize(allOf(greaterThan(0), lessThanOrEqualTo(effectiveMax)))
             );
         }
@@ -143,7 +143,7 @@ final class GcsSinkTaskGroupByTopicPartitionPropertiesTest extends PbtBase {
                                                           final BucketAccessor bucketAccessor) {
         final Set<String> seenRecords = new HashSet<>();
         for (final String filename : bucketAccessor.getBlobNames()) {
-            for (final String line : bucketAccessor.readLines(filename, false)) {
+            for (final String line : bucketAccessor.readLines(filename, "none")) {
                 // Ensure no multiple writes.
                 assertFalse(seenRecords.contains(line));
                 seenRecords.add(line);
@@ -160,7 +160,8 @@ final class GcsSinkTaskGroupByTopicPartitionPropertiesTest extends PbtBase {
         for (final String filename : bucketAccessor.getBlobNames()) {
             final String filenameWithoutOffset = cutOffsetPart(filename);
 
-            final List<List<String>> lines = bucketAccessor.readAndDecodeLines(filename, false, FIELD_KEY, FIELD_VALUE);
+            final List<List<String>> lines = bucketAccessor
+                    .readAndDecodeLines(filename, "none", FIELD_KEY, FIELD_VALUE);
             final String firstLineTopicAndPartition = lines.get(0).get(FIELD_VALUE);
             final String firstLineOffset = lines.get(0).get(FIELD_OFFSET);
             assertEquals(PREFIX + firstLineTopicAndPartition + "-" + firstLineOffset, filename);
@@ -184,7 +185,8 @@ final class GcsSinkTaskGroupByTopicPartitionPropertiesTest extends PbtBase {
      */
     private void checkOffsetOrderInFiles(final BucketAccessor bucketAccessor) {
         for (final String filename : bucketAccessor.getBlobNames()) {
-            final List<List<String>> lines = bucketAccessor.readAndDecodeLines(filename, false, FIELD_KEY, FIELD_VALUE);
+            final List<List<String>> lines = bucketAccessor
+                    .readAndDecodeLines(filename, "none", FIELD_KEY, FIELD_VALUE);
             final List<Integer> offsets = lines.stream()
                 .map(line -> Integer.parseInt(line.get(FIELD_OFFSET)))
                 .collect(Collectors.toList());

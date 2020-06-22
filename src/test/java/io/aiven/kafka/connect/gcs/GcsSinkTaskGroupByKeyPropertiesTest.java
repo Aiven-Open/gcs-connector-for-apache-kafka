@@ -83,7 +83,7 @@ final class GcsSinkTaskGroupByKeyPropertiesTest extends PbtBase {
             final SinkRecord record = lastRecordPerKey.get(key);
             final String filename = createFilename(key);
 
-            final List<String> lines = testBucketAccessor.readLines(filename, false);
+            final List<String> lines = testBucketAccessor.readLines(filename, "none");
             assertThat(lines, hasSize(1));
 
             final String expectedKeySubstring;
