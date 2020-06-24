@@ -43,6 +43,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.TopicPartition;
 
+import io.aiven.kafka.connect.gcs.config.CompressionType;
 import io.aiven.kafka.connect.gcs.gcs.GoogleCredentialsBuilder;
 import io.aiven.kafka.connect.gcs.testutils.BucketAccessor;
 
@@ -51,9 +52,8 @@ import com.google.cloud.storage.StorageOptions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -66,8 +66,6 @@ import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 // TODO refactor test to make it more readable
 @Testcontainers
 final class IntegrationTest {
-    private static final Logger log = LoggerFactory.getLogger(IntegrationTest.class);
-
     private static String gcsCredentialsPath;
     private static String gcsCredentialsJson;
 
@@ -81,7 +79,6 @@ final class IntegrationTest {
 
     private static String gcsPrefix;
 
-    private static Storage storage;
     private static BucketAccessor testBucketAccessor;
 
     private static File pluginDir;
@@ -103,7 +100,7 @@ final class IntegrationTest {
 
         testBucketName = System.getProperty("integration-test.gcs.bucket");
 
-        storage = StorageOptions.newBuilder()
+        final Storage storage = StorageOptions.newBuilder()
                 .setCredentials(GoogleCredentialsBuilder.build(gcsCredentialsPath, gcsCredentialsJson))
                 .build()
                 .getService();
@@ -162,11 +159,12 @@ final class IntegrationTest {
         connectRunner.awaitStop();
     }
 
-    @Test
-    final void basicTest() throws ExecutionException, InterruptedException {
+    @ParameterizedTest
+    @ValueSource(strings = {"none", "gzip", "snappy", "zstd"})
+    final void basicTest(final String compression) throws ExecutionException, InterruptedException {
         final Map<String, String> connectorConfig = basicConnectorConfig();
         connectorConfig.put("format.output.fields", "key,value");
-        connectorConfig.put("file.compression.type", "gzip");
+        connectorConfig.put("file.compression.type", compression);
         connectRunner.createConnector(connectorConfig);
 
         final List<Future<RecordMetadata>> sendFutures = new ArrayList<>();
@@ -189,16 +187,16 @@ final class IntegrationTest {
         Thread.sleep(OFFSET_FLUSH_INTERVAL_MS * 2);
 
         final List<String> expectedBlobs = Arrays.asList(
-                getBlobName(0, 0, true),
-                getBlobName(1, 0, true),
-                getBlobName(2, 0, true),
-                getBlobName(3, 0, true));
+                getBlobName(0, 0, compression),
+                getBlobName(1, 0, compression),
+                getBlobName(2, 0, compression),
+                getBlobName(3, 0, compression));
         assertIterableEquals(expectedBlobs, testBucketAccessor.getBlobNames(gcsPrefix));
 
         final Map<String, List<String>> blobContents = new HashMap<>();
         for (final String blobName : expectedBlobs) {
             blobContents.put(blobName,
-                    testBucketAccessor.readAndDecodeLines(blobName, true, 0, 1).stream()
+                    testBucketAccessor.readAndDecodeLines(blobName, compression, 0, 1).stream()
                             .map(fields -> String.join(",", fields))
                             .collect(Collectors.toList())
             );
@@ -211,7 +209,7 @@ final class IntegrationTest {
                 final String value = "value-" + cnt;
                 cnt += 1;
 
-                final String blobName = getBlobName(partition, 0, true);
+                final String blobName = getBlobName(partition, 0, compression);
                 final String actualLine = blobContents.get(blobName).get(i);
                 final String expectedLine = key + "," + value;
                 assertEquals(expectedLine, actualLine);
@@ -219,11 +217,12 @@ final class IntegrationTest {
         }
     }
 
-    @Test
-    final void groupByTimestampVariable() throws ExecutionException, InterruptedException {
+    @ParameterizedTest
+    @ValueSource(strings = {"none", "gzip", "snappy", "zstd"})
+    final void groupByTimestampVariable(final String compression) throws ExecutionException, InterruptedException {
         final Map<String, String> connectorConfig = basicConnectorConfig();
         connectorConfig.put("format.output.fields", "key,value");
-        connectorConfig.put("file.compression.type", "gzip");
+        connectorConfig.put("file.compression.type", compression);
         connectorConfig.put(
                 "file.name.template",
                 "{{topic}}-{{partition}}-{{start_offset}}-"
@@ -266,7 +265,7 @@ final class IntegrationTest {
 
         for (final String expectedBlobName : expectedBlobsNames) {
             final List<String> blobContent = testBucketAccessor
-                    .readAndDecodeLines(expectedBlobName, true, 0, 1)
+                    .readAndDecodeLines(expectedBlobName, compression, 0, 1)
                     .stream()
                     .map(fields -> String.join(",", fields).trim())
                     .collect(Collectors.toList());
@@ -283,16 +282,19 @@ final class IntegrationTest {
                 TEST_TOPIC_0,
                 partition,
                 startOffset,
-                time.format(DateTimeFormatter.ofPattern("YYYY")),
+                time.format(DateTimeFormatter.ofPattern("yyyy")),
                 time.format(DateTimeFormatter.ofPattern("MM")),
                 time.format(DateTimeFormatter.ofPattern("dd"))
         );
     }
 
-    @Test
-    final void oneFilePerRecordWithPlainValues() throws ExecutionException, InterruptedException {
+    @ParameterizedTest
+    @ValueSource(strings = {"none", "gzip", "snappy", "zstd"})
+    final void oneFilePerRecordWithPlainValues(final String compression)
+            throws ExecutionException, InterruptedException {
         final Map<String, String> connectorConfig = basicConnectorConfig();
         connectorConfig.put("format.output.fields", "value");
+        connectorConfig.put("file.compression.type", compression);
         connectorConfig.put("format.output.fields.value.encoding", "none");
         connectorConfig.put("file.max.records", "1");
         connectRunner.createConnector(connectorConfig);
@@ -314,11 +316,11 @@ final class IntegrationTest {
         Thread.sleep(OFFSET_FLUSH_INTERVAL_MS * 2);
 
         final Map<String, String> expectedBlobsAndContent = new HashMap<>();
-        expectedBlobsAndContent.put(getBlobName(0, 0, false), "value-0");
-        expectedBlobsAndContent.put(getBlobName(0, 1, false), "value-1");
-        expectedBlobsAndContent.put(getBlobName(0, 2, false), "value-2");
-        expectedBlobsAndContent.put(getBlobName(1, 0, false), "value-3");
-        expectedBlobsAndContent.put(getBlobName(3, 0, false), "value-4");
+        expectedBlobsAndContent.put(getBlobName(0, 0, compression), "value-0");
+        expectedBlobsAndContent.put(getBlobName(0, 1, compression), "value-1");
+        expectedBlobsAndContent.put(getBlobName(0, 2, compression), "value-2");
+        expectedBlobsAndContent.put(getBlobName(1, 0, compression), "value-3");
+        expectedBlobsAndContent.put(getBlobName(3, 0, compression), "value-4");
         final List<String> expectedBlobsNames =
                 expectedBlobsAndContent.keySet().stream().sorted().collect(Collectors.toList());
         assertIterableEquals(expectedBlobsNames, testBucketAccessor.getBlobNames(gcsPrefix));
@@ -326,18 +328,20 @@ final class IntegrationTest {
         for (final String blobName : expectedBlobsAndContent.keySet()) {
             assertEquals(
                     expectedBlobsAndContent.get(blobName),
-                    testBucketAccessor.readStringContent(blobName, false)
+                    testBucketAccessor.readStringContent(blobName, compression)
             );
         }
     }
 
-    @Test
-    final void groupByKey() throws ExecutionException, InterruptedException {
+    @ParameterizedTest
+    @ValueSource(strings = {"none", "gzip", "snappy", "zstd"})
+    final void groupByKey(final String compression) throws ExecutionException, InterruptedException {
         final Map<String, String> connectorConfig = basicConnectorConfig();
+        final CompressionType compressionType = CompressionType.forName(compression);
         connectorConfig.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
         connectorConfig.put("format.output.fields", "key,value");
-        connectorConfig.put("file.compression.type", "gzip");
-        connectorConfig.put("file.name.template", "{{key}}.gz");
+        connectorConfig.put("file.compression.type", compression);
+        connectorConfig.put("file.name.template", "{{key}}" + compressionType.extension());
         connectRunner.createConnector(connectorConfig);
 
         final Map<TopicPartition, List<String>> keysPerTopicPartition = new HashMap<>();
@@ -374,16 +378,16 @@ final class IntegrationTest {
         Thread.sleep(OFFSET_FLUSH_INTERVAL_MS * 2);
 
         final List<String> expectedBlobs = keysPerTopicPartition.values().stream()
-                .flatMap(keys -> keys.stream().map(k -> getBlobName(k, true)))
+                .flatMap(keys -> keys.stream().map(k -> getBlobName(k, compression)))
                 .collect(Collectors.toList());
         assertThat(testBucketAccessor.getBlobNames(gcsPrefix), containsInAnyOrder(expectedBlobs.toArray()));
 
-        final Map<String, List<String>> blobContents = new HashMap<>();
         for (final String blobName : expectedBlobs) {
-            final String blobContent = testBucketAccessor.readAndDecodeLines(blobName, true, 0, 1).stream()
+            final String blobContent = testBucketAccessor.readAndDecodeLines(blobName, compression, 0, 1).stream()
                     .map(fields -> String.join(",", fields))
                     .collect(Collectors.joining());
-            final String keyInBlobName = blobName.replace(gcsPrefix, "").replace(".gz", "");
+            final String keyInBlobName = blobName.replace(gcsPrefix, "")
+                    .replace(compressionType.extension(), "");
             final String value;
             final String expectedBlobContent;
             if (keyInBlobName.equals("null")) {
@@ -427,19 +431,13 @@ final class IntegrationTest {
         return config;
     }
 
-    private String getBlobName(final int partition, final int startOffset, final boolean compress) {
-        String result = String.format("%s%s-%d-%d", gcsPrefix, TEST_TOPIC_0, partition, startOffset);
-        if (compress) {
-            result += ".gz";
-        }
-        return result;
+    private String getBlobName(final int partition, final int startOffset, final String compression) {
+        final String result = String.format("%s%s-%d-%d", gcsPrefix, TEST_TOPIC_0, partition, startOffset);
+        return result + CompressionType.forName(compression).extension();
     }
 
-    private String getBlobName(final String key, final boolean compress) {
-        String result = String.format("%s%s", gcsPrefix, key);
-        if (compress) {
-            result += ".gz";
-        }
-        return result;
+    private String getBlobName(final String key, final String compression) {
+        final String result = String.format("%s%s", gcsPrefix, key);
+        return result + CompressionType.forName(compression).extension();
     }
 }

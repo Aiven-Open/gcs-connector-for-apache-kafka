@@ -34,9 +34,13 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import java.util.zip.GZIPInputStream;
 
+import io.aiven.kafka.connect.gcs.config.CompressionType;
+
+import com.github.luben.zstd.ZstdInputStream;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
+import org.xerial.snappy.SnappyInputStream;
 
 public final class BucketAccessor {
     private final Storage storage;
@@ -120,40 +124,43 @@ public final class BucketAccessor {
     }
 
     public final String readStringContent(final String blobName,
-                                          final boolean compressed) {
+                                          final String compression) {
         Objects.requireNonNull(blobName, "blobName cannot be null");
         if (cache) {
             return stringContentCache.computeIfAbsent(
-                blobName, k -> readStringContent0(blobName, compressed));
+                blobName, k -> readStringContent0(blobName, compression));
         } else {
-            return readStringContent0(blobName, compressed);
+            return readStringContent0(blobName, compression);
         }
     }
 
     private String readStringContent0(final String blobName,
-                                      final boolean compressed) {
-        if (compressed) {
-            throw new IllegalArgumentException("compression is not implemented");
-        }
-
+                                      final String compression) {
         final byte[] blobBytes = storage.readAllBytes(bucketName, blobName);
-        return new String(blobBytes);
+        try (final ByteArrayInputStream bais = new ByteArrayInputStream(blobBytes);
+             final InputStream decompressedStream = getDecompressedStream(bais, compression);
+             final InputStreamReader reader = new InputStreamReader(decompressedStream, StandardCharsets.UTF_8);
+             final BufferedReader bufferedReader = new BufferedReader(reader)) {
+            return bufferedReader.readLine();
+        } catch (final IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    public final List<String> readLines(final String blobName, final boolean compressed) {
+    public final List<String> readLines(final String blobName, final String compression) {
         Objects.requireNonNull(blobName, "blobName cannot be null");
         if (cache) {
-            return linesCache.computeIfAbsent(blobName, k -> readLines0(blobName, compressed));
+            return linesCache.computeIfAbsent(blobName, k -> readLines0(blobName, compression));
         } else {
-            return readLines0(blobName, compressed);
+            return readLines0(blobName, compression);
         }
     }
 
-    private List<String> readLines0(final String blobName, final boolean compressed) {
+    private List<String> readLines0(final String blobName, final String compression) {
         Objects.requireNonNull(blobName, "blobName cannot be null");
         final byte[] blobBytes = storage.readAllBytes(bucketName, blobName);
         try (final ByteArrayInputStream bais = new ByteArrayInputStream(blobBytes);
-             final InputStream decompressedStream = getDecompressedStream(bais, compressed);
+             final InputStream decompressedStream = getDecompressedStream(bais, compression);
              final InputStreamReader reader = new InputStreamReader(decompressedStream, StandardCharsets.UTF_8);
              final BufferedReader bufferedReader = new BufferedReader(reader)) {
 
@@ -163,35 +170,42 @@ public final class BucketAccessor {
         }
     }
 
-    private InputStream getDecompressedStream(final InputStream inputStream,
-                                              final boolean compressed) throws IOException {
+    private InputStream getDecompressedStream(final InputStream inputStream, final String compression)
+            throws IOException {
         Objects.requireNonNull(inputStream, "inputStream cannot be null");
+        Objects.requireNonNull(compression, "compression cannot be null");
 
-        if (compressed) {
-            return new GZIPInputStream(inputStream);
-        } else {
-            return inputStream;
+        final CompressionType compressionType = CompressionType.forName(compression);
+        switch (compressionType) {
+            case ZSTD:
+                return new ZstdInputStream(inputStream);
+            case GZIP:
+                return new GZIPInputStream(inputStream);
+            case SNAPPY:
+                return new SnappyInputStream(inputStream);
+            default:
+                return inputStream;
         }
     }
 
     public final List<List<String>> readAndDecodeLines(final String blobName,
-                                                       final boolean compressed,
+                                                       final String compression,
                                                        final int... fieldsToDecode) {
         Objects.requireNonNull(blobName, "blobName cannot be null");
         Objects.requireNonNull(fieldsToDecode, "fieldsToDecode cannot be null");
 
         if (cache) {
             return decodedLinesCache.computeIfAbsent(
-                blobName, k -> readAndDecodeLines0(blobName, compressed, fieldsToDecode));
+                blobName, k -> readAndDecodeLines0(blobName, compression, fieldsToDecode));
         } else {
-            return readAndDecodeLines0(blobName, compressed, fieldsToDecode);
+            return readAndDecodeLines0(blobName, compression, fieldsToDecode);
         }
     }
 
     private List<List<String>> readAndDecodeLines0(final String blobName,
-                                                   final boolean compressed,
+                                                   final String compression,
                                                    final int[] fieldsToDecode) {
-        return readLines(blobName, compressed).stream()
+        return readLines(blobName, compression).stream()
             .map(l -> l.split(","))
             .map(fields -> decodeRequiredFields(fields, fieldsToDecode))
             .collect(Collectors.toList());
