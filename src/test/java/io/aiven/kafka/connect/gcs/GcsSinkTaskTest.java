@@ -19,22 +19,28 @@
 package io.aiven.kafka.connect.gcs;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.header.ConnectHeaders;
+import org.apache.kafka.connect.header.Header;
 import org.apache.kafka.connect.sink.SinkRecord;
 
 import io.aiven.kafka.connect.gcs.config.CompressionType;
 import io.aiven.kafka.connect.gcs.config.GcsSinkConfig;
 import io.aiven.kafka.connect.gcs.testutils.BucketAccessor;
+import io.aiven.kafka.connect.gcs.testutils.Record;
+import io.aiven.kafka.connect.gcs.testutils.Utils;
 
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.contrib.nio.testing.LocalStorageHelper;
@@ -71,6 +77,49 @@ final class GcsSinkTaskTest {
         createRecord("topic0", 2, "key9", "value9", 51, 1009)
     );
 
+    private List<Record> createTestRecords() {
+        final List<Record> records = new ArrayList<>();
+        records.add(Record.of("topic0", "key0", "value0", 0, 10, 1000, createHeaders()));
+        records.add(Record.of("topic0", "key1", "value1", 1, 20, 1001, createHeaders()));
+        records.add(Record.of("topic1", "key2", "value2", 0, 30, 1002, createHeaders()));
+        records.add(Record.of("topic1", "key3", "value3", 1, 40, 1003, createHeaders()));
+        records.add(Record.of("topic0", "key4", "value4", 2, 50, 1004, createHeaders()));
+
+        records.add(Record.of("topic0", "key5", "value5", 0, 11, 1005, createHeaders()));
+        records.add(Record.of("topic0", "key6", "value6", 1, 21, 1006, createHeaders()));
+        records.add(Record.of("topic1", "key7", "value7", 0, 31, 1007, createHeaders()));
+        records.add(Record.of("topic1", "key8", "value8", 1, 41, 1008, createHeaders()));
+        records.add(Record.of("topic0", "key9", "value9", 2, 51, 1009, createHeaders()));
+        return records;
+    }
+
+    private Map<String, Collection<Record>> toBlobNameWithRecordsMap(final String compression,
+                                                                     final List<Record> records) {
+        final CompressionType compressionType = CompressionType.forName(compression);
+        final String extension = compressionType.extension();
+        final Map<String, Integer> topicPartitionMinimumOffset = new HashMap<>();
+        final Map<String, Collection<Record>> blobNameWithRecordsMap = new HashMap<>();
+        for (final Record record : records) {
+            final String key = record.topic + "-" + record.partition;
+            final int offset = record.offset;
+            topicPartitionMinimumOffset.putIfAbsent(key, offset);
+            if (topicPartitionMinimumOffset.get(key) > offset) {
+                topicPartitionMinimumOffset.put(key, offset);
+            }
+        }
+        for (final Record record : records) {
+            final int offset = topicPartitionMinimumOffset.get(record.topic + "-" + record.partition);
+            final String key = record.topic + "-" + record.partition + "-" + offset + extension;
+            blobNameWithRecordsMap.putIfAbsent(key, new ArrayList<>());
+            blobNameWithRecordsMap.get(key).add(record);
+        }
+        return blobNameWithRecordsMap;
+    }
+
+    private List<SinkRecord> toSinkRecords(final List<Record> records) {
+        return records.stream().map(Record::toSinkRecord).collect(Collectors.toList());
+    }
+
     @BeforeEach
     final void setUp() {
         storage = LocalStorageHelper.getOptions().getService();
@@ -106,6 +155,30 @@ final class GcsSinkTaskTest {
             final Collection<List<String>> expected = blobNameWithExtensionValuesMap.get(blobNameWithExtension);
             final Collection<List<String>> actual = readSplittedAndDecodedLinesFromBlob(
                     blobNameWithExtension, compression, 0);
+            assertIterableEquals(expected, actual);
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"none", "gzip", "snappy", "zstd"})
+    final void basicWithHeaders(final String compression) {
+        properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
+        properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_CONFIG, "key,value,timestamp,offset,headers");
+        final GcsSinkTask task = new GcsSinkTask(properties, storage);
+
+        final List<Record> records = createTestRecords();
+        final List<SinkRecord> sinkRecords = toSinkRecords(records);
+
+        task.put(sinkRecords);
+        task.flush(null);
+
+        final Map<String, Collection<Record>> blobNameWithRecordsMap = toBlobNameWithRecordsMap(compression, records);
+
+        assertEquals(blobNameWithRecordsMap.keySet(), Sets.newHashSet(testBucketAccessor.getBlobNames()));
+
+        blobNameWithRecordsMap.keySet().forEach(blobNameWithExtension -> {
+            final Collection<Record> actual = readRecords(blobNameWithExtension, compression);
+            final Collection<Record> expected = blobNameWithRecordsMap.get(blobNameWithExtension);
             assertIterableEquals(expected, actual);
         });
     }
@@ -396,6 +469,44 @@ final class GcsSinkTaskTest {
             TimestampType.CREATE_TIME);
     }
 
+    private Iterable<Header> createHeaders() {
+        final Random random = new Random();
+        final byte[] k1 = new byte[8];
+        final byte[] k2 = new byte[8];
+        random.nextBytes(k1);
+        random.nextBytes(k2);
+        final String key1 = Utils.bytesToHex(k1);
+        final String key2 = Utils.bytesToHex(k2);
+        final byte[] value1 = new byte[32];
+        final byte[] value2 = new byte[32];
+        random.nextBytes(value1);
+        random.nextBytes(value2);
+        final ConnectHeaders connectHeaders = new ConnectHeaders();
+        connectHeaders.addBytes(key1, value1);
+        connectHeaders.addBytes(key2, value2);
+        return connectHeaders;
+    }
+
+    private SinkRecord createRecord(final String topic,
+                                    final int partition,
+                                    final String key,
+                                    final String value,
+                                    final int offset,
+                                    final long timestamp,
+                                    final Iterable<Header> headers) {
+        return new SinkRecord(
+                topic,
+                partition,
+                Schema.BYTES_SCHEMA,
+                key.getBytes(StandardCharsets.UTF_8),
+                Schema.BYTES_SCHEMA,
+                value.getBytes(StandardCharsets.UTF_8),
+                offset,
+                timestamp,
+                TimestampType.CREATE_TIME,
+                headers);
+    }
+
     private SinkRecord createRecordStringKey(final String topic,
                                              final int partition,
                                              final String key,
@@ -427,6 +538,10 @@ final class GcsSinkTaskTest {
             offset,
             null,
             TimestampType.NO_TIMESTAMP_TYPE);
+    }
+
+    private List<Record> readRecords(final String blobName, final String compression) {
+        return testBucketAccessor.decodeToRecords(blobName, compression);
     }
 
     private Collection<String> readRawLinesFromBlob(
