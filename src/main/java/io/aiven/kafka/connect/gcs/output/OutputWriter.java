@@ -104,6 +104,10 @@ public final class OutputWriter {
                         writers.add(new TimestampWriter());
                         break;
 
+                    case HEADERS:
+                        writers.add(new HeadersWriter());
+                        break;
+
                     default:
                         throw new ConnectException("Unknown output field type " + field);
                 }

@@ -238,14 +238,14 @@ final class GcsSinkConfigTest {
     void unsupportedOutputField() {
         final Map<String, String> properties = new HashMap<>();
         properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("format.output.fields", "key,value,offset,timestamp,unsupported");
+        properties.put("format.output.fields", "key,value,offset,timestamp,headers,unsupported");
 
         final Throwable t = assertThrows(
             ConfigException.class, () -> new GcsSinkConfig(properties)
         );
-        assertEquals("Invalid value [key, value, offset, timestamp, unsupported] "
+        assertEquals("Invalid value [key, value, offset, timestamp, headers, unsupported] "
                 + "for configuration format.output.fields: "
-                + "supported values are: 'key', 'value', 'offset', 'timestamp'",
+                + "supported values are: 'key', 'value', 'offset', 'timestamp', 'headers'",
             t.getMessage());
     }
 
