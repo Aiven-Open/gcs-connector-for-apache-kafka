@@ -34,6 +34,11 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import java.util.zip.GZIPInputStream;
 
+import org.apache.kafka.connect.converters.ByteArrayConverter;
+import org.apache.kafka.connect.data.SchemaAndValue;
+import org.apache.kafka.connect.header.ConnectHeaders;
+import org.apache.kafka.connect.header.Header;
+
 import io.aiven.kafka.connect.gcs.config.CompressionType;
 
 import com.github.luben.zstd.ZstdInputStream;
@@ -220,6 +225,36 @@ public final class BucketAccessor {
             result.set(fieldIdx, b64Decode(result.get(fieldIdx)));
         }
         return result;
+    }
+
+    public List<Record> decodeToRecords(final String blobName,
+                                                       final String compression) {
+        return readLines(blobName, compression).stream()
+                .map(l -> l.split(","))
+                .map(this::decodeRequiredFieldsToRecord)
+                .collect(Collectors.toList());
+    }
+
+    private Record decodeRequiredFieldsToRecord(final String[] originalFields) {
+        Objects.requireNonNull(originalFields, "originalFields cannot be null");
+        final String key = b64Decode(originalFields[0]);
+        final String value = b64Decode(originalFields[1]);
+        final Iterable<Header> headers = decodeHeaders(originalFields[4]);
+        return Record.of(key, value, headers);
+    }
+
+    public Iterable<Header> decodeHeaders(final String s) {
+        final ConnectHeaders connectHeaders = new ConnectHeaders();
+        final String[] headers = s.split(";");
+        for (final String header : headers) {
+            final String[] keyValue = header.split(":");
+            final String key = b64Decode(keyValue[0]);
+            final ByteArrayConverter byteArrayConverter = new ByteArrayConverter();
+            final byte[] value = Base64.getDecoder().decode(keyValue[1]);
+            final SchemaAndValue schemaAndValue = byteArrayConverter.toConnectHeader("topic0", key, value);
+            connectHeaders.add(key, schemaAndValue);
+        }
+        return connectHeaders;
     }
 
     private String b64Decode(final String value) {

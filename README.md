@@ -266,9 +266,9 @@ gcs.credentials.json={"type":"...", ...}
 
 
 # The set of the fields that are to be output, comma separated.
-# Supported values are: `key`, `value`, `offset`, and `timestamp`.
+# Supported values are: `key`, `value`, `offset`, `timestamp`, and `headers`.
 # Optional, the default is `value`.
-format.output.fields=key,value,offset,timestamp
+format.output.fields=key,value,offset,timestamp,headers
 
 # The prefix to be added to the name of each file put on GCS.
 # See the GCS naming requirements https://cloud.google.com/storage/docs/naming

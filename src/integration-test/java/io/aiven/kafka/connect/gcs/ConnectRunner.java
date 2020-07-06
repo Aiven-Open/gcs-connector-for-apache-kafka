@@ -79,13 +79,14 @@ final class ConnectRunner {
 
         final Time time = Time.SYSTEM;
         final String workerId = "test-worker";
+        final String kafkaClusterId = "test-cluster";
 
         final Plugins plugins = new Plugins(workerProps);
         final StandaloneConfig config = new StandaloneConfig(workerProps);
 
         final Worker worker = new Worker(
             workerId, time, plugins, config, new MemoryOffsetBackingStore());
-        herder = new StandaloneHerder(worker);
+        herder = new StandaloneHerder(worker, kafkaClusterId);
 
         final RestServer rest = new RestServer(config);
 
