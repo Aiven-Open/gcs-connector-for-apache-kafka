@@ -39,7 +39,7 @@ import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.header.ConnectHeaders;
 import org.apache.kafka.connect.header.Header;
 
-import io.aiven.kafka.connect.gcs.config.CompressionType;
+import io.aiven.kafka.connect.common.config.CompressionType;
 
 import com.github.luben.zstd.ZstdInputStream;
 import com.google.cloud.storage.Blob;
