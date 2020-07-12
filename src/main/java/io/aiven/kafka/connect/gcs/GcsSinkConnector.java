@@ -29,8 +29,6 @@ import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.sink.SinkConnector;
 
-import io.aiven.kafka.connect.gcs.config.GcsSinkConfig;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
