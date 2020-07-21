@@ -23,10 +23,6 @@ import java.util.Map;
 
 import org.apache.kafka.common.config.ConfigValue;
 
-import io.aiven.kafka.connect.common.config.CompressionType;
-import io.aiven.kafka.connect.common.config.OutputFieldType;
-import io.aiven.kafka.connect.gcs.GcsSinkConfig;
-
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
