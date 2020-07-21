@@ -23,6 +23,8 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
+import io.aiven.kafka.connect.gcs.gcs.GoogleCredentialsBuilder;
+
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.UserCredentials;
 import com.google.cloud.storage.Storage;

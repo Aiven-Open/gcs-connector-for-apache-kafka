@@ -36,7 +36,8 @@ import org.apache.kafka.connect.header.ConnectHeaders;
 import org.apache.kafka.connect.header.Header;
 import org.apache.kafka.connect.sink.SinkRecord;
 
-import io.aiven.kafka.connect.common.config.CompressionType;
+import io.aiven.kafka.connect.gcs.config.CompressionType;
+import io.aiven.kafka.connect.gcs.config.GcsSinkConfig;
 import io.aiven.kafka.connect.gcs.testutils.BucketAccessor;
 import io.aiven.kafka.connect.gcs.testutils.Record;
 import io.aiven.kafka.connect.gcs.testutils.Utils;

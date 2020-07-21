@@ -32,14 +32,8 @@ import java.util.stream.Stream;
 
 import org.apache.kafka.common.config.ConfigException;
 
-import io.aiven.kafka.connect.common.config.CompressionType;
-import io.aiven.kafka.connect.common.config.OutputField;
-import io.aiven.kafka.connect.common.config.OutputFieldEncodingType;
-import io.aiven.kafka.connect.common.config.OutputFieldType;
-import io.aiven.kafka.connect.common.config.TimestampSource;
-import io.aiven.kafka.connect.common.templating.Template;
-import io.aiven.kafka.connect.common.templating.VariableTemplatePart;
-import io.aiven.kafka.connect.gcs.GcsSinkConfig;
+import io.aiven.kafka.connect.gcs.templating.Template;
+import io.aiven.kafka.connect.gcs.templating.VariableTemplatePart;
 
 import com.google.auth.oauth2.UserCredentials;
 import com.google.common.collect.ImmutableMap;
