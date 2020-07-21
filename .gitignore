@@ -10,3 +10,5 @@ build
 
 # jqwik
 .jqwik-database
+
+*.sh
