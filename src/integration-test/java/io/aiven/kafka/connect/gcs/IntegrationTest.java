@@ -43,8 +43,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.TopicPartition;
 
-import io.aiven.kafka.connect.gcs.config.CompressionType;
-import io.aiven.kafka.connect.gcs.gcs.GoogleCredentialsBuilder;
+import io.aiven.kafka.connect.common.config.CompressionType;
 import io.aiven.kafka.connect.gcs.testutils.BucketAccessor;
 
 import com.google.cloud.storage.Storage;

@@ -33,8 +33,9 @@ import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
 
-import io.aiven.kafka.connect.gcs.config.GcsSinkConfig;
-import io.aiven.kafka.connect.gcs.output.OutputWriter;
+import io.aiven.kafka.connect.common.grouper.RecordGrouper;
+import io.aiven.kafka.connect.common.grouper.RecordGrouperFactory;
+import io.aiven.kafka.connect.common.output.OutputWriter;
 
 import com.github.luben.zstd.ZstdOutputStream;
 import com.google.cloud.storage.BlobInfo;
@@ -60,7 +61,7 @@ public final class GcsSinkTask extends SinkTask {
     }
 
     // for testing
-    protected GcsSinkTask(final Map<String, String> props,
+    public GcsSinkTask(final Map<String, String> props,
                           final Storage storage) {
         Objects.requireNonNull(props, "props cannot be null");
         Objects.requireNonNull(storage, "storage cannot be null");
