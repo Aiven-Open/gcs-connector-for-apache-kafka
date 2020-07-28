@@ -348,7 +348,6 @@ about the ways to set properties
 
 TBD
 
-## License
+# License
 
-This project is licensed under the
-[GNU Affero General Public License Version 3](LICENSE).
+This project is licensed under the [Apache License, Version 2.0](LICENSE).
