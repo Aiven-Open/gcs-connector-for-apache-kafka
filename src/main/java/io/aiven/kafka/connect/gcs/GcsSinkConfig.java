@@ -23,11 +23,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.config.types.Password;
 
+import io.aiven.kafka.connect.common.config.AivenCommonConfig;
 import io.aiven.kafka.connect.common.config.CompressionType;
 import io.aiven.kafka.connect.common.config.FilenameTemplateValidator;
 import io.aiven.kafka.connect.common.config.FixedSetRecommender;
@@ -40,7 +40,7 @@ import io.aiven.kafka.connect.common.templating.Template;
 
 import com.google.auth.oauth2.GoogleCredentials;
 
-public final class GcsSinkConfig extends AbstractConfig {
+public final class GcsSinkConfig extends AivenCommonConfig {
 
     private static final String GROUP_GCS = "GCS";
     public static final String GCS_CREDENTIALS_PATH_CONFIG = "gcs.credentials.path";
@@ -411,35 +411,12 @@ public final class GcsSinkConfig extends AbstractConfig {
         return originalsStrings().get(NAME_CONFIG);
     }
 
-    public final int getMaxRecordsPerFile() {
-        return getInt(FILE_MAX_RECORDS);
-    }
-
-    public final String getFilename() {
-        return resolveFilenameTemplate();
-    }
-
     private String resolveFilenameTemplate() {
         String fileNameTemplate = getString(FILE_NAME_TEMPLATE_CONFIG);
         if (fileNameTemplate == null) {
             fileNameTemplate = DEFAULT_FILENAME_TEMPLATE + getCompressionType().extension();
         }
         return fileNameTemplate;
-    }
-
-    public final Template getFilenameTemplate() {
-        return Template.of(getFilename());
-    }
-
-    public final ZoneId getFilenameTimezone() {
-        return ZoneId.of(getString(FILE_NAME_TIMESTAMP_TIMEZONE));
-    }
-
-    public final TimestampSource getFilenameTimestampSource() {
-        return TimestampSource.of(
-            getFilenameTimezone(),
-            TimestampSource.Type.of(getString(FILE_NAME_TIMESTAMP_SOURCE))
-        );
     }
 
 }
