@@ -99,6 +99,7 @@ sourceSets {
         resources {
             srcDirs = ['src/integration-test/resources']
         }
+
         compileClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
         runtimeClasspath += output + compileClasspath
     }
