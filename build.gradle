@@ -15,58 +15,91 @@
  */
 
 plugins {
-    // https://docs.gradle.org/current/userguide/java_library_plugin.html
-    id 'java-library'
+    // https://docs.gradle.org/current/userguide/idea_plugin.html
+    id "idea"
 
-    // https://docs.gradle.org/current/userguide/distribution_plugin.html
-    id 'distribution'
+    // https://docs.gradle.org/current/userguide/java_library_plugin.html
+    id "java-library"
 
     // https://docs.gradle.org/current/userguide/checkstyle_plugin.html
-    id 'checkstyle'
+    id "checkstyle"
 
-    // https://docs.gradle.org/current/userguide/idea_plugin.html
-    id 'idea'
+    // https://docs.gradle.org/current/userguide/jacoco_plugin.html
+    id "jacoco"
+
+    // https://docs.gradle.org/current/userguide/distribution_plugin.html
+    id "distribution"
+
+    // https://docs.gradle.org/current/userguide/publishing_maven.html
+    id "maven-publish"
+
+    id "com.jfrog.bintray" version "1.8.1"
 }
 
 group = "io.aiven"
 version = System.getenv("RELEASE_VERSION") ?: "0-SNAPSHOT"
 
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+
+    withJavadocJar()
+    withSourcesJar()
+}
+
+compileJava {
+    options.compilerArgs = ["-Xlint:all", "-Werror"]
+}
+
+javadoc {
+    if(JavaVersion.current().isJava9Compatible()) {
+        options.addBooleanOption('html5', true)
+    }
+}
+
+checkstyle {
+    toolVersion "8.29"
+    getConfigDirectory().set(rootProject.file("checkstyle/"))
+}
+
+test {
+    useJUnitPlatform {
+        includeEngines 'junit-jupiter', 'jqwik'
+    }
+}
+
+jacoco {
+    toolVersion = "0.8.5"
+}
+
 repositories {
     mavenLocal()
     jcenter()
     maven {
-        name = "GitHubPackages"
-        url = uri("https://maven.pkg.github.com/aiven/aiven-kafka-connect-commons")
-        credentials {
-            username = System.getenv("GITHUB_ACTOR")
-            password = System.getenv("GITHUB_TOKEN")
-        }
+        url "https://aiven.bintray.com/maven"
     }
 }
-
-sourceCompatibility = "8"
-targetCompatibility = "8"
 
 ext {
     kafkaVersion = "1.1.0"
-    aivenConnectCommonsVersion = "0.0.14"
+    aivenConnectCommonsVersion = "0.0.18"
     testcontainersVersion = "1.12.0"
 }
 
-distributions {
-    main {
-        contents {
-            from jar
-            from configurations.runtimeClasspath
-        }
-    }
+configurations {
+    integrationTestImplementation.extendsFrom testImplementation
+    integrationTestRuntime.extendsFrom testRuntimeClasspath
 }
 
 sourceSets {
     integrationTest {
-        java.srcDir file('src/integration-test/java')
-        resources.srcDir file('src/integration-test/resources')
-        compileClasspath += sourceSets.main.output + configurations.testRuntime
+        java {
+            srcDirs = ['src/integration-test/java']
+        }
+        resources {
+            srcDirs = ['src/integration-test/resources']
+        }
+        compileClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
         runtimeClasspath += output + compileClasspath
     }
 }
@@ -78,9 +111,13 @@ idea {
     }
 }
 
-configurations {
-    integrationTestImplementation.extendsFrom testImplementation
-    integrationTestRuntime.extendsFrom testRuntime
+distributions {
+    main {
+        contents {
+            from jar
+            from configurations.runtimeClasspath
+        }
+    }
 }
 
 dependencies {
@@ -113,7 +150,7 @@ dependencies {
     testImplementation  'org.mockito:mockito-core:3.3.3'
     testImplementation "io.aiven:aiven-kafka-connect-commons:$aivenConnectCommonsVersion"
 
-    testRuntime 'ch.qos.logback:logback-classic:1.2.3'
+    testRuntimeOnly 'ch.qos.logback:logback-classic:1.2.3'
 
     integrationTestImplementation "org.apache.kafka:connect-api:$kafkaVersion"
     integrationTestImplementation "org.apache.kafka:connect-runtime:$kafkaVersion"
@@ -128,10 +165,66 @@ dependencies {
     integrationTestImplementation "io.aiven:aiven-kafka-connect-commons:$aivenConnectCommonsVersion"
 }
 
-checkstyle {
-    toolVersion "8.21"
-    configDir rootProject.file("checkstyle/")
-    println configFile
+processResources {
+    filesMatching('aiven-kafka-connect-gcs-version.properties') {
+        expand(version: version)
+    }
+}
+
+bintray {
+    user = System.getenv('BINTRAY_USER')
+    key = System.getenv('BINTRAY_KEY')
+    publications = ['maven']
+    publish = true
+    override = false
+    pkg {
+        repo = 'maven'
+        name = 'aiven-kafka-connect-gcs'
+        userOrg = 'aiven'
+        licenses = ['Apache-2.0']
+        websiteUrl = 'https://github.com/aiven/aiven-kafka-connect-gcs'
+        vcsUrl = 'https://github.com/aiven/aiven-kafka-connect-gcs.git'
+        labels = ['kafka', 'connect', 'gcs']
+        publicDownloadNumbers = true
+        version {
+            name = project.getVersion()
+            desc = 'Aiven Kafka GCS connector ' + project.getVersion()
+            released  = new Date()
+        }
+    }
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId = getGroup()
+            artifactId = "aiven-kafka-connect-commons"
+            version = getVersion()
+            pom {
+                name = "Aiven Kafka GCS connector"
+                description = "A Kafka GCS sink connector for copying data from Kafka to GCS."
+                url = "https://aiven.io"
+                organization {
+                    name = "Aiven Oy"
+                    url = "https://aiven.io"
+                }
+                licenses {
+                    license {
+                        name = "Apache 2.0"
+                        url = "http://www.apache.org/licenses/LICENSE-2.0"
+                        distribution = "repo"
+                    }
+                }
+                scm {
+                    connection = "scm:git:git://github.com/aiven/aiven-kafka-connect-gcs.git"
+                    developerConnection = "scm:git:git@github.com:aiven/aiven-kafka-connect-gcs.git"
+                    url = "https://github.com/aiven/aiven-kafka-connect-gcs.git"
+                    tag = "HEAD"
+                }
+            }
+            from components.java
+        }
+    }
 }
 
 task integrationTest(type: Test) {
@@ -163,25 +256,5 @@ task integrationTest(type: Test) {
     doFirst {
         assert project.findProperty('testGcsBucket') != null
         assert !(project.findProperty('testGcsBucket').allWhitespace)
-    }
-}
-
-test {
-    useJUnitPlatform {
-        includeEngines 'junit-jupiter', 'jqwik'
-    }
-}
-
-processResources {
-    filesMatching('aiven-kafka-connect-gcs-version.properties') {
-        expand(version: version)
-    }
-}
-
-jar {
-    manifest {
-        attributes(
-                'Version': "$version"
-        )
     }
 }
