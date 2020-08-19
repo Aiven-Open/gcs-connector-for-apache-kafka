@@ -198,7 +198,7 @@ publishing {
     publications {
         maven(MavenPublication) {
             groupId = getGroup()
-            artifactId = "aiven-kafka-connect-commons"
+            artifactId = "aiven-kafka-connect-gcs"
             version = getVersion()
             pom {
                 name = "Aiven Kafka GCS connector"
