@@ -1,8 +1,6 @@
-![Pull Request Workflow](https://github.com/aiven/aiven-kafka-connect-gcs/workflows/Pull%20Request%20Workflow/badge.svg)
-
 # Aiven Kafka GCS Connector
 
-[![Build Status](https://travis-ci.org/aiven/aiven-kafka-connect-gcs.svg?branch=master)](https://travis-ci.org/aiven/aiven-kafka-connect-gcs)
+![Pull Request Workflow](https://github.com/aiven/aiven-kafka-connect-gcs/workflows/Pull%20Request%20Workflow/badge.svg)
 
 This is a sink
 [Kafka Connect](https://kafka.apache.org/documentation/#connect)
