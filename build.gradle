@@ -35,8 +35,10 @@ repositories {
     jcenter()
 }
 
-sourceCompatibility = "8"
-targetCompatibility = "8"
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
 
 ext {
     kafkaVersion = "1.1.0"
