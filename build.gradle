@@ -60,9 +60,13 @@ distributions {
 
 sourceSets {
     integrationTest {
-        java.srcDir file('src/integration-test/java')
-        resources.srcDir file('src/integration-test/resources')
-        compileClasspath += sourceSets.main.output + configurations.testRuntime
+        java {
+            srcDirs = ['src/integration-test/java']
+        }
+        resources {
+            srcDirs = ['src/integration-test/resources']
+        }
+        compileClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
         runtimeClasspath += output + compileClasspath
     }
 }
@@ -76,7 +80,7 @@ idea {
 
 configurations {
     integrationTestImplementation.extendsFrom testImplementation
-    integrationTestRuntime.extendsFrom testRuntime
+    integrationTestRuntime.extendsFrom testRuntimeClasspath
 }
 
 dependencies {
@@ -109,7 +113,7 @@ dependencies {
     testImplementation  'org.mockito:mockito-core:3.3.3'
     testImplementation "io.aiven:aiven-kafka-connect-commons:$aivenConnectCommonsVersion"
 
-    testRuntime 'ch.qos.logback:logback-classic:1.2.3'
+    testRuntimeOnly 'ch.qos.logback:logback-classic:1.2.3'
 
     integrationTestImplementation "org.apache.kafka:connect-api:$kafkaVersion"
     integrationTestImplementation "org.apache.kafka:connect-runtime:$kafkaVersion"
