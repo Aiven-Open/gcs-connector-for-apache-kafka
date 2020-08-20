@@ -122,9 +122,8 @@ dependencies {
 }
 
 checkstyle {
-    toolVersion "8.21"
-    configDir rootProject.file("checkstyle/")
-    println configFile
+    toolVersion "8.29"
+    getConfigDirectory().set(rootProject.file("checkstyle/"))
 }
 
 task integrationTest(type: Test) {
