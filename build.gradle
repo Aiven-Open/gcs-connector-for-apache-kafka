@@ -1,19 +1,17 @@
 /*
- * Aiven Kafka GCS Connector
- * Copyright (c) 2019 Aiven Oy
+ * Copyright 2020 Aiven Oy
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 plugins {
@@ -31,7 +29,13 @@ plugins {
 
     // https://docs.gradle.org/current/userguide/jacoco_plugin.html
     id "jacoco"
+
+    // https://docs.gradle.org/current/userguide/publishing_maven.html
+    id "maven-publish"
 }
+
+group = "io.aiven"
+version = System.getenv("RELEASE_VERSION") ?: "0-SNAPSHOT"
 
 repositories {
     mavenLocal()
@@ -41,6 +45,19 @@ repositories {
 java {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
+
+    withJavadocJar()
+    withSourcesJar()
+}
+
+compileJava {
+    options.compilerArgs = ["-Xlint:all", "-Werror"]
+}
+
+javadoc {
+    if(JavaVersion.current().isJava9Compatible()) {
+        options.addBooleanOption('html5', true)
+    }
 }
 
 ext {
@@ -66,6 +83,7 @@ sourceSets {
         resources {
             srcDirs = ['src/integration-test/resources']
         }
+
         compileClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
         runtimeClasspath += output + compileClasspath
     }
@@ -184,7 +202,40 @@ processResources {
 jar {
     manifest {
         attributes(
-                'Version': "${version}"
+                'Version': "${project.version}"
         )
+    }
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId = getGroup()
+            artifactId = "aiven-kafka-connect-gcs"
+            version = getVersion()
+            pom {
+                name = "Aiven Kafka GCS connector"
+                description = "A Kafka GCS sink connector for copying data from Kafka to GCS."
+                url = "https://aiven.io"
+                organization {
+                    name = "Aiven Oy"
+                    url = "https://aiven.io"
+                }
+                licenses {
+                    license {
+                        name = "Apache 2.0"
+                        url = "http://www.apache.org/licenses/LICENSE-2.0"
+                        distribution = "repo"
+                    }
+                }
+                scm {
+                    connection = "scm:git:git://github.com/aiven/aiven-kafka-connect-gcs.git"
+                    developerConnection = "scm:git:git@github.com:aiven/aiven-kafka-connect-gcs.git"
+                    url = "https://github.com/aiven/aiven-kafka-connect-gcs.git"
+                    tag = "HEAD"
+                }
+            }
+            from components.java
+        }
     }
 }
