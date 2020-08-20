@@ -16,22 +16,25 @@
 
 plugins {
     // https://docs.gradle.org/current/userguide/java_library_plugin.html
-    id 'java-library'
+    id "java-library"
 
     // https://docs.gradle.org/current/userguide/distribution_plugin.html
-    id 'distribution'
+    id "distribution"
 
     // https://docs.gradle.org/current/userguide/checkstyle_plugin.html
-    id 'checkstyle'
+    id "checkstyle"
 
     // https://docs.gradle.org/current/userguide/idea_plugin.html
-    id 'idea'
+    id "idea"
 
     // https://docs.gradle.org/current/userguide/jacoco_plugin.html
     id "jacoco"
 
     // https://docs.gradle.org/current/userguide/publishing_maven.html
     id "maven-publish"
+
+    // https://github.com/bintray/gradle-bintray-plugin
+    id "com.jfrog.bintray" version "1.8.1"
 }
 
 group = "io.aiven"
@@ -40,6 +43,9 @@ version = System.getenv("RELEASE_VERSION") ?: "0-SNAPSHOT"
 repositories {
     mavenLocal()
     jcenter()
+    maven {
+        url "https://aiven.bintray.com/maven"
+    }
 }
 
 java {
@@ -62,7 +68,7 @@ javadoc {
 
 ext {
     kafkaVersion = "1.1.0"
-    aivenConnectCommonsVersion = "0.9"
+    aivenConnectCommonsVersion = "0.0.18"
     testcontainersVersion = "1.12.0"
 }
 
@@ -236,6 +242,29 @@ publishing {
                 }
             }
             from components.java
+        }
+    }
+}
+
+bintray {
+    user = System.getenv('BINTRAY_USER')
+    key = System.getenv('BINTRAY_KEY')
+    publications = ['maven']
+    publish = true
+    override = false
+    pkg {
+        repo = 'maven'
+        name = 'aiven-kafka-connect-gcs'
+        userOrg = 'aiven'
+        licenses = ['Apache-2.0']
+        websiteUrl = 'https://github.com/aiven/aiven-kafka-connect-gcs'
+        vcsUrl = 'https://github.com/aiven/aiven-kafka-connect-gcs.git'
+        labels = ['kafka', 'connect', 'gcs']
+        publicDownloadNumbers = true
+        version {
+            name = project.getVersion()
+            desc = 'Aiven Kafka GCS connector ' + project.getVersion()
+            released  = new Date()
         }
     }
 }
