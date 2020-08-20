@@ -28,6 +28,9 @@ plugins {
 
     // https://docs.gradle.org/current/userguide/idea_plugin.html
     id 'idea'
+
+    // https://docs.gradle.org/current/userguide/jacoco_plugin.html
+    id "jacoco"
 }
 
 repositories {
@@ -162,6 +165,10 @@ test {
     useJUnitPlatform {
         includeEngines 'junit-jupiter', 'jqwik'
     }
+}
+
+jacoco {
+    toolVersion = "0.8.5"
 }
 
 processResources {
