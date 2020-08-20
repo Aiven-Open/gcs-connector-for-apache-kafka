@@ -57,6 +57,13 @@
         <property name="checkFormat" value="$1"/>
     </module>
 
+    <!-- See http://checkstyle.sourceforge.net/config_sizes.html#LineLength -->
+    <module name="LineLength">
+        <property name="fileExtensions" value="java"/>
+        <property name="max" value="120"/>
+        <property name="ignorePattern" value="^package.*|^import.*|a href|href|http://|https://|ftp://"/>
+    </module>
+
     <!-- See http://checkstyle.sourceforge.net/config.html#TreeWalker -->
     <module name="TreeWalker">
         <property name="fileExtensions" value="java"/>
@@ -276,13 +283,6 @@
         <!-- See http://checkstyle.sourceforge.net/config_sizes.html#ParameterNumber -->
         <module name="ParameterNumber">
             <property name="max" value="10"/>
-        </module>
-
-        <!-- See http://checkstyle.sourceforge.net/config_sizes.html#LineLength -->
-        <module name="LineLength">
-            <property name="fileExtensions" value="java"/>
-            <property name="max" value="120"/>
-            <property name="ignorePattern" value="^package.*|^import.*|a href|href|http://|https://|ftp://"/>
         </module>
 
         <!-- See http://checkstyle.sourceforge.net/config_metrics.html#ClassDataAbstractionCoupling -->
