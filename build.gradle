@@ -44,7 +44,7 @@ repositories {
     mavenLocal()
     jcenter()
     maven {
-        url "https://aiven.bintray.com/maven"
+        url "http://dl.bintray.com/aiven/maven"
     }
 }
 
@@ -68,7 +68,7 @@ javadoc {
 
 ext {
     kafkaVersion = "1.1.0"
-    aivenConnectCommonsVersion = "0.0.1"
+    aivenConnectCommonsVersion = "0.1.0"
     testcontainersVersion = "1.12.0"
 }
 
