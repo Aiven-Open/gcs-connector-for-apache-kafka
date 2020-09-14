@@ -7,6 +7,8 @@ This is a sink
 connector that stores Kafka messages in a
 [Google Cloud Storage (GCS)](https://cloud.google.com/storage/) bucket.
 
+The connector requires Java 11 or newer for development and production.
+
 ## How It Works
 
 The connector subscribes to the specified Kafka topics and collects
