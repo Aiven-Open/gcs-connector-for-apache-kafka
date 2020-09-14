@@ -68,7 +68,7 @@ javadoc {
 
 ext {
     kafkaVersion = "1.1.0"
-    aivenConnectCommonsVersion = "0.0.1"
+    aivenConnectCommonsVersion = "0.1.0"
     testcontainersVersion = "1.12.0"
 }
 
