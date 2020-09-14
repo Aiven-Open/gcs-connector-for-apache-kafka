@@ -38,7 +38,6 @@ plugins {
 }
 
 group = "io.aiven"
-version = System.getenv("RELEASE_VERSION") ?: "0-SNAPSHOT"
 
 repositories {
     mavenLocal()
