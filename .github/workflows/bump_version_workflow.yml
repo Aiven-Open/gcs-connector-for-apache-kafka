@@ -1,0 +1,66 @@
+name: Bump Version Workflow
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Release Version'
+        required: true
+        default: ''
+      snapshot_version:
+        description: 'Snapshot Version'
+        required: true
+        default: ''
+
+jobs:
+  publish:
+    name: Push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v2
+        with:
+          ref: master
+          fetch-depth: 0
+      - name: Create branch
+        uses: peterjgrainger/action-create-branch@v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          branch: release-${{ github.event.inputs.release_version }}
+      - name: Checkout release branch
+        uses: actions/checkout@v2
+        with:
+          ref: release-${{ github.event.inputs.release_version }}
+      - name: Change release version
+        run: sed -i -e "s/^version=.\+$/version=${{ github.event.inputs.release_version }}/g" gradle.properties
+      - name: Commit release version
+          uses: EndBug/add-and-commit@v4
+          with:
+            author_name: GitHub Actions
+            author_email: action@github.com
+            message: Release version ${{ github.event.inputs.release_version }}
+            add: '.'
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Change snapshot version
+          run: sed -i -e "s/^version=.\+$/version=${{ github.event.inputs.snapshot_version }}/g" gradle.properties
+      - name: Commit snapshot version
+          uses: EndBug/add-and-commit@v4
+          with:
+            author_name: GitHub Actions
+            author_email: action@github.com
+            message: Bump version to ${{ github.event.inputs.snapshot_version }}
+            add: '.'
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create Pull Request
+          id: cpr
+          uses: peter-evans/create-pull-request@v3
+          with:
+            title: Add release ${{ github.event.inputs.release_version }} commits
+            branch: release-${{ github.event.inputs.release_version }}
+            delete-branch: true
+      - name: Check outputs
+        run: |
+          echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}"
+          echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}"
