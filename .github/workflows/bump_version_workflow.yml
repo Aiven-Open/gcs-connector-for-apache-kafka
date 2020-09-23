@@ -13,7 +13,7 @@ on:
 
 jobs:
   publish:
-    name: Push
+    name: Bump version
     runs-on: ubuntu-latest
     steps:
       - name: Checkout master
