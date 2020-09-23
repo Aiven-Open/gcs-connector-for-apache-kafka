@@ -1,4 +1,4 @@
-name: Bump Version Workflow
+name: Bump Version Workflow Test
 on:
   workflow_dispatch:
     inputs:
@@ -12,7 +12,7 @@ on:
         default: ''
 
 jobs:
-  publish:
+  release:
     name: Bump version
     runs-on: ubuntu-latest
     steps:
