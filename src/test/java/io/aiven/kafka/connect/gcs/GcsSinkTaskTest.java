@@ -30,6 +30,9 @@ import java.util.stream.IntStream;
 
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.SchemaBuilder;
+import org.apache.kafka.connect.data.Struct;
+import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.header.ConnectHeaders;
 import org.apache.kafka.connect.header.Header;
 import org.apache.kafka.connect.sink.SinkRecord;
@@ -50,6 +53,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 final class GcsSinkTaskTest {
 
@@ -446,6 +450,173 @@ final class GcsSinkTaskTest {
         assertIterableEquals(
             Arrays.asList(Arrays.asList("", "value5")), // null is written as an empty string to files
             readSplittedAndDecodedLinesFromBlob("null", compression, 0, 1));
+    }
+
+    @Test
+    final void failedForStringValuesByDefault() {
+        final String compression = "none";
+        properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
+        properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_CONFIG, "key,value");
+
+        final GcsSinkTask task = new GcsSinkTask(properties, storage);
+
+        final List<SinkRecord> records = Arrays.asList(
+            createRecordWithStringValueSchema("topic0", 0, "key0", "value0", 10, 1000),
+            createRecordWithStringValueSchema("topic0", 1, "key1", "value1", 20, 1001),
+            createRecordWithStringValueSchema("topic1", 0, "key2", "value2", 30, 1002)
+
+        );
+
+        task.put(records);
+
+        final Throwable t = assertThrows(
+            ConnectException.class,
+            () -> task.flush(null)
+        );
+        assertEquals(
+            "org.apache.kafka.connect.errors.DataException: "
+                + "Record value schema type must be BYTES, STRING given", t.getMessage());
+    }
+
+    @Test
+    final void supportStringValuesForJsonL() {
+        final String compression = "none";
+        properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
+        properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_CONFIG, "key,value");
+        properties.put(GcsSinkConfig.FORMAT_OUTPUT_TYPE_CONFIG, "jsonl");
+
+        final GcsSinkTask task = new GcsSinkTask(properties, storage);
+
+        final List<SinkRecord> records = Arrays.asList(
+            createRecordWithStringValueSchema("topic0", 0, "key0", "value0", 10, 1000),
+            createRecordWithStringValueSchema("topic0", 1, "key1", "value1", 20, 1001),
+            createRecordWithStringValueSchema("topic1", 0, "key2", "value2", 30, 1002)
+        );
+
+        task.put(records);
+        task.flush(null);
+
+        final CompressionType compressionType = CompressionType.forName(compression);
+
+        assertIterableEquals(
+            Lists.newArrayList(
+                "topic0-0-10" + compressionType.extension(),
+                "topic0-1-20" + compressionType.extension(),
+                "topic1-0-30" + compressionType.extension()),
+            testBucketAccessor.getBlobNames());
+
+        assertIterableEquals(
+            Arrays.asList("{\"value\":\"value0\",\"key\":\"key0\"}"),
+            readRawLinesFromBlob("topic0-0-10", compression));
+        assertIterableEquals(
+            Arrays.asList("{\"value\":\"value1\",\"key\":\"key1\"}"),
+            readRawLinesFromBlob("topic0-1-20", compression));
+        assertIterableEquals(
+            Arrays.asList("{\"value\":\"value2\",\"key\":\"key2\"}"),
+            readRawLinesFromBlob("topic1-0-30", compression));
+    }
+
+    @Test
+    final void failedForStructValuesByDefault() {
+        final String compression = "none";
+        properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
+        properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_CONFIG, "key,value");
+        final GcsSinkTask task = new GcsSinkTask(properties, storage);
+
+        final List<SinkRecord> records = Arrays.asList(
+            createRecordWithStructValueSchema("topic0", 0, "key0", "name0", 10, 1000),
+            createRecordWithStructValueSchema("topic0", 1, "key1", "name1", 20, 1001),
+            createRecordWithStructValueSchema("topic1", 0, "key2", "name2", 30, 1002)
+
+        );
+
+        task.put(records);
+
+        final Throwable t = assertThrows(
+            ConnectException.class,
+            () -> task.flush(null)
+        );
+        assertEquals(
+            "org.apache.kafka.connect.errors.DataException: "
+                + "Record value schema type must be BYTES, STRUCT given", t.getMessage());
+    }
+
+    @Test
+    final void supportStructValuesForJsonL() {
+        final String compression = "none";
+        properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
+        properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_CONFIG, "key,value");
+        properties.put(GcsSinkConfig.FORMAT_OUTPUT_TYPE_CONFIG, "jsonl");
+
+        final GcsSinkTask task = new GcsSinkTask(properties, storage);
+
+        final List<SinkRecord> records = Arrays.asList(
+            createRecordWithStructValueSchema("topic0", 0, "key0", "name0", 10, 1000),
+            createRecordWithStructValueSchema("topic0", 1, "key1", "name1", 20, 1001),
+            createRecordWithStructValueSchema("topic1", 0, "key2", "name2", 30, 1002)
+
+        );
+
+        task.put(records);
+        task.flush(null);
+
+        final CompressionType compressionType = CompressionType.forName(compression);
+
+        assertIterableEquals(
+            Lists.newArrayList(
+                "topic0-0-10" + compressionType.extension(),
+                "topic0-1-20" + compressionType.extension(),
+                "topic1-0-30" + compressionType.extension()),
+            testBucketAccessor.getBlobNames());
+
+        assertIterableEquals(
+            Arrays.asList("{\"value\":{\"name\":\"name0\"},\"key\":\"key0\"}"),
+            readRawLinesFromBlob("topic0-0-10", compression));
+        assertIterableEquals(
+            Arrays.asList("{\"value\":{\"name\":\"name1\"},\"key\":\"key1\"}"),
+            readRawLinesFromBlob("topic0-1-20", compression));
+        assertIterableEquals(
+            Arrays.asList("{\"value\":{\"name\":\"name2\"},\"key\":\"key2\"}"),
+            readRawLinesFromBlob("topic1-0-30", compression));
+    }
+
+    private SinkRecord createRecordWithStructValueSchema(final String topic,
+                                                         final int partition,
+                                                         final String key,
+                                                         final String name,
+                                                         final int offset,
+                                                         final long timestamp) {
+        final Schema schema = SchemaBuilder.struct().field("name", Schema.STRING_SCHEMA);
+        final Struct struct = new Struct(schema).put("name", name);
+        return new SinkRecord(
+            topic,
+            partition,
+            Schema.STRING_SCHEMA,
+            key,
+            schema,
+            struct,
+            offset,
+            timestamp,
+            TimestampType.CREATE_TIME
+        );
+    }
+
+    private SinkRecord createRecordWithStringValueSchema(final String topic,
+                                               final int partition,
+                                               final String key,
+                                               final String value,
+                                               final int offset,
+                                               final long timestamp) {
+        return new SinkRecord(
+            topic,
+            partition,
+            Schema.STRING_SCHEMA,
+            key,
+            Schema.STRING_SCHEMA,
+            value,
+            offset,
+            timestamp,
+            TimestampType.CREATE_TIME);
     }
 
     private SinkRecord createRecord(final String topic,

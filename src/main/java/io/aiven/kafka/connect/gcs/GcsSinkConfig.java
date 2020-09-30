@@ -273,6 +273,8 @@ public final class GcsSinkConfig extends AivenCommonConfig {
     private static void addFormatConfigGroup(final ConfigDef configDef) {
         int formatGroupCounter = 0;
 
+        addFormatTypeConfig(configDef, formatGroupCounter);
+
         final String supportedOutputFields = OutputFieldType.names().stream()
             .map(f -> "'" + f + "'")
             .collect(Collectors.joining(", "));
