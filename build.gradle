@@ -67,7 +67,7 @@ javadoc {
 
 ext {
     kafkaVersion = "1.1.0"
-    aivenConnectCommonsVersion = "0.1.0"
+    aivenConnectCommonsVersion = "0.2.0"
     testcontainersVersion = "1.12.0"
 }
 
@@ -132,6 +132,7 @@ dependencies {
 
     testImplementation "org.apache.kafka:connect-api:$kafkaVersion"
     testImplementation "org.apache.kafka:connect-runtime:$kafkaVersion"
+    testImplementation "org.apache.kafka:connect-json:$kafkaVersion"
     testImplementation 'com.google.cloud:google-cloud-nio:0.84.0-alpha'
     testImplementation  'org.mockito:mockito-core:3.3.3'
     testImplementation "io.aiven:aiven-kafka-connect-commons:$aivenConnectCommonsVersion"

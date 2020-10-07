@@ -31,6 +31,7 @@ import java.util.stream.Stream;
 import org.apache.kafka.common.config.ConfigException;
 
 import io.aiven.kafka.connect.common.config.CompressionType;
+import io.aiven.kafka.connect.common.config.FormatType;
 import io.aiven.kafka.connect.common.config.OutputField;
 import io.aiven.kafka.connect.common.config.OutputFieldEncodingType;
 import io.aiven.kafka.connect.common.config.OutputFieldType;
@@ -150,6 +151,7 @@ final class GcsSinkConfigTest {
                 .render());
         assertIterableEquals(Collections.singleton(
             new OutputField(OutputFieldType.VALUE, OutputFieldEncodingType.BASE64)), config.getOutputFields());
+        assertEquals(FormatType.forName("csv"), config.getFormatType());
     }
 
     @ParameterizedTest
@@ -712,6 +714,36 @@ final class GcsSinkConfigTest {
 
         final GcsSinkConfig c = new GcsSinkConfig(properties);
         assertEquals(TimestampSource.WallclockTimestampSource.class, c.getFilenameTimestampSource().getClass());
+
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"jsonl", "csv"})
+    void supportedFormatTypeConfig(final String formatType) {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put(GcsSinkConfig.FORMAT_OUTPUT_TYPE_CONFIG, formatType);
+
+
+        final GcsSinkConfig c = new GcsSinkConfig(properties);
+        final FormatType expectedFormatType = FormatType.forName(formatType);
+
+        assertEquals(expectedFormatType, c.getFormatType());
+    }
+
+    @Test
+    void wrongFormatTypeConfig() {
+        final Map<String, String> properties = new HashMap<>();
+        properties.put("gcs.bucket.name", "test-bucket");
+        properties.put(GcsSinkConfig.FORMAT_OUTPUT_TYPE_CONFIG, "unknown");
+
+        final Throwable t = assertThrows(
+            ConfigException.class,
+            () -> new GcsSinkConfig(properties)
+        );
+        assertEquals(
+            "Invalid value unknown for configuration format.output.type: "
+                + "supported values are: 'csv', 'jsonl'", t.getMessage());
 
     }
 

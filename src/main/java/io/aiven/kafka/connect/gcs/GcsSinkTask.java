@@ -34,6 +34,8 @@ import org.apache.kafka.connect.sink.SinkTask;
 import io.aiven.kafka.connect.common.grouper.RecordGrouper;
 import io.aiven.kafka.connect.common.grouper.RecordGrouperFactory;
 import io.aiven.kafka.connect.common.output.OutputWriter;
+import io.aiven.kafka.connect.common.output.jsonwriter.JsonLinesOutputWriter;
+import io.aiven.kafka.connect.common.output.plainwriter.OutputPlainWriter;
 
 import com.github.luben.zstd.ZstdOutputStream;
 import com.google.cloud.storage.BlobInfo;
@@ -82,11 +84,22 @@ public final class GcsSinkTask extends SinkTask {
     }
 
     private void initRest() {
-        this.outputWriter = OutputWriter.builder().addFields(config.getOutputFields()).build();
+        this.outputWriter = getOutputWriter();
         try {
             this.recordGrouper = RecordGrouperFactory.newRecordGrouper(config);
         } catch (final Exception e) {
             throw new ConnectException("Unsupported file name template " + config.getFilename(), e);
+        }
+    }
+
+    private OutputWriter getOutputWriter() {
+        switch (this.config.getFormatType()) {
+            case CSV:
+                return OutputPlainWriter.builder().addFields(config.getOutputFields()).build();
+            case JSONL:
+                return JsonLinesOutputWriter.builder().addFields(config.getOutputFields()).build();
+            default:
+                throw new ConnectException("Unsupported format type " + config.getFormatType());
         }
     }
 

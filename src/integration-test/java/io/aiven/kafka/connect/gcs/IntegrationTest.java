@@ -49,6 +49,7 @@ import com.google.cloud.storage.StorageOptions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.testcontainers.containers.KafkaContainer;
@@ -285,6 +286,7 @@ final class IntegrationTest {
         );
     }
 
+
     @ParameterizedTest
     @ValueSource(strings = {"none", "gzip", "snappy", "zstd"})
     final void oneFilePerRecordWithPlainValues(final String compression)
@@ -398,6 +400,68 @@ final class IntegrationTest {
         }
     }
 
+    @Test
+    final void jsonlOutput() throws ExecutionException, InterruptedException {
+        final Map<String, String> connectorConfig = basicConnectorConfig();
+        final String compression = "none";
+        final String contentType = "jsonl";
+        connectorConfig.put("format.output.fields", "key,value");
+        connectorConfig.put("format.output.fields.value.encoding", "none");
+        connectorConfig.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
+        connectorConfig.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
+        connectorConfig.put("value.converter.schemas.enable", "false");
+        connectorConfig.put("file.compression.type", compression);
+        connectorConfig.put("format.output.type", contentType);
+        connectRunner.createConnector(connectorConfig);
+
+        final List<Future<RecordMetadata>> sendFutures = new ArrayList<>();
+        int cnt = 0;
+        for (int i = 0; i < 10; i++) {
+            for (int partition = 0; partition < 4; partition++) {
+                final String key = "key-" + cnt;
+                final String value = "[{" + "\"name\":\"user-" + cnt + "\"}]";
+                cnt += 1;
+
+                sendFutures.add(sendMessageAsync(TEST_TOPIC_0, partition, key, value));
+            }
+        }
+        producer.flush();
+        for (final Future<RecordMetadata> sendFuture : sendFutures) {
+            sendFuture.get();
+        }
+
+        // TODO more robust way to detect that Connect finished processing
+        Thread.sleep(OFFSET_FLUSH_INTERVAL_MS * 2);
+
+        final List<String> expectedBlobs = Arrays.asList(
+                getBlobName(0, 0, compression),
+                getBlobName(1, 0, compression),
+                getBlobName(2, 0, compression),
+                getBlobName(3, 0, compression));
+        assertIterableEquals(expectedBlobs, testBucketAccessor.getBlobNames(gcsPrefix));
+
+        final Map<String, List<String>> blobContents = new HashMap<>();
+        for (final String blobName : expectedBlobs) {
+            final List<String> items = testBucketAccessor.readLines(blobName, compression).stream()
+                .collect(Collectors.toList());
+            blobContents.put(blobName, items);
+        }
+
+        cnt = 0;
+        for (int i = 0; i < 10; i++) {
+            for (int partition = 0; partition < 4; partition++) {
+                final String key = "key-" + cnt;
+                final String value = "[{" + "\"name\":\"user-" + cnt + "\"}]";
+                cnt += 1;
+
+                final String blobName = getBlobName(partition, 0, "none");
+                final String actualLine = blobContents.get(blobName).get(i);
+                final String expectedLine = "{\"value\":" + value + ",\"key\":\"" + key + "\"}";
+                assertEquals(expectedLine, actualLine);
+            }
+        }
+    }
+
     private Future<RecordMetadata> sendMessageAsync(final String topicName,
                                                     final int partition,
                                                     final String key,
@@ -408,6 +472,7 @@ final class IntegrationTest {
                 value == null ? null : value.getBytes());
         return producer.send(msg);
     }
+
 
     private Map<String, String> basicConnectorConfig() {
         final Map<String, String> config = new HashMap<>();
