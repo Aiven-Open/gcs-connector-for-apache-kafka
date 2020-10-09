@@ -16,9 +16,6 @@
 
 package io.aiven.kafka.connect.gcs;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -42,12 +39,8 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.TopicPartition;
 
 import io.aiven.kafka.connect.common.config.CompressionType;
-import io.aiven.kafka.connect.gcs.testutils.BucketAccessor;
 
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageOptions;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -61,25 +54,11 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 
-// TODO refactor test to make it more readable
 @Testcontainers
-final class IntegrationTest {
-    private static String gcsCredentialsPath;
-    private static String gcsCredentialsJson;
-
+final class IntegrationTest extends AbstractIntegrationTest {
     private static final String CONNECTOR_NAME = "aiven-gcs-sink-connector";
-    private static final String TEST_TOPIC_0 = "test-topic-0";
-    private static final String TEST_TOPIC_1 = "test-topic-1";
 
     private static final int OFFSET_FLUSH_INTERVAL_MS = 5000;
-
-    private static String testBucketName;
-
-    private static String gcsPrefix;
-
-    private static BucketAccessor testBucketAccessor;
-
-    private static File pluginDir;
 
     @Container
     private final KafkaContainer kafka = new KafkaContainer()
@@ -89,38 +68,6 @@ final class IntegrationTest {
     private KafkaProducer<byte[], byte[]> producer;
 
     private ConnectRunner connectRunner;
-
-
-    @BeforeAll
-    static void setUpAll() throws IOException, InterruptedException {
-        gcsCredentialsPath = System.getProperty("integration-test.gcs.credentials.path");
-        gcsCredentialsJson = System.getProperty("integration-test.gcs.credentials.json");
-
-        testBucketName = System.getProperty("integration-test.gcs.bucket");
-
-        final Storage storage = StorageOptions.newBuilder()
-                .setCredentials(GoogleCredentialsBuilder.build(gcsCredentialsPath, gcsCredentialsJson))
-                .build()
-                .getService();
-        testBucketAccessor = new BucketAccessor(storage, testBucketName);
-        testBucketAccessor.ensureWorking();
-
-        gcsPrefix = "aiven-kafka-connect-gcs-test-"
-                + ZonedDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) + "/";
-
-        final File testDir = Files.createTempDirectory("aiven-kafka-connect-gcs-test-").toFile();
-
-        pluginDir = new File(testDir, "plugins/aiven-kafka-connect-gcs/");
-        assert pluginDir.mkdirs();
-
-        final File distFile = new File(System.getProperty("integration-test.distribution.file.path"));
-        assert distFile.exists();
-
-        final String cmd = String.format("tar -xf %s --strip-components=1 -C %s",
-                distFile.toString(), pluginDir.toString());
-        final Process p = Runtime.getRuntime().exec(cmd);
-        assert p.waitFor() == 0;
-    }
 
     @BeforeEach
     void setUp() throws ExecutionException, InterruptedException {
@@ -442,8 +389,7 @@ final class IntegrationTest {
 
         final Map<String, List<String>> blobContents = new HashMap<>();
         for (final String blobName : expectedBlobs) {
-            final List<String> items = testBucketAccessor.readLines(blobName, compression).stream()
-                .collect(Collectors.toList());
+            final List<String> items = new ArrayList<>(testBucketAccessor.readLines(blobName, compression));
             blobContents.put(blobName, items);
         }
 
@@ -491,15 +437,5 @@ final class IntegrationTest {
         config.put("file.name.prefix", gcsPrefix);
         config.put("topics", TEST_TOPIC_0 + "," + TEST_TOPIC_1);
         return config;
-    }
-
-    private String getBlobName(final int partition, final int startOffset, final String compression) {
-        final String result = String.format("%s%s-%d-%d", gcsPrefix, TEST_TOPIC_0, partition, startOffset);
-        return result + CompressionType.forName(compression).extension();
-    }
-
-    private String getBlobName(final String key, final String compression) {
-        final String result = String.format("%s%s", gcsPrefix, key);
-        return result + CompressionType.forName(compression).extension();
     }
 }
