@@ -35,7 +35,8 @@ import io.aiven.kafka.connect.common.grouper.RecordGrouper;
 import io.aiven.kafka.connect.common.grouper.RecordGrouperFactory;
 import io.aiven.kafka.connect.common.output.OutputWriter;
 import io.aiven.kafka.connect.common.output.jsonwriter.JsonLinesOutputWriter;
-import io.aiven.kafka.connect.common.output.plainwriter.OutputPlainWriter;
+import io.aiven.kafka.connect.common.output.jsonwriter.JsonOutputWriter;
+import io.aiven.kafka.connect.common.output.plainwriter.PlainOutputWriter;
 
 import com.github.luben.zstd.ZstdOutputStream;
 import com.google.cloud.storage.BlobInfo;
@@ -49,8 +50,6 @@ public final class GcsSinkTask extends SinkTask {
     private static final Logger log = LoggerFactory.getLogger(GcsSinkConnector.class);
 
     private RecordGrouper recordGrouper;
-
-    private OutputWriter outputWriter;
 
     private GcsSinkConfig config;
 
@@ -84,7 +83,6 @@ public final class GcsSinkTask extends SinkTask {
     }
 
     private void initRest() {
-        this.outputWriter = getOutputWriter();
         try {
             this.recordGrouper = RecordGrouperFactory.newRecordGrouper(config);
         } catch (final Exception e) {
@@ -92,12 +90,14 @@ public final class GcsSinkTask extends SinkTask {
         }
     }
 
-    private OutputWriter getOutputWriter() {
+    private OutputWriter getOutputWriter(final OutputStream outputStream) {
         switch (this.config.getFormatType()) {
             case CSV:
-                return OutputPlainWriter.builder().addFields(config.getOutputFields()).build();
+                return new PlainOutputWriter(config.getOutputFields(), outputStream);
             case JSONL:
-                return JsonLinesOutputWriter.builder().addFields(config.getOutputFields()).build();
+                return new JsonLinesOutputWriter(config.getOutputFields(), outputStream);
+            case JSON:
+                return new JsonOutputWriter(config.getOutputFields(), outputStream);
             default:
                 throw new ConnectException("Unsupported format type " + config.getFormatType());
         }
@@ -128,10 +128,11 @@ public final class GcsSinkTask extends SinkTask {
             // Don't group these two tries,
             // because the internal one must be closed before writing to GCS.
             try (final OutputStream compressedStream = getCompressedStream(baos)) {
-                for (int i = 0; i < records.size() - 1; i++) {
-                    outputWriter.writeRecord(records.get(i), compressedStream);
+                try (final OutputWriter outputWriter = getOutputWriter(compressedStream)) {
+                    for (final SinkRecord record: records) {
+                        outputWriter.writeRecord(record);
+                    }
                 }
-                outputWriter.writeLastRecord(records.get(records.size() - 1), compressedStream);
             }
             storage.create(blob, baos.toByteArray());
         } catch (final Exception e) {
