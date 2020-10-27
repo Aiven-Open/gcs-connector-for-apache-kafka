@@ -580,6 +580,45 @@ final class GcsSinkTaskTest {
             readRawLinesFromBlob("topic1-0-30", compression));
     }
 
+    @Test
+    final void supportStructValuesForClassicJson() {
+        final String compression = "none";
+        properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
+        properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_CONFIG, "key,value");
+        properties.put(GcsSinkConfig.FORMAT_OUTPUT_TYPE_CONFIG, "json");
+
+        final GcsSinkTask task = new GcsSinkTask(properties, storage);
+
+        final List<SinkRecord> records = Arrays.asList(
+            createRecordWithStructValueSchema("topic0", 0, "key0", "name0", 10, 1000),
+            createRecordWithStructValueSchema("topic0", 1, "key1", "name1", 20, 1001),
+            createRecordWithStructValueSchema("topic1", 0, "key2", "name2", 30, 1002)
+
+        );
+
+        task.put(records);
+        task.flush(null);
+
+        final CompressionType compressionType = CompressionType.forName(compression);
+
+        assertIterableEquals(
+            Lists.newArrayList(
+                "topic0-0-10" + compressionType.extension(),
+                "topic0-1-20" + compressionType.extension(),
+                "topic1-0-30" + compressionType.extension()),
+            testBucketAccessor.getBlobNames());
+
+        assertIterableEquals(
+            Arrays.asList("[", "{\"value\":{\"name\":\"name0\"},\"key\":\"key0\"}", "]"),
+            readRawLinesFromBlob("topic0-0-10", compression));
+        assertIterableEquals(
+            Arrays.asList("[", "{\"value\":{\"name\":\"name1\"},\"key\":\"key1\"}", "]"),
+            readRawLinesFromBlob("topic0-1-20", compression));
+        assertIterableEquals(
+            Arrays.asList("[", "{\"value\":{\"name\":\"name2\"},\"key\":\"key2\"}", "]"),
+            readRawLinesFromBlob("topic1-0-30", compression));
+    }
+
     private SinkRecord createRecordWithStructValueSchema(final String topic,
                                                          final int partition,
                                                          final String key,

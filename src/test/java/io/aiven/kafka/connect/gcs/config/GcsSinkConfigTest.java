@@ -718,7 +718,7 @@ final class GcsSinkConfigTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"jsonl", "csv"})
+    @ValueSource(strings = {"jsonl", "json", "csv"})
     void supportedFormatTypeConfig(final String formatType) {
         final Map<String, String> properties = new HashMap<>();
         properties.put("gcs.bucket.name", "test-bucket");
@@ -743,7 +743,7 @@ final class GcsSinkConfigTest {
         );
         assertEquals(
             "Invalid value unknown for configuration format.output.type: "
-                + "supported values are: 'csv', 'jsonl'", t.getMessage());
+                + "supported values are: 'csv', 'json', 'jsonl'", t.getMessage());
 
     }
 
