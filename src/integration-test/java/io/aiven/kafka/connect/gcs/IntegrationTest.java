@@ -171,7 +171,7 @@ final class IntegrationTest extends AbstractIntegrationTest {
         connectorConfig.put(
                 "file.name.template",
                 "{{topic}}-{{partition}}-{{start_offset}}-"
-                        + "{{timestamp:unit=YYYY}}-{{timestamp:unit=MM}}-{{timestamp:unit=dd}}"
+                        + "{{timestamp:unit=yyyy}}-{{timestamp:unit=MM}}-{{timestamp:unit=dd}}"
         );
         connectRunner.createConnector(connectorConfig);
 

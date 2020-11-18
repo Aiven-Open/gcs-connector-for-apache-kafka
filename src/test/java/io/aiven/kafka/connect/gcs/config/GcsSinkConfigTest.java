@@ -99,7 +99,7 @@ final class GcsSinkConfigTest {
         final Map<String, String> properties =
             ImmutableMap.of(
                 GcsSinkConfig.FILE_NAME_TEMPLATE_CONFIG,
-                "{{topic}}-{{timestamp:unit=YYYY}}-"
+                "{{topic}}-{{timestamp:unit=yyyy}}-"
                     + "{{timestamp:unit=MM}}-{{timestamp:unit=dd}}"
                     + "-{{partition}}-{{start_offset:padding=true}}.gz",
                 "gcs.bucket.name", "asdasd"
@@ -111,7 +111,28 @@ final class GcsSinkConfigTest {
             .bindVariable("partition", () -> "p")
             .bindVariable("start_offset", VariableTemplatePart.Parameter::value)
             .render();
-        assertEquals("a-YYYY-MM-dd-p-true.gz", fileName);
+        assertEquals("a-yyyy-MM-dd-p-true.gz", fileName);
+    }
+
+    @Test
+    void correctlySupportDeprecatedYyyyUppercase() {
+        final Map<String, String> properties =
+            Map.of(
+                GcsSinkConfig.FILE_NAME_TEMPLATE_CONFIG,
+                "{{topic}}-"
+                    + "{{timestamp:unit=YYYY}}-{{timestamp:unit=yyyy}}-"
+                    + "{{ timestamp:unit=YYYY }}-{{ timestamp:unit=yyyy }}"  // spaces should be kept
+                    + "-{{partition}}-{{start_offset:padding=true}}.gz",
+                "gcs.bucket.name", "asdasd"
+            );
+        final Template t = new GcsSinkConfig(properties).getFilenameTemplate();
+        final String fileName = t.instance()
+            .bindVariable("topic", () -> "_")
+            .bindVariable("timestamp", VariableTemplatePart.Parameter::value)
+            .bindVariable("partition", () -> "_")
+            .bindVariable("start_offset", () -> "_")
+            .render();
+        assertEquals("_-yyyy-yyyy-yyyy-yyyy-_-_.gz", fileName);
     }
 
     @Test
@@ -164,7 +185,7 @@ final class GcsSinkConfigTest {
         properties.put("gcs.bucket.name", "test-bucket");
         properties.put("file.compression.type", compression);
         properties.put("file.name.prefix", "test-prefix");
-        properties.put("file.name.template", "{{topic}}-{{partition}}-{{start_offset}}-{{timestamp:unit=YYYY}}.gz");
+        properties.put("file.name.template", "{{topic}}-{{partition}}-{{start_offset}}-{{timestamp:unit=yyyy}}.gz");
         properties.put("file.max.records", "42");
         properties.put("format.output.fields", "key,value,offset,timestamp");
         properties.put("format.output.fields.value.encoding", "base64");
@@ -517,7 +538,7 @@ final class GcsSinkConfigTest {
             "Invalid value {{start_offset:padding=FALSE}}-{{partition}}-{{topic}} "
                 + "for configuration file.name.template: "
                 + "unsupported set of template variables parameters, "
-                + "supported sets are: start_offset:padding=true|false,timestamp:unit=YYYY|MM|dd|HH", t.getMessage());
+                + "supported sets are: start_offset:padding=true|false,timestamp:unit=yyyy|MM|dd|HH", t.getMessage());
     }
 
     @Test
@@ -533,7 +554,7 @@ final class GcsSinkConfigTest {
             "Invalid value {{start_offset}}-{{partition}}-{{topic}}-{{timestamp}} "
                 + "for configuration file.name.template: "
                 + "parameter unit is required for the the variable timestamp, "
-                + "supported values are: YYYY|MM|dd|HH", t.getMessage());
+                + "supported values are: yyyy|MM|dd|HH", t.getMessage());
     }
 
     @Test
