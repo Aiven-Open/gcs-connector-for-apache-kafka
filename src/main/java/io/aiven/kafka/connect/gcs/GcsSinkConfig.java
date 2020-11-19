@@ -19,8 +19,10 @@ package io.aiven.kafka.connect.gcs;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.common.config.ConfigDef;
@@ -39,8 +41,11 @@ import io.aiven.kafka.connect.common.grouper.RecordGrouperFactory;
 import io.aiven.kafka.connect.common.templating.Template;
 
 import com.google.auth.oauth2.GoogleCredentials;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class GcsSinkConfig extends AivenCommonConfig {
+    private static final Logger log = LoggerFactory.getLogger(GcsSinkConfig.class);
 
     private static final String GROUP_GCS = "GCS";
     public static final String GCS_CREDENTIALS_PATH_CONFIG = "gcs.credentials.path";
@@ -342,8 +347,34 @@ public final class GcsSinkConfig extends AivenCommonConfig {
     }
 
     public GcsSinkConfig(final Map<String, String> properties) {
-        super(configDef(), properties);
+        super(configDef(), handleDeprecatedYyyyUppercase(properties));
         validate();
+    }
+
+    private static Map<String, String> handleDeprecatedYyyyUppercase(final Map<String, String> properties) {
+        if (properties.containsKey(FILE_NAME_TEMPLATE_CONFIG)) {
+            final var result = new HashMap<>(properties);
+
+            String template = properties.get(FILE_NAME_TEMPLATE_CONFIG);
+            final String originalTemplate = template;
+
+            final var unitYyyyPattern = Pattern.compile("\\{\\{\\s*timestamp\\s*:\\s*unit\\s*=\\s*YYYY\\s*}}");
+            template = unitYyyyPattern.matcher(template)
+                .replaceAll(matchResult -> matchResult.group().replace("YYYY", "yyyy"));
+
+            if (!template.equals(originalTemplate)) {
+                log.warn("{{timestamp:unit=YYYY}} is no longer supported, "
+                        + "please use {{timestamp:unit=yyyy}} instead. "
+                        + "It was automatically replaced: {}",
+                    template);
+            }
+
+            result.put(FILE_NAME_TEMPLATE_CONFIG, template);
+
+            return result;
+        } else {
+            return properties;
+        }
     }
 
     private void validate() {
