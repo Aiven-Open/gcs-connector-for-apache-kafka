@@ -24,11 +24,13 @@ import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.config.ConfigException;
+import org.apache.kafka.common.config.ConfigValue;
 
 import io.aiven.kafka.connect.common.config.CompressionType;
 import io.aiven.kafka.connect.common.config.FormatType;
@@ -49,7 +51,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -68,9 +72,16 @@ final class GcsSinkConfigTest {
     })
     final void incorrectFilenameTemplates(final String template) {
         final Map<String, String> properties = Map.of(
-            GcsSinkConfig.FILE_NAME_TEMPLATE_CONFIG, template,
-            GcsSinkConfig.GCS_BUCKET_NAME_CONFIG, "some-bucket"
+            "file.name.template", template,
+            "gcs.bucket.name", "some-bucket"
         );
+
+        final ConfigValue v = GcsSinkConfig.configDef().validate(properties).stream()
+            .filter(x -> x.name().equals(GcsSinkConfig.FILE_NAME_TEMPLATE_CONFIG))
+            .findFirst()
+            .get();
+        assertFalse(v.errorMessages().isEmpty());
+
         final var t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties)
@@ -87,6 +98,9 @@ final class GcsSinkConfigTest {
                 + "-{{partition}}-{{start_offset:padding=true}}.gz",
             "gcs.bucket.name", "asdasd"
         );
+
+        assertConfigDefValidationPasses(properties);
+
         final Template t = new GcsSinkConfig(properties).getFilenameTemplate();
         final String fileName = t.instance()
             .bindVariable("topic", () -> "a")
@@ -103,10 +117,14 @@ final class GcsSinkConfigTest {
             "file.name.template",
             "{{topic}}-"
                 + "{{timestamp:unit=YYYY}}-{{timestamp:unit=yyyy}}-"
-                + "{{ timestamp:unit=YYYY }}-{{ timestamp:unit=yyyy }}"  // spaces should be kept
+                + "{{ timestamp:unit=YYYY }}-{{ timestamp:unit=yyyy }}"
                 + "-{{partition}}-{{start_offset:padding=true}}.gz",
             "gcs.bucket.name", "asdasd"
         );
+
+        // Commented out because this is actually a bug, will be fixed later.
+        // assertConfigDefValidationPasses(properties);
+
         final Template t = new GcsSinkConfig(properties).getFilenameTemplate();
         final String fileName = t.instance()
             .bindVariable("topic", () -> "_")
@@ -120,10 +138,16 @@ final class GcsSinkConfigTest {
     @Test
     void requiredConfigurations() {
         final Map<String, String> properties = Map.of();
+
+        final var expectedErrorMessage =
+            "Missing required configuration \"gcs.bucket.name\" which has no default value.";
+
+        expectErrorMessageForConfigurationInConfigDefValidation(
+            properties, "gcs.bucket.name", expectedErrorMessage);
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties));
-        assertEquals("Missing required configuration \"gcs.bucket.name\" which has no default value.", t.getMessage());
+        assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
@@ -131,10 +155,17 @@ final class GcsSinkConfigTest {
         final Map<String, String> properties = Map.of(
             "gcs.bucket.name", ""
         );
+
+        final var expectedErrorMessage =
+            "Invalid value  for configuration gcs.bucket.name: String must be non-empty";
+
+        expectErrorMessageForConfigurationInConfigDefValidation(
+            properties, "gcs.bucket.name", expectedErrorMessage);
+
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties));
-        assertEquals("Invalid value  for configuration gcs.bucket.name: String must be non-empty", t.getMessage());
+        assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
@@ -142,6 +173,8 @@ final class GcsSinkConfigTest {
         final Map<String, String> properties = Map.of(
             "gcs.bucket.name", "test-bucket"
         );
+
+        assertConfigDefValidationPasses(properties);
 
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         assertEquals("test-bucket", config.getBucketName());
@@ -173,6 +206,8 @@ final class GcsSinkConfigTest {
         properties.put("file.max.records", "42");
         properties.put("format.output.fields", "key,value,offset,timestamp");
         properties.put("format.output.fields.value.encoding", "base64");
+
+        assertConfigDefValidationPasses(properties);
 
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         assertDoesNotThrow(config::getCredentials);
@@ -212,6 +247,8 @@ final class GcsSinkConfigTest {
             properties.put("file.compression.type", compression);
         }
 
+        assertConfigDefValidationPasses(properties);
+
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         final CompressionType expectedCompressionType =
                 compression == null ? CompressionType.NONE : CompressionType.forName(compression);
@@ -225,12 +262,17 @@ final class GcsSinkConfigTest {
             "file.compression.type", "unsupported"
         );
 
+        final var expectedErrorMessage = "Invalid value unsupported for configuration file.compression.type: "
+            + "supported values are: 'none', 'gzip', 'snappy', 'zstd'";
+
+        final var v = expectErrorMessageForConfigurationInConfigDefValidation(
+            properties, "file.compression.type", expectedErrorMessage);
+        assertIterableEquals(List.of("none", "gzip", "snappy", "zstd"), v.recommendedValues());
+
         final Throwable t = assertThrows(
             ConfigException.class, () -> new GcsSinkConfig(properties)
         );
-        assertEquals("Invalid value unsupported for configuration file.compression.type: "
-                + "supported values are: 'none', 'gzip', 'snappy', 'zstd'",
-            t.getMessage());
+        assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
@@ -240,11 +282,16 @@ final class GcsSinkConfigTest {
             "format.output.fields", ""
         );
 
+        final var expectedErrorMessage = "Invalid value [] for configuration format.output.fields: cannot be empty";
+
+        final var v = expectErrorMessageForConfigurationInConfigDefValidation(
+            properties, "format.output.fields", expectedErrorMessage);
+        assertIterableEquals(List.of("key", "value", "offset", "timestamp", "headers"), v.recommendedValues());
+
         final Throwable t = assertThrows(
             ConfigException.class, () -> new GcsSinkConfig(properties)
         );
-        assertEquals("Invalid value [] for configuration format.output.fields: cannot be empty",
-            t.getMessage());
+        assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
@@ -254,13 +301,18 @@ final class GcsSinkConfigTest {
             "format.output.fields", "key,value,offset,timestamp,headers,unsupported"
         );
 
+        final var expectedErrorMessage = "Invalid value [key, value, offset, timestamp, headers, unsupported] "
+            + "for configuration format.output.fields: "
+            + "supported values are: 'key', 'value', 'offset', 'timestamp', 'headers'";
+
+        final var v = expectErrorMessageForConfigurationInConfigDefValidation(
+            properties, "format.output.fields", expectedErrorMessage);
+        assertIterableEquals(List.of("key", "value", "offset", "timestamp", "headers"), v.recommendedValues());
+
         final Throwable t = assertThrows(
             ConfigException.class, () -> new GcsSinkConfig(properties)
         );
-        assertEquals("Invalid value [key, value, offset, timestamp, headers, unsupported] "
-                + "for configuration format.output.fields: "
-                + "supported values are: 'key', 'value', 'offset', 'timestamp', 'headers'",
-            t.getMessage());
+        assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
@@ -270,6 +322,8 @@ final class GcsSinkConfigTest {
             "gcs.credentials.path",
             getClass().getClassLoader().getResource("test_gcs_credentials.json").getPath()
         );
+
+        assertConfigDefValidationPasses(properties);
 
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         final UserCredentials credentials = (UserCredentials) config.getCredentials();
@@ -288,6 +342,8 @@ final class GcsSinkConfigTest {
         );
         properties.put("gcs.credentials.json", credentialsJson);
 
+        assertConfigDefValidationPasses(properties);
+
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         final UserCredentials credentials = (UserCredentials) config.getCredentials();
         assertEquals("test-client-id", credentials.getClientId());
@@ -304,6 +360,9 @@ final class GcsSinkConfigTest {
         properties.put("gcs.credentials.json", credentialsJson);
         properties.put("gcs.credentials.path", credentialsResource.getPath());
 
+        // Should pass here, because ConfigDef validation doesn't check interdependencies.
+        assertConfigDefValidationPasses(properties);
+
         final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
         assertEquals(
             "\"gcs.credentials.path\" and \"gcs.credentials.json\" are mutually exclusive options, but both are set.",
@@ -317,6 +376,8 @@ final class GcsSinkConfigTest {
             "name", "test-connector"
         );
 
+        assertConfigDefValidationPasses(properties);
+
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         assertEquals("test-connector", config.getConnectorName());
     }
@@ -327,12 +388,17 @@ final class GcsSinkConfigTest {
         properties.put("gcs.bucket.name", "test-bucket");
         final String longString = Stream.generate(() -> "a").limit(1025).collect(Collectors.joining());
         properties.put("file.name.prefix", longString);
+
+        final var expectedErrorMessage = "Invalid value " + longString + " for configuration gcs.bucket.name: "
+            + "cannot be longer than 1024 characters";
+
+        expectErrorMessageForConfigurationInConfigDefValidation(
+            properties, "file.name.prefix", expectedErrorMessage);
+
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties));
-        assertEquals("Invalid value " + longString + " for configuration gcs.bucket.name: "
-                + "cannot be longer than 1024 characters",
-            t.getMessage());
+        assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
@@ -341,12 +407,18 @@ final class GcsSinkConfigTest {
             "gcs.bucket.name", "test-bucket",
             "file.name.prefix", ".well-known/acme-challenge/something"
         );
+
+        final var expectedErrorMessage =
+            "Invalid value .well-known/acme-challenge/something for configuration gcs.bucket.name: "
+            + "cannot start with '.well-known/acme-challenge'";
+
+        expectErrorMessageForConfigurationInConfigDefValidation(
+            properties, "file.name.prefix", expectedErrorMessage);
+
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties));
-        assertEquals("Invalid value .well-known/acme-challenge/something for configuration gcs.bucket.name: "
-                + "cannot start with '.well-known/acme-challenge'",
-            t.getMessage());
+        assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
@@ -354,6 +426,9 @@ final class GcsSinkConfigTest {
         final Map<String, String> properties = Map.of(
             "gcs.bucket.name", "test-bucket"
         );
+
+        assertConfigDefValidationPasses(properties);
+
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         assertEquals(0, config.getMaxRecordsPerFile());
     }
@@ -364,6 +439,9 @@ final class GcsSinkConfigTest {
             "gcs.bucket.name", "test-bucket",
             "file.max.records", "42"
         );
+
+        assertConfigDefValidationPasses(properties);
+
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         assertEquals(42, config.getMaxRecordsPerFile());
     }
@@ -374,12 +452,17 @@ final class GcsSinkConfigTest {
             "gcs.bucket.name", "test-bucket",
             "file.max.records", "-42"
         );
+
+        final var expectedErrorMessage = "Invalid value -42 for configuration file.max.records: "
+            + "must be a non-negative integer number";
+
+        expectErrorMessageForConfigurationInConfigDefValidation(
+            properties, "file.max.records", expectedErrorMessage);
+
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties));
-        assertEquals("Invalid value -42 for configuration file.max.records: "
-                + "must be a non-negative integer number",
-            t.getMessage());
+        assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @ParameterizedTest
@@ -391,6 +474,8 @@ final class GcsSinkConfigTest {
         if (compression != null) {
             properties.put("file.compression.type", compression);
         }
+
+        assertConfigDefValidationPasses(properties);
 
         final CompressionType compressionType =
                 compression == null ? CompressionType.NONE : CompressionType.forName(compression);
@@ -413,6 +498,8 @@ final class GcsSinkConfigTest {
             "file.name.template", "{{topic}}-{{partition}}-{{start_offset}}"
         );
 
+        assertConfigDefValidationPasses(properties);
+
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         final String actual = config.getFilenameTemplate()
             .instance()
@@ -430,6 +517,8 @@ final class GcsSinkConfigTest {
             "file.name.template", "{{start_offset}}-{{partition}}-{{topic}}"
         );
 
+        assertConfigDefValidationPasses(properties);
+
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         final String actual = config.getFilenameTemplate()
             .instance()
@@ -446,6 +535,8 @@ final class GcsSinkConfigTest {
             "gcs.bucket.name", "test-bucket",
             "file.name.template", "{{start_offset:padding=true}}-{{partition}}-{{topic}}"
         );
+
+        assertConfigDefValidationPasses(properties);
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         final String actual = config.getFilenameTemplate()
             .instance()
@@ -467,6 +558,8 @@ final class GcsSinkConfigTest {
             "file.name.template", "{{key}}"
         );
 
+        assertConfigDefValidationPasses(properties);
+
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         final String actual = config.getFilenameTemplate()
             .instance()
@@ -482,13 +575,17 @@ final class GcsSinkConfigTest {
             "file.name.template", ""
         );
 
+        final var expectedErrorMessage = "Invalid value  for configuration file.name.template: "
+            + "unsupported set of template variables, "
+            + "supported sets are: topic,partition,start_offset,timestamp; key";
+
+        expectErrorMessageForConfigurationInConfigDefValidation(
+            properties, "file.name.template", expectedErrorMessage);
+
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties));
-        assertEquals("Invalid value  for configuration file.name.template: "
-                + "unsupported set of template variables, "
-                + "supported sets are: topic,partition,start_offset,timestamp; key",
-            t.getMessage());
+        assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
@@ -498,14 +595,18 @@ final class GcsSinkConfigTest {
             "file.name.template", "{{ aaa }}{{ topic }}{{ partition }}{{ start_offset }}"
         );
 
+        final var expectedErrorMessage = "Invalid value {{ aaa }}{{ topic }}{{ partition }}{{ start_offset }} "
+            + "for configuration file.name.template: "
+            + "unsupported set of template variables, "
+            + "supported sets are: topic,partition,start_offset,timestamp; key";
+
+        expectErrorMessageForConfigurationInConfigDefValidation(
+            properties, "file.name.template", expectedErrorMessage);
+
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties));
-        assertEquals("Invalid value {{ aaa }}{{ topic }}{{ partition }}{{ start_offset }} "
-                + "for configuration file.name.template: "
-                + "unsupported set of template variables, "
-                + "supported sets are: topic,partition,start_offset,timestamp; key",
-            t.getMessage());
+        assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
@@ -515,13 +616,18 @@ final class GcsSinkConfigTest {
             "file.name.template", "{{ partition }}{{ start_offset }}"
         );
 
+        final var expectedErrorMessage =
+            "Invalid value {{ partition }}{{ start_offset }} for configuration file.name.template: "
+            + "unsupported set of template variables, "
+            + "supported sets are: topic,partition,start_offset,timestamp; key";
+
+        expectErrorMessageForConfigurationInConfigDefValidation(
+            properties, "file.name.template", expectedErrorMessage);
+
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties));
-        assertEquals("Invalid value {{ partition }}{{ start_offset }} for configuration file.name.template: "
-                + "unsupported set of template variables, "
-                + "supported sets are: topic,partition,start_offset,timestamp; key",
-            t.getMessage());
+        assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
@@ -530,15 +636,20 @@ final class GcsSinkConfigTest {
             "gcs.bucket.name", "test-bucket",
             "file.name.template", "{{start_offset:padding=FALSE}}-{{partition}}-{{topic}}"
         );
+
+        final var expectedErrorMessage = "Invalid value {{start_offset:padding=FALSE}}-{{partition}}-{{topic}} "
+            + "for configuration file.name.template: "
+            + "unsupported set of template variables parameters, "
+            + "supported sets are: start_offset:padding=true|false,timestamp:unit=yyyy|MM|dd|HH";
+
+        expectErrorMessageForConfigurationInConfigDefValidation(
+            properties, "file.name.template", expectedErrorMessage);
+
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties)
         );
-        assertEquals(
-            "Invalid value {{start_offset:padding=FALSE}}-{{partition}}-{{topic}} "
-                + "for configuration file.name.template: "
-                + "unsupported set of template variables parameters, "
-                + "supported sets are: start_offset:padding=true|false,timestamp:unit=yyyy|MM|dd|HH", t.getMessage());
+        assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
@@ -547,15 +658,20 @@ final class GcsSinkConfigTest {
             "gcs.bucket.name", "test-bucket",
             "file.name.template", "{{start_offset}}-{{partition}}-{{topic}}-{{timestamp}}"
         );
+
+        final var expectedErrorMessage = "Invalid value {{start_offset}}-{{partition}}-{{topic}}-{{timestamp}} "
+            + "for configuration file.name.template: "
+            + "parameter unit is required for the the variable timestamp, "
+            + "supported values are: yyyy|MM|dd|HH";
+
+        expectErrorMessageForConfigurationInConfigDefValidation(
+            properties, "file.name.template", expectedErrorMessage);
+
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties)
         );
-        assertEquals(
-            "Invalid value {{start_offset}}-{{partition}}-{{topic}}-{{timestamp}} "
-                + "for configuration file.name.template: "
-                + "parameter unit is required for the the variable timestamp, "
-                + "supported values are: yyyy|MM|dd|HH", t.getMessage());
+        assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
@@ -564,14 +680,19 @@ final class GcsSinkConfigTest {
             "gcs.bucket.name", "test-bucket",
             "file.name.template", "{{start_offset:}}-{{partition}}-{{topic}}"
         );
+
+        final var expectedErrorMessage = "Invalid value {{start_offset:}}-{{partition}}-{{topic}} "
+            + "for configuration file.name.template: "
+            + "Wrong variable with parameter definition";
+
+        expectErrorMessageForConfigurationInConfigDefValidation(
+            properties, "file.name.template", expectedErrorMessage);
+
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties)
         );
-        assertEquals(
-            "Invalid value {{start_offset:}}-{{partition}}-{{topic}} "
-                + "for configuration file.name.template: "
-                + "Wrong variable with parameter definition", t.getMessage());
+        assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
@@ -580,15 +701,19 @@ final class GcsSinkConfigTest {
             "gcs.bucket.name", "test-bucket",
             "file.name.template", "{{:padding=true}}-{{partition}}-{{topic}}"
         );
+
+        final var expectedErrorMessage = "Invalid value {{:padding=true}}-{{partition}}-{{topic}} "
+            + "for configuration file.name.template: "
+            + "Variable name has't been set for template: {{:padding=true}}-{{partition}}-{{topic}}";
+
+        expectErrorMessageForConfigurationInConfigDefValidation(
+            properties, "file.name.template", expectedErrorMessage);
+
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties)
         );
-        assertEquals(
-            "Invalid value {{:padding=true}}-{{partition}}-{{topic}} "
-                + "for configuration file.name.template: "
-                + "Variable name has't been set for template: {{:padding=true}}-{{partition}}-{{topic}}",
-            t.getMessage()
+        assertEquals(expectedErrorMessage, t.getMessage()
         );
     }
 
@@ -598,16 +723,19 @@ final class GcsSinkConfigTest {
             "gcs.bucket.name", "test-bucket",
             "file.name.template", "{{start_offset:padding=}}-{{partition}}-{{topic}}"
         );
+
+        final var expectedErrorMessage = "Invalid value {{start_offset:padding=}}-{{partition}}-{{topic}} "
+            + "for configuration file.name.template: "
+            + "Parameter value for variable `start_offset` and parameter `padding` has not been set";
+
+        expectErrorMessageForConfigurationInConfigDefValidation(
+            properties, "file.name.template", expectedErrorMessage);
+
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties)
         );
-        assertEquals(
-            "Invalid value {{start_offset:padding=}}-{{partition}}-{{topic}} "
-                + "for configuration file.name.template: "
-                + "Parameter value for variable `start_offset` and parameter `padding` has not been set",
-            t.getMessage()
-        );
+        assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
@@ -616,14 +744,19 @@ final class GcsSinkConfigTest {
             "gcs.bucket.name", "test-bucket",
             "file.name.template", "{{start_offset:=true}}-{{partition}}-{{topic}}"
         );
+
+        final var expectedErrorMessage = "Invalid value {{start_offset:=true}}-{{partition}}-{{topic}} "
+            + "for configuration file.name.template: "
+            + "Parameter name for variable `start_offset` has not been set";
+
+        expectErrorMessageForConfigurationInConfigDefValidation(
+            properties, "file.name.template", expectedErrorMessage);
+
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties)
         );
-        assertEquals(
-            "Invalid value {{start_offset:=true}}-{{partition}}-{{topic}} "
-                + "for configuration file.name.template: "
-                + "Parameter name for variable `start_offset` has not been set", t.getMessage());
+        assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
@@ -633,13 +766,18 @@ final class GcsSinkConfigTest {
             "file.name.template", "{{ topic }}{{ start_offset }}"
         );
 
+        final var expectedErrorMessage =
+            "Invalid value {{ topic }}{{ start_offset }} for configuration file.name.template: "
+            + "unsupported set of template variables, "
+            + "supported sets are: topic,partition,start_offset,timestamp; key";
+
+        expectErrorMessageForConfigurationInConfigDefValidation(
+            properties, "file.name.template", expectedErrorMessage);
+
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties));
-        assertEquals("Invalid value {{ topic }}{{ start_offset }} for configuration file.name.template: "
-                + "unsupported set of template variables, "
-                + "supported sets are: topic,partition,start_offset,timestamp; key",
-            t.getMessage());
+        assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
@@ -649,13 +787,18 @@ final class GcsSinkConfigTest {
             "file.name.template", "{{ topic }}{{ partition }}"
         );
 
+        final var expectedErrorMessage =
+            "Invalid value {{ topic }}{{ partition }} for configuration file.name.template: "
+            + "unsupported set of template variables, "
+            + "supported sets are: topic,partition,start_offset,timestamp; key";
+
+        expectErrorMessageForConfigurationInConfigDefValidation(
+            properties, "file.name.template", expectedErrorMessage);
+
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties));
-        assertEquals("Invalid value {{ topic }}{{ partition }} for configuration file.name.template: "
-                + "unsupported set of template variables, "
-                + "supported sets are: topic,partition,start_offset,timestamp; key",
-            t.getMessage());
+        assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
@@ -665,6 +808,7 @@ final class GcsSinkConfigTest {
             "file.name.template", "{{key}}"
         );
 
+        assertConfigDefValidationPasses(properties);
         assertDoesNotThrow(() -> new GcsSinkConfig(properties));
     }
 
@@ -676,6 +820,7 @@ final class GcsSinkConfigTest {
             "file.max.records", "1"
         );
 
+        assertConfigDefValidationPasses(properties);
         assertDoesNotThrow(() -> new GcsSinkConfig(properties));
     }
 
@@ -686,6 +831,9 @@ final class GcsSinkConfigTest {
             "file.name.template", "{{key}}",
             "file.max.records", "42"
         );
+
+        // Should pass here, because ConfigDef validation doesn't check interdependencies.
+        assertConfigDefValidationPasses(properties);
 
         final Throwable t = assertThrows(
             ConfigException.class,
@@ -701,6 +849,8 @@ final class GcsSinkConfigTest {
             "file.name.timestamp.timezone", "CET"
         );
 
+        assertConfigDefValidationPasses(properties);
+
         final GcsSinkConfig c = new GcsSinkConfig(properties);
         assertEquals(ZoneId.of("CET"), c.getFilenameTimezone());
     }
@@ -711,6 +861,8 @@ final class GcsSinkConfigTest {
             "gcs.bucket.name", "test-bucket",
             "file.name.timestamp.timezone", "Europe/Berlin"
         );
+
+        assertConfigDefValidationPasses(properties);
 
         final GcsSinkConfig c = new GcsSinkConfig(properties);
         assertEquals(ZoneId.of("Europe/Berlin"), c.getFilenameTimezone());
@@ -724,16 +876,17 @@ final class GcsSinkConfigTest {
             "file.name.timestamp.source", "UNKNOWN_TIMESTAMP_SOURCE"
         );
 
-        final Throwable t =
-            assertThrows(
-                ConfigException.class,
-                () -> new GcsSinkConfig(properties)
-            );
-        assertEquals(
-            "Invalid value UNKNOWN_TIMESTAMP_SOURCE for configuration "
-                + "file.name.timestamp.source: Unknown timestamp source: UNKNOWN_TIMESTAMP_SOURCE",
-            t.getMessage()
+        final var expectedErrorMessage = "Invalid value UNKNOWN_TIMESTAMP_SOURCE for configuration "
+            + "file.name.timestamp.source: Unknown timestamp source: UNKNOWN_TIMESTAMP_SOURCE";
+
+        expectErrorMessageForConfigurationInConfigDefValidation(
+            properties, "file.name.timestamp.source", expectedErrorMessage);
+
+        final Throwable t = assertThrows(
+            ConfigException.class,
+            () -> new GcsSinkConfig(properties)
         );
+        assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
@@ -743,6 +896,8 @@ final class GcsSinkConfigTest {
             "file.name.timestamp.timezone", "Europe/Berlin",
             "file.name.timestamp.source", "wallclock"
         );
+
+        assertConfigDefValidationPasses(properties);
 
         final GcsSinkConfig c = new GcsSinkConfig(properties);
         assertEquals(TimestampSource.WallclockTimestampSource.class, c.getFilenameTimestampSource().getClass());
@@ -756,6 +911,7 @@ final class GcsSinkConfigTest {
             "format.output.type", formatType
         );
 
+        assertConfigDefValidationPasses(properties);
 
         final GcsSinkConfig c = new GcsSinkConfig(properties);
         final FormatType expectedFormatType = FormatType.forName(formatType);
@@ -765,18 +921,45 @@ final class GcsSinkConfigTest {
 
     @Test
     void wrongFormatTypeConfig() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put(GcsSinkConfig.FORMAT_OUTPUT_TYPE_CONFIG, "unknown");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "format.output.type", "unknown"
+        );
+
+        final var expectedErrorMessage = "Invalid value unknown for configuration format.output.type: "
+            + "supported values are: 'csv', 'json', 'jsonl'";
+
+        final var v = expectErrorMessageForConfigurationInConfigDefValidation(
+            properties, "format.output.type", expectedErrorMessage);
+        assertIterableEquals(List.of("csv", "json", "jsonl"), v.recommendedValues());
 
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties)
         );
-        assertEquals(
-            "Invalid value unknown for configuration format.output.type: "
-                + "supported values are: 'csv', 'json', 'jsonl'", t.getMessage());
-
+        assertEquals(expectedErrorMessage, t.getMessage());
     }
 
+    private void assertConfigDefValidationPasses(final Map<String, String> properties) {
+        for (final ConfigValue v : GcsSinkConfig.configDef().validate(properties)) {
+            assertTrue(v.errorMessages().isEmpty());
+        }
+    }
+
+    private ConfigValue expectErrorMessageForConfigurationInConfigDefValidation(
+        final Map<String, String> properties,
+        final String configuration,
+        final String expectedErrorMessage) {
+        ConfigValue result = null;
+        for (final ConfigValue v : GcsSinkConfig.configDef().validate(properties)) {
+            if (v.name().equals(configuration)) {
+                assertIterableEquals(List.of(expectedErrorMessage), v.errorMessages());
+                result = v;
+            } else {
+                assertTrue(v.errorMessages().isEmpty());
+            }
+        }
+        assertNotNull(result, "Not found");
+        return result;
+    }
 }
