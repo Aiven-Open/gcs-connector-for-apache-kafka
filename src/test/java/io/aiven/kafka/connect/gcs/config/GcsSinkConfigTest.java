@@ -63,34 +63,19 @@ final class GcsSinkConfigTest {
         "",
         "{{topic}}", "{{partition}}", "{{start_offset}}",
         "{{topic}}-{{partition}}", "{{topic}}-{{start_offset}}", "{{partition}}-{{start_offset}}",
-        "{{topic}}-{{partition}}-{{start_offset}}",
-        "{{topic}}-{{partition}}-{{start_offset}}-{{key}}"
+        "{{topic}}-{{partition}}-{{start_offset}}-{{key}}",
+        "{{topic}}-{{partition}}-{{start_offset}}-{{unknown}}"
     })
-    final void incorrectFilenameTemplatesForKey(final String template) {
+    final void incorrectFilenameTemplates(final String template) {
         final Map<String, String> properties = Map.of(
-            GcsSinkConfig.FILE_NAME_TEMPLATE_CONFIG, template
+            GcsSinkConfig.FILE_NAME_TEMPLATE_CONFIG, template,
+            GcsSinkConfig.GCS_BUCKET_NAME_CONFIG, "some-bucket"
         );
-        assertThrows(
+        final var t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties)
         );
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {
-        "",
-        "{{topic}}", "{{partition}}", "{{start_offset}}",
-        "{{topic}}-{{partition}}", "{{topic}}-{{start_offset}}", "{{partition}}-{{start_offset}}",
-        "{{topic}}-{{partition}}-{{start_offset}}-{{unknown}}"
-    })
-    final void incorrectFilenameTemplatesForTopicPartitionRecord(final String template) {
-        final Map<String, String> properties = Map.of(
-            GcsSinkConfig.FILE_NAME_TEMPLATE_CONFIG, template
-        );
-        assertThrows(
-            ConfigException.class,   
-            () -> new GcsSinkConfig(properties)
-        );
+        assertTrue(t.getMessage().startsWith("Invalid value "));
     }
 
     @Test
