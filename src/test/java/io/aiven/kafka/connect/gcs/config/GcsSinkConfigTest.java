@@ -41,7 +41,6 @@ import io.aiven.kafka.connect.common.templating.VariableTemplatePart;
 import io.aiven.kafka.connect.gcs.GcsSinkConfig;
 
 import com.google.auth.oauth2.UserCredentials;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Resources;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -68,9 +67,9 @@ final class GcsSinkConfigTest {
         "{{topic}}-{{partition}}-{{start_offset}}-{{key}}"
     })
     final void incorrectFilenameTemplatesForKey(final String template) {
-        final Map<String, String> properties =
-            ImmutableMap.of(
-                GcsSinkConfig.FILE_NAME_TEMPLATE_CONFIG, template);
+        final Map<String, String> properties = Map.of(
+            GcsSinkConfig.FILE_NAME_TEMPLATE_CONFIG, template
+        );
         assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties)
@@ -85,9 +84,9 @@ final class GcsSinkConfigTest {
         "{{topic}}-{{partition}}-{{start_offset}}-{{unknown}}"
     })
     final void incorrectFilenameTemplatesForTopicPartitionRecord(final String template) {
-        final Map<String, String> properties =
-            ImmutableMap.of(
-                GcsSinkConfig.FILE_NAME_TEMPLATE_CONFIG, template);
+        final Map<String, String> properties = Map.of(
+            GcsSinkConfig.FILE_NAME_TEMPLATE_CONFIG, template
+        );
         assertThrows(
             ConfigException.class,   
             () -> new GcsSinkConfig(properties)
@@ -96,14 +95,13 @@ final class GcsSinkConfigTest {
 
     @Test
     void acceptMultipleParametersWithTheSameName() {
-        final Map<String, String> properties =
-            ImmutableMap.of(
-                GcsSinkConfig.FILE_NAME_TEMPLATE_CONFIG,
-                "{{topic}}-{{timestamp:unit=yyyy}}-"
-                    + "{{timestamp:unit=MM}}-{{timestamp:unit=dd}}"
-                    + "-{{partition}}-{{start_offset:padding=true}}.gz",
-                "gcs.bucket.name", "asdasd"
-            );
+        final Map<String, String> properties = Map.of(
+            "file.name.template",
+            "{{topic}}-{{timestamp:unit=yyyy}}-"
+                + "{{timestamp:unit=MM}}-{{timestamp:unit=dd}}"
+                + "-{{partition}}-{{start_offset:padding=true}}.gz",
+            "gcs.bucket.name", "asdasd"
+        );
         final Template t = new GcsSinkConfig(properties).getFilenameTemplate();
         final String fileName = t.instance()
             .bindVariable("topic", () -> "a")
@@ -116,15 +114,14 @@ final class GcsSinkConfigTest {
 
     @Test
     void correctlySupportDeprecatedYyyyUppercase() {
-        final Map<String, String> properties =
-            Map.of(
-                GcsSinkConfig.FILE_NAME_TEMPLATE_CONFIG,
-                "{{topic}}-"
-                    + "{{timestamp:unit=YYYY}}-{{timestamp:unit=yyyy}}-"
-                    + "{{ timestamp:unit=YYYY }}-{{ timestamp:unit=yyyy }}"  // spaces should be kept
-                    + "-{{partition}}-{{start_offset:padding=true}}.gz",
-                "gcs.bucket.name", "asdasd"
-            );
+        final Map<String, String> properties = Map.of(
+            "file.name.template",
+            "{{topic}}-"
+                + "{{timestamp:unit=YYYY}}-{{timestamp:unit=yyyy}}-"
+                + "{{ timestamp:unit=YYYY }}-{{ timestamp:unit=yyyy }}"  // spaces should be kept
+                + "-{{partition}}-{{start_offset:padding=true}}.gz",
+            "gcs.bucket.name", "asdasd"
+        );
         final Template t = new GcsSinkConfig(properties).getFilenameTemplate();
         final String fileName = t.instance()
             .bindVariable("topic", () -> "_")
@@ -137,7 +134,7 @@ final class GcsSinkConfigTest {
 
     @Test
     void requiredConfigurations() {
-        final Map<String, String> properties = new HashMap<>();
+        final Map<String, String> properties = Map.of();
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties));
@@ -146,8 +143,9 @@ final class GcsSinkConfigTest {
 
     @Test
     void emptyGcsBucketName() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", ""
+        );
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties));
@@ -156,8 +154,9 @@ final class GcsSinkConfigTest {
 
     @Test
     void correctMinimalConfig() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket"
+        );
 
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         assertEquals("test-bucket", config.getBucketName());
@@ -236,9 +235,10 @@ final class GcsSinkConfigTest {
 
     @Test
     void unsupportedCompressionType() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("file.compression.type", "unsupported");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.compression.type", "unsupported"
+        );
 
         final Throwable t = assertThrows(
             ConfigException.class, () -> new GcsSinkConfig(properties)
@@ -250,9 +250,10 @@ final class GcsSinkConfigTest {
 
     @Test
     void emptyOutputField() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("format.output.fields", "");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "format.output.fields", ""
+        );
 
         final Throwable t = assertThrows(
             ConfigException.class, () -> new GcsSinkConfig(properties)
@@ -263,9 +264,10 @@ final class GcsSinkConfigTest {
 
     @Test
     void unsupportedOutputField() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("format.output.fields", "key,value,offset,timestamp,headers,unsupported");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "format.output.fields", "key,value,offset,timestamp,headers,unsupported"
+        );
 
         final Throwable t = assertThrows(
             ConfigException.class, () -> new GcsSinkConfig(properties)
@@ -278,11 +280,11 @@ final class GcsSinkConfigTest {
 
     @Test
     void gcsCredentialsPath() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put(
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
             "gcs.credentials.path",
-            getClass().getClassLoader().getResource("test_gcs_credentials.json").getPath());
+            getClass().getClassLoader().getResource("test_gcs_credentials.json").getPath()
+        );
 
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         final UserCredentials credentials = (UserCredentials) config.getCredentials();
@@ -325,9 +327,10 @@ final class GcsSinkConfigTest {
 
     @Test
     void connectorName() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("name", "test-connector");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "name", "test-connector"
+        );
 
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         assertEquals("test-connector", config.getConnectorName());
@@ -349,9 +352,10 @@ final class GcsSinkConfigTest {
 
     @Test
     void fileNamePrefixProhibitedPrefix() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("file.name.prefix", ".well-known/acme-challenge/something");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.name.prefix", ".well-known/acme-challenge/something"
+        );
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties));
@@ -362,26 +366,29 @@ final class GcsSinkConfigTest {
 
     @Test
     void maxRecordsPerFileNotSet() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket"
+        );
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         assertEquals(0, config.getMaxRecordsPerFile());
     }
 
     @Test
     void maxRecordsPerFileSetCorrect() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("file.max.records", "42");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.max.records", "42"
+        );
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         assertEquals(42, config.getMaxRecordsPerFile());
     }
 
     @Test
     void maxRecordsPerFileSetIncorrect() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("file.max.records", "-42");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.max.records", "-42"
+        );
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties));
@@ -416,9 +423,10 @@ final class GcsSinkConfigTest {
 
     @Test
     void topicPartitionOffsetFilenameTemplateVariablesOrder1() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("file.name.template", "{{topic}}-{{partition}}-{{start_offset}}");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.name.template", "{{topic}}-{{partition}}-{{start_offset}}"
+        );
 
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         final String actual = config.getFilenameTemplate()
@@ -432,9 +440,10 @@ final class GcsSinkConfigTest {
 
     @Test
     void topicPartitionOffsetFilenameTemplateVariablesOrder2() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("file.name.template", "{{start_offset}}-{{partition}}-{{topic}}");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.name.template", "{{start_offset}}-{{partition}}-{{topic}}"
+        );
 
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         final String actual = config.getFilenameTemplate()
@@ -448,9 +457,10 @@ final class GcsSinkConfigTest {
 
     @Test
     void acceptFilenameTemplateVariablesParameters() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("file.name.template", "{{start_offset:padding=true}}-{{partition}}-{{topic}}");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.name.template", "{{start_offset:padding=true}}-{{partition}}-{{topic}}"
+        );
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         final String actual = config.getFilenameTemplate()
             .instance()
@@ -467,9 +477,10 @@ final class GcsSinkConfigTest {
 
     @Test
     void keyFilenameTemplateVariable() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("file.name.template", "{{key}}");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.name.template", "{{key}}"
+        );
 
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         final String actual = config.getFilenameTemplate()
@@ -481,9 +492,10 @@ final class GcsSinkConfigTest {
 
     @Test
     void emptyFilenameTemplate() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("file.name.template", "");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.name.template", ""
+        );
 
         final Throwable t = assertThrows(
             ConfigException.class,
@@ -496,9 +508,10 @@ final class GcsSinkConfigTest {
 
     @Test
     void filenameTemplateUnknownVariable() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("file.name.template", "{{ aaa }}{{ topic }}{{ partition }}{{ start_offset }}");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.name.template", "{{ aaa }}{{ topic }}{{ partition }}{{ start_offset }}"
+        );
 
         final Throwable t = assertThrows(
             ConfigException.class,
@@ -512,9 +525,10 @@ final class GcsSinkConfigTest {
 
     @Test
     void filenameTemplateNoTopic() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("file.name.template", "{{ partition }}{{ start_offset }}");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.name.template", "{{ partition }}{{ start_offset }}"
+        );
 
         final Throwable t = assertThrows(
             ConfigException.class,
@@ -527,9 +541,10 @@ final class GcsSinkConfigTest {
 
     @Test
     void wrongVariableParameterValue() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("file.name.template", "{{start_offset:padding=FALSE}}-{{partition}}-{{topic}}");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.name.template", "{{start_offset:padding=FALSE}}-{{partition}}-{{topic}}"
+        );
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties)
@@ -543,9 +558,10 @@ final class GcsSinkConfigTest {
 
     @Test
     void variableWithoutRequiredParameterValue() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("file.name.template", "{{start_offset}}-{{partition}}-{{topic}}-{{timestamp}}");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.name.template", "{{start_offset}}-{{partition}}-{{topic}}-{{timestamp}}"
+        );
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties)
@@ -559,9 +575,10 @@ final class GcsSinkConfigTest {
 
     @Test
     void wrongVariableWithoutParameter() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("file.name.template", "{{start_offset:}}-{{partition}}-{{topic}}");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.name.template", "{{start_offset:}}-{{partition}}-{{topic}}"
+        );
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties)
@@ -574,9 +591,10 @@ final class GcsSinkConfigTest {
 
     @Test
     void noVariableWithParameter() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("file.name.template", "{{:padding=true}}-{{partition}}-{{topic}}");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.name.template", "{{:padding=true}}-{{partition}}-{{topic}}"
+        );
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties)
@@ -591,9 +609,10 @@ final class GcsSinkConfigTest {
 
     @Test
     void wrongVariableWithoutParameterValue() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("file.name.template", "{{start_offset:padding=}}-{{partition}}-{{topic}}");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.name.template", "{{start_offset:padding=}}-{{partition}}-{{topic}}"
+        );
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties)
@@ -608,9 +627,10 @@ final class GcsSinkConfigTest {
 
     @Test
     void wrongVariableWithoutParameterName() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("file.name.template", "{{start_offset:=true}}-{{partition}}-{{topic}}");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.name.template", "{{start_offset:=true}}-{{partition}}-{{topic}}"
+        );
         final Throwable t = assertThrows(
             ConfigException.class,
             () -> new GcsSinkConfig(properties)
@@ -623,9 +643,10 @@ final class GcsSinkConfigTest {
 
     @Test
     void filenameTemplateNoPartition() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("file.name.template", "{{ topic }}{{ start_offset }}");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.name.template", "{{ topic }}{{ start_offset }}"
+        );
 
         final Throwable t = assertThrows(
             ConfigException.class,
@@ -638,9 +659,10 @@ final class GcsSinkConfigTest {
 
     @Test
     void filenameTemplateNoStartOffset() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("file.name.template", "{{ topic }}{{ partition }}");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.name.template", "{{ topic }}{{ partition }}"
+        );
 
         final Throwable t = assertThrows(
             ConfigException.class,
@@ -653,29 +675,32 @@ final class GcsSinkConfigTest {
 
     @Test
     void keyFilenameTemplateAndLimitedRecordsPerFileNotSet() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("file.name.template", "{{key}}");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.name.template", "{{key}}"
+        );
 
         assertDoesNotThrow(() -> new GcsSinkConfig(properties));
     }
 
     @Test
     void keyFilenameTemplateAndLimitedRecordsPerFile1() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("file.name.template", "{{key}}");
-        properties.put("file.max.records", "1");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.name.template", "{{key}}",
+            "file.max.records", "1"
+        );
 
         assertDoesNotThrow(() -> new GcsSinkConfig(properties));
     }
 
     @Test
     void keyFilenameTemplateAndLimitedRecordsPerFileMoreThan1() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put("file.name.template", "{{key}}");
-        properties.put("file.max.records", "42");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.name.template", "{{key}}",
+            "file.max.records", "42"
+        );
 
         final Throwable t = assertThrows(
             ConfigException.class,
@@ -686,9 +711,10 @@ final class GcsSinkConfigTest {
 
     @Test
     void correctShortFilenameTimezone() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put(GcsSinkConfig.FILE_NAME_TIMESTAMP_TIMEZONE, "CET");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.name.timestamp.timezone", "CET"
+        );
 
         final GcsSinkConfig c = new GcsSinkConfig(properties);
         assertEquals(ZoneId.of("CET"), c.getFilenameTimezone());
@@ -696,9 +722,10 @@ final class GcsSinkConfigTest {
 
     @Test
     void correctLongFilenameTimezone() {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put(GcsSinkConfig.FILE_NAME_TIMESTAMP_TIMEZONE, "Europe/Berlin");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.name.timestamp.timezone", "Europe/Berlin"
+        );
 
         final GcsSinkConfig c = new GcsSinkConfig(properties);
         assertEquals(ZoneId.of("Europe/Berlin"), c.getFilenameTimezone());
@@ -706,11 +733,11 @@ final class GcsSinkConfigTest {
 
     @Test
     void wrongFilenameTimestampSource() {
-
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put(GcsSinkConfig.FILE_NAME_TIMESTAMP_TIMEZONE, "Europe/Berlin");
-        properties.put(GcsSinkConfig.FILE_NAME_TIMESTAMP_SOURCE, "UNKNOWN_TIMESTAMP_SOURCE");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.name.timestamp.timezone", "Europe/Berlin",
+            "file.name.timestamp.source", "UNKNOWN_TIMESTAMP_SOURCE"
+        );
 
         final Throwable t =
             assertThrows(
@@ -722,28 +749,27 @@ final class GcsSinkConfigTest {
                 + "file.name.timestamp.source: Unknown timestamp source: UNKNOWN_TIMESTAMP_SOURCE",
             t.getMessage()
         );
-
     }
 
     @Test
     void correctFilenameTimestampSource() {
-
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put(GcsSinkConfig.FILE_NAME_TIMESTAMP_TIMEZONE, "Europe/Berlin");
-        properties.put(GcsSinkConfig.FILE_NAME_TIMESTAMP_SOURCE, "wallclock");
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.name.timestamp.timezone", "Europe/Berlin",
+            "file.name.timestamp.source", "wallclock"
+        );
 
         final GcsSinkConfig c = new GcsSinkConfig(properties);
         assertEquals(TimestampSource.WallclockTimestampSource.class, c.getFilenameTimestampSource().getClass());
-
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"jsonl", "json", "csv"})
     void supportedFormatTypeConfig(final String formatType) {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-        properties.put(GcsSinkConfig.FORMAT_OUTPUT_TYPE_CONFIG, formatType);
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "format.output.type", formatType
+        );
 
 
         final GcsSinkConfig c = new GcsSinkConfig(properties);
