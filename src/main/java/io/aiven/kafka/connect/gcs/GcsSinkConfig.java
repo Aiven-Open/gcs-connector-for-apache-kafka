@@ -69,7 +69,7 @@ public final class GcsSinkConfig extends AivenCommonConfig {
     private static final String DEFAULT_FILENAME_TEMPLATE = "{{topic}}-{{partition}}-{{start_offset}}";
 
     public static ConfigDef configDef() {
-        final ConfigDef configDef = new ConfigDef();
+        final GcsSinkConfigDef configDef = new GcsSinkConfigDef();
         addGcsConfigGroup(configDef);
         addFileConfigGroup(configDef);
         addFormatConfigGroup(configDef);
@@ -351,7 +351,7 @@ public final class GcsSinkConfig extends AivenCommonConfig {
         validate();
     }
 
-    private static Map<String, String> handleDeprecatedYyyyUppercase(final Map<String, String> properties) {
+    static Map<String, String> handleDeprecatedYyyyUppercase(final Map<String, String> properties) {
         if (properties.containsKey(FILE_NAME_TEMPLATE_CONFIG)) {
             final var result = new HashMap<>(properties);
 

@@ -122,8 +122,7 @@ final class GcsSinkConfigTest {
             "gcs.bucket.name", "asdasd"
         );
 
-        // Commented out because this is actually a bug, will be fixed later.
-        // assertConfigDefValidationPasses(properties);
+        assertConfigDefValidationPasses(properties);
 
         final Template t = new GcsSinkConfig(properties).getFilenameTemplate();
         final String fileName = t.instance()
