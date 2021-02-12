@@ -517,6 +517,45 @@ final class GcsSinkTaskTest {
     }
 
     @Test
+    final void supportRawOutputValues() {
+        final String compression = "none";
+        properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
+        properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_CONFIG, "value");
+        properties.put(GcsSinkConfig.FORMAT_OUTPUT_JSON_ENVELOPE, "false");
+        properties.put(GcsSinkConfig.FORMAT_OUTPUT_TYPE_CONFIG, "jsonl");
+
+        final GcsSinkTask task = new GcsSinkTask(properties, storage);
+
+        final List<SinkRecord> records = Arrays.asList(
+                createRecordWithStringValueSchema("topic0", 0, "key0", "{\"id\":\"value1\"}", 10, 1000),
+                createRecordWithStringValueSchema("topic0", 1, "key1", "{\"id\":\"value2\"}", 20, 1001),
+                createRecordWithStringValueSchema("topic1", 0, "key2", "{\"id\":\"value3\"}", 30, 1002)
+        );
+
+        task.put(records);
+        task.flush(null);
+
+        final CompressionType compressionType = CompressionType.forName(compression);
+
+        assertIterableEquals(
+                Lists.newArrayList(
+                        "topic0-0-10" + compressionType.extension(),
+                        "topic0-1-20" + compressionType.extension(),
+                        "topic1-0-30" + compressionType.extension()),
+                testBucketAccessor.getBlobNames());
+
+        assertIterableEquals(
+                Arrays.asList("{\"id\":\"value1\"}"),
+                readRawLinesFromBlob("topic0-0-10", compression));
+        assertIterableEquals(
+                Arrays.asList("{\"id\":\"value2\"}"),
+                readRawLinesFromBlob("topic0-1-20", compression));
+        assertIterableEquals(
+                Arrays.asList("{\"id\":\"value3\"}"),
+                readRawLinesFromBlob("topic1-0-30", compression));
+    }
+
+    @Test
     final void failedForStructValuesByDefault() {
         final String compression = "none";
         properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);

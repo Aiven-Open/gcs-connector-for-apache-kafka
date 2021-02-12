@@ -315,6 +315,24 @@ final class GcsSinkConfigTest {
     }
 
     @Test
+    void invalidJsonEnvelopeField() {
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "format.output.fields", "key,value",
+            "format.output.json.envelope", "false"
+        );
+
+        // Should pass here, because ConfigDef validation doesn't check interdependencies.
+        assertConfigDefValidationPasses(properties);
+
+        final Throwable t = assertThrows(
+                ConfigException.class,
+                () -> new GcsSinkConfig(properties));
+        assertEquals("When format.output.json.envelope is false, format.output.fields must contain only one field",
+                t.getMessage());
+    }
+
+    @Test
     void gcsCredentialsPath() {
         final Map<String, String> properties = Map.of(
             "gcs.bucket.name", "test-bucket",

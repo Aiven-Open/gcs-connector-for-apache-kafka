@@ -35,7 +35,9 @@ import io.aiven.kafka.connect.common.grouper.RecordGrouper;
 import io.aiven.kafka.connect.common.grouper.RecordGrouperFactory;
 import io.aiven.kafka.connect.common.output.OutputWriter;
 import io.aiven.kafka.connect.common.output.jsonwriter.JsonLinesOutputWriter;
+import io.aiven.kafka.connect.common.output.jsonwriter.PlainJsonLinesOutputWriter;
 import io.aiven.kafka.connect.common.output.jsonwriter.JsonOutputWriter;
+import io.aiven.kafka.connect.common.output.jsonwriter.PlainJsonOutputWriter;
 import io.aiven.kafka.connect.common.output.plainwriter.PlainOutputWriter;
 
 import com.github.luben.zstd.ZstdOutputStream;
@@ -95,9 +97,17 @@ public final class GcsSinkTask extends SinkTask {
             case CSV:
                 return new PlainOutputWriter(config.getOutputFields(), outputStream);
             case JSONL:
-                return new JsonLinesOutputWriter(config.getOutputFields(), outputStream);
+                if (!this.config.getOutputJsonEnvelopeConfig()) {
+                    return new PlainJsonLinesOutputWriter(config.getOutputFields(), outputStream);
+                } else {
+                    return new JsonLinesOutputWriter(config.getOutputFields(), outputStream);
+                }
             case JSON:
-                return new JsonOutputWriter(config.getOutputFields(), outputStream);
+                if (!this.config.getOutputJsonEnvelopeConfig()) {
+                    return new PlainJsonOutputWriter(config.getOutputFields(), outputStream);
+                } else {
+                    return new JsonOutputWriter(config.getOutputFields(), outputStream);
+                }
             default:
                 throw new ConnectException("Unsupported format type " + config.getFormatType());
         }

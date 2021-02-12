@@ -63,6 +63,7 @@ public final class GcsSinkConfig extends AivenCommonConfig {
     private static final String GROUP_FORMAT = "Format";
     public static final String FORMAT_OUTPUT_FIELDS_CONFIG = "format.output.fields";
     public static final String FORMAT_OUTPUT_FIELDS_VALUE_ENCODING_CONFIG = "format.output.fields.value.encoding";
+    public static final String FORMAT_OUTPUT_JSON_ENVELOPE = "format.output.json.envelope";
 
     public static final String NAME_CONFIG = "name";
 
@@ -344,6 +345,14 @@ public final class GcsSinkConfig extends AivenCommonConfig {
             FORMAT_OUTPUT_FIELDS_VALUE_ENCODING_CONFIG,
             FixedSetRecommender.ofSupportedValues(OutputFieldEncodingType.names())
         );
+
+        configDef.define(
+            FORMAT_OUTPUT_JSON_ENVELOPE,
+            ConfigDef.Type.BOOLEAN,
+            true,
+            ConfigDef.Importance.MEDIUM,
+            "TBD"
+        );
     }
 
     public GcsSinkConfig(final Map<String, String> properties) {
@@ -397,6 +406,15 @@ public final class GcsSinkConfig extends AivenCommonConfig {
             }
         }
 
+        // Special checks for output json envelope config.
+        final List<io.aiven.kafka.connect.common.config.OutputField> outputFields = getOutputFields();
+        final Boolean outputJsonEnvelopConfig = getOutputJsonEnvelopeConfig();
+        if (!outputJsonEnvelopConfig && outputFields.toArray().length > 1) {
+            final String msg = String.format("When %s is %s, %s must contain only one field",
+                    FORMAT_OUTPUT_JSON_ENVELOPE, false, FORMAT_OUTPUT_FIELDS_CONFIG);
+            throw new ConfigException(msg);
+        }
+
     }
 
     public final GoogleCredentials getCredentials() {
@@ -435,6 +453,8 @@ public final class GcsSinkConfig extends AivenCommonConfig {
         }
         return result;
     }
+
+    public final Boolean getOutputJsonEnvelopeConfig() { return getBoolean(FORMAT_OUTPUT_JSON_ENVELOPE); }
 
     public final String getPrefix() {
         return getString(FILE_NAME_PREFIX_CONFIG);
