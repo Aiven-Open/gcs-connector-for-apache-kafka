@@ -389,6 +389,20 @@ file.name.timestamp.source=wallclock
 file.name.template={{topic}}-{{partition}}-{{start_offset:padding=true}}.gz
 ```
 
+## Getting releases
+
+The connector releases are available in the Releases section.
+
+Release JARs are available in Maven Central:
+
+```xml
+<dependency>
+  <groupId>io.aiven</groupId>
+  <artifactId>aiven-kafka-connect-gcs</artifactId>
+  <version>x.y.z</version>
+</dependency>
+```
+
 ## Development
 
 ### Developing together with Commons library
