@@ -32,20 +32,13 @@ plugins {
 
     // https://docs.gradle.org/current/userguide/publishing_maven.html
     id "maven-publish"
-
-    // https://github.com/bintray/gradle-bintray-plugin
-    id "com.jfrog.bintray" version "1.8.1"
 }
 
 group = "io.aiven"
 
 repositories {
     mavenLocal()
-    jcenter()
-    // For Aiven Commons
-    maven {
-        url "http://dl.bintray.com/aiven/maven"
-    }
+    mavenCentral()
     // For kafka-avro-serializer and kafka-connect-avro-converter
     maven {
         url "https://packages.confluent.io/maven"
@@ -254,29 +247,6 @@ publishing {
                 }
             }
             from components.java
-        }
-    }
-}
-
-bintray {
-    user = System.getenv('BINTRAY_USER')
-    key = System.getenv('BINTRAY_KEY')
-    publications = ['maven']
-    publish = true
-    override = false
-    pkg {
-        repo = 'maven'
-        name = 'aiven-kafka-connect-gcs'
-        userOrg = 'aiven'
-        licenses = ['Apache-2.0']
-        websiteUrl = 'https://github.com/aiven/aiven-kafka-connect-gcs'
-        vcsUrl = 'https://github.com/aiven/aiven-kafka-connect-gcs.git'
-        labels = ['kafka', 'connect', 'gcs']
-        publicDownloadNumbers = true
-        version {
-            name = project.getVersion()
-            desc = 'Aiven Kafka GCS connector ' + project.getVersion()
-            released  = new Date()
         }
     }
 }
