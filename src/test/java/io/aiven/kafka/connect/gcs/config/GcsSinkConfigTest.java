@@ -926,11 +926,11 @@ final class GcsSinkConfigTest {
         );
 
         final var expectedErrorMessage = "Invalid value unknown for configuration format.output.type: "
-            + "supported values are: 'csv', 'json', 'jsonl'";
+            + "supported values are: 'csv', 'json', 'jsonl', 'parquet'";
 
         final var v = expectErrorMessageForConfigurationInConfigDefValidation(
             properties, "format.output.type", expectedErrorMessage);
-        assertIterableEquals(List.of("csv", "json", "jsonl"), v.recommendedValues());
+        assertIterableEquals(List.of("csv", "json", "jsonl", "parquet"), v.recommendedValues());
 
         final Throwable t = assertThrows(
             ConfigException.class,
