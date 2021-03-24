@@ -159,6 +159,10 @@ public final class BucketAccessor {
         }
     }
 
+    public final byte[] readBytes(final String blobName) {
+        return storage.readAllBytes(bucketName, blobName);
+    }
+
     private List<String> readLines0(final String blobName, final String compression) {
         Objects.requireNonNull(blobName, "blobName cannot be null");
         final byte[] blobBytes = storage.readAllBytes(bucketName, blobName);
