@@ -115,12 +115,10 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
     @Test
     final void allOutputFields(@TempDir final Path tmpDir)
             throws ExecutionException, InterruptedException, IOException {
-        final Map<String, String> connectorConfig = basicConnectorConfig();
-        final String compression = "none";
+        final var compression = "none";
+        final Map<String, String> connectorConfig = basicConnectorConfig(compression);
         connectorConfig.put("format.output.fields", "key,value,offset,timestamp,headers");
         connectorConfig.put("format.output.fields.value.encoding", "none");
-        connectorConfig.put("file.compression.type", compression);
-        connectorConfig.put("format.output.type", "parquet");
         connectRunner.createConnector(connectorConfig);
 
         final Schema valueSchema =
@@ -188,12 +186,10 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
     @Test
     final void valueComplexType(@TempDir final Path tmpDir)
             throws ExecutionException, InterruptedException, IOException {
-        final Map<String, String> connectorConfig = basicConnectorConfig();
         final String compression = "none";
+        final Map<String, String> connectorConfig = basicConnectorConfig(compression);
         connectorConfig.put("format.output.fields", "value");
         connectorConfig.put("format.output.fields.value.encoding", "none");
-        connectorConfig.put("file.compression.type", compression);
-        connectorConfig.put("format.output.type", "parquet");
         connectRunner.createConnector(connectorConfig);
 
         final Schema valueSchema =
@@ -257,12 +253,10 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
     @Test
     final void schemaChanged(@TempDir final Path tmpDir)
             throws ExecutionException, InterruptedException, IOException {
-        final Map<String, String> connectorConfig = basicConnectorConfig();
         final String compression = "none";
+        final Map<String, String> connectorConfig = basicConnectorConfig(compression);
         connectorConfig.put("format.output.fields", "value");
         connectorConfig.put("format.output.fields.value.encoding", "none");
-        connectorConfig.put("file.compression.type", compression);
-        connectorConfig.put("format.output.type", "parquet");
         connectRunner.createConnector(connectorConfig);
 
         final Schema valueSchema =
@@ -344,7 +338,7 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
         return producer.send(msg);
     }
 
-    private Map<String, String> basicConnectorConfig() {
+    private Map<String, String> basicConnectorConfig(final String compression) {
         final Map<String, String> config = new HashMap<>();
         config.put("name", CONNECTOR_NAME);
         config.put("connector.class", GcsSinkConnector.class.getName());
@@ -362,6 +356,8 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
         config.put("gcs.bucket.name", testBucketName);
         config.put("file.name.prefix", gcsPrefix);
         config.put("topics", TEST_TOPIC_0 + "," + TEST_TOPIC_1);
+        config.put("file.compression.type", compression);
+        config.put("format.output.type", "parquet");
         return config;
     }
 

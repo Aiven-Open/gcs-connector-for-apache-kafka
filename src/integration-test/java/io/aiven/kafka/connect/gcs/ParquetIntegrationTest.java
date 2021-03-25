@@ -106,14 +106,12 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
     @Test
     final void allOutputFields(@TempDir final Path tmpDir)
             throws ExecutionException, InterruptedException, IOException {
-        final Map<String, String> connectorConfig = basicConnectorConfig();
         final var compression = "none";
+        final Map<String, String> connectorConfig = basicConnectorConfig(compression);
         connectorConfig.put("format.output.fields", "key,value,offset,timestamp,headers");
         connectorConfig.put("format.output.fields.value.encoding", "none");
         connectorConfig.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
         connectorConfig.put("value.converter", "org.apache.kafka.connect.storage.StringConverter");
-        connectorConfig.put("file.compression.type", compression);
-        connectorConfig.put("format.output.type", "parquet");
         connectRunner.createConnector(connectorConfig);
 
         final List<Future<RecordMetadata>> sendFutures = new ArrayList<>();
@@ -170,14 +168,12 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
     @Test
     final void allOutputFieldsJsonValueAsString(@TempDir final Path tmpDir)
             throws ExecutionException, InterruptedException, IOException {
-        final Map<String, String> connectorConfig = basicConnectorConfig();
         final var compression = "none";
+        final Map<String, String> connectorConfig = basicConnectorConfig(compression);
         connectorConfig.put("format.output.fields", "key,value,offset,timestamp,headers");
         connectorConfig.put("format.output.fields.value.encoding", "none");
         connectorConfig.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
         connectorConfig.put("value.converter", "org.apache.kafka.connect.storage.StringConverter");
-        connectorConfig.put("file.compression.type", compression);
-        connectorConfig.put("format.output.type", "parquet");
         connectRunner.createConnector(connectorConfig);
 
         final List<Future<RecordMetadata>> sendFutures = new ArrayList<>();
@@ -234,14 +230,12 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
     @Test
     final void jsonValue(@TempDir final Path tmpDir)
             throws ExecutionException, InterruptedException, IOException {
-        final Map<String, String> connectorConfig = basicConnectorConfig();
         final var compression = "none";
+        final Map<String, String> connectorConfig = basicConnectorConfig(compression);
         connectorConfig.put("format.output.fields", "value");
         connectorConfig.put("format.output.fields.value.encoding", "none");
         connectorConfig.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
         connectorConfig.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
-        connectorConfig.put("file.compression.type", compression);
-        connectorConfig.put("format.output.type", "parquet");
         connectRunner.createConnector(connectorConfig);
 
         final var jsonMessageSchema = "{\"type\":\"struct\",\"fields\":[{\"type\":\"string\",\"field\":\"name\"}]}";
@@ -302,14 +296,12 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
     @Test
     final void schemaChanged(@TempDir final Path tmpDir)
             throws ExecutionException, InterruptedException, IOException {
-        final Map<String, String> connectorConfig = basicConnectorConfig();
         final var compression = "none";
+        final Map<String, String> connectorConfig = basicConnectorConfig(compression);
         connectorConfig.put("format.output.fields", "value");
         connectorConfig.put("format.output.fields.value.encoding", "none");
         connectorConfig.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
         connectorConfig.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
-        connectorConfig.put("file.compression.type", compression);
-        connectorConfig.put("format.output.type", "parquet");
         connectRunner.createConnector(connectorConfig);
 
         final var jsonMessageSchema = "{\"type\":\"struct\",\"fields\":[{\"type\":\"string\",\"field\":\"name\"}]}";
@@ -324,16 +316,15 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
         for (int i = 0; i < 10; i++) {
             for (int partition = 0; partition < 4; partition++) {
                 final var key = "key-" + cnt;
-                final var payload = i < 5
-                        ? "{" + "\"name\": \"user-" + cnt + "\"}"
-                        : "{" + "\"name\": \"user-" + cnt + "\", \"value\": \"value-" + cnt + "\"}";
-                final String value = i < 5
-                        ? String.format(
-                            jsonMessagePattern,
-                            jsonMessageSchema, payload)
-                        : String.format(
-                            jsonMessagePattern,
-                            jsonMessageNewSchema, payload);
+                final String value;
+                final String payload;
+                if (i < 5) {
+                    payload = "{" + "\"name\": \"user-" + cnt + "\"}";
+                    value = String.format(jsonMessagePattern, jsonMessageSchema, payload);
+                } else {
+                    payload = "{" + "\"name\": \"user-" + cnt + "\", \"value\": \"value-" + cnt + "\"}";
+                    value = String.format(jsonMessagePattern, jsonMessageNewSchema, payload);
+                }
                 expectedRecords.add(String.format("{\"value\": %s}", payload));
                 sendFutures.add(sendMessageAsync(TEST_TOPIC_0, partition, key, value));
                 cnt += 1;
@@ -385,7 +376,7 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
         return producer.send(msg);
     }
 
-    private Map<String, String> basicConnectorConfig() {
+    private Map<String, String> basicConnectorConfig(final String compression) {
         final Map<String, String> config = new HashMap<>();
         config.put("name", CONNECTOR_NAME);
         config.put("connector.class", GcsSinkConnector.class.getName());
@@ -401,6 +392,8 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
         config.put("gcs.bucket.name", testBucketName);
         config.put("file.name.prefix", gcsPrefix);
         config.put("topics", TEST_TOPIC_0 + "," + TEST_TOPIC_1);
+        config.put("file.compression.type", compression);
+        config.put("format.output.type", "parquet");
         return config;
     }
 
