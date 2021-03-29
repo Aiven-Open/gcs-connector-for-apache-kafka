@@ -32,6 +32,9 @@ plugins {
 
     // https://docs.gradle.org/current/userguide/publishing_maven.html
     id "maven-publish"
+
+    // https://docs.gradle.org/current/userguide/signing_plugin.html
+    id "signing"
 }
 
 group = "io.aiven"
@@ -58,9 +61,7 @@ compileJava {
 }
 
 javadoc {
-    if(JavaVersion.current().isJava9Compatible()) {
-        options.addBooleanOption('html5', true)
-    }
+    options.addBooleanOption('html5', true)
 }
 
 ext {
@@ -269,14 +270,18 @@ publishing {
             groupId = getGroup()
             artifactId = "aiven-kafka-connect-gcs"
             version = getVersion()
+
+            from components.java
+
             pom {
-                name = "Aiven Kafka GCS connector"
-                description = "A Kafka GCS sink connector for copying data from Kafka to GCS."
-                url = "https://aiven.io"
+                name = "Aiven Kafka GCS sink connector"
+                description = "Aiven Kafka GCS sink connector"
+                url = "https://github.com/aiven/aiven-kafka-connect-gcs"
                 organization {
                     name = "Aiven Oy"
                     url = "https://aiven.io"
                 }
+
                 licenses {
                     license {
                         name = "Apache 2.0"
@@ -284,14 +289,40 @@ publishing {
                         distribution = "repo"
                     }
                 }
+
+                developers {
+                    developer {
+                        id = 'aiven'
+                        name = 'Aiven Opensource'
+                        email = 'opensource@aiven.io'
+                    }
+                }
+
                 scm {
-                    connection = "scm:git:git://github.com/aiven/aiven-kafka-connect-gcs.git"
-                    developerConnection = "scm:git:git@github.com:aiven/aiven-kafka-connect-gcs.git"
-                    url = "https://github.com/aiven/aiven-kafka-connect-gcs.git"
-                    tag = "HEAD"
+                    connection = 'scm:git:git://github.com:aiven/aiven-kafka-connect-gcs.git'
+                    developerConnection = 'scm:git:ssh://github.com:aiven/aiven-kafka-connect-gcs.git'
+                    url = 'https://github.com/aiven/aiven-kafka-connect-gcs'
                 }
             }
-            from components.java
         }
     }
+
+    repositories {
+        maven {
+            name="sonatype"
+
+            def releasesRepoUrl = "https://oss.sonatype.org/service/local/staging/deploy/maven2"
+            def snapshotsRepoUrl = "https://oss.sonatype.org/content/repositories/snapshots"
+            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+
+            credentials(PasswordCredentials)
+        }
+    }
+}
+
+signing {
+    sign publishing.publications.maven
+    def signingKey = findProperty("signingKey")
+    def signingPassword = findProperty("signingPassword")
+    useInMemoryPgpKeys(signingKey, signingPassword)
 }
