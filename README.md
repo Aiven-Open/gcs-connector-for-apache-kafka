@@ -175,9 +175,9 @@ non-deterministic.
 ### Data format
 
 Output files are text files that contain one record per line (i.e.,
-they're separated by `\n`).
+they're separated by `\n`) except `PARQUET` format
 
-There are two types of data format available: 
+There are three types of data format available: 
  - **[Default]** Flat structure, where field values are separated by comma (`csv`)
     
     Configuration: ```format.output.type=csv```. 
@@ -192,8 +192,12 @@ There are two types of data format available:
   
      Configuration: ```format.output.type=json```. 
 
+- Complex structure, where file is in Apache [Parquet](https://parquet.apache.org/documentation/latest/) file format.
+
+  Configuration: ```format.output.type=parquet```.
+
 The connector can output the following fields from records into the
-output: the key, the value, the timestamp, and the offset. (The set of
+output: the key, the value, the timestamp, the offset and headers. (The set of
 these output fields is configurable.) The field values are separated by comma.
 
 It is possible to control the number of records to be put in a
@@ -231,13 +235,13 @@ or `org.apache.kafka.connect.storage.StringConverter` for this data format.
 
 For example, if we output `key,value,offset,timestamp`, a record line might look like:
 
-```
+```json
 { "key": "k1", "value": "v0", "offset": 1232155, "timestamp":"2020-01-01T00:00:01Z" }
 ```
 
 OR
 
-```
+```json
 { "key": "user1", "value": {"name": "John", "address": {"city": "London"}}, "offset": 1232155, "timestamp":"2020-01-01T00:00:01Z" }
 ```
 
@@ -258,7 +262,7 @@ as `key.converter` and/or `value.converter` to make output files human-readable.
 
 For example, if we output `key,value,offset,timestamp`, an output file might look like:
 
-```
+```json
 [
 { "key": "k1", "value": "v0", "offset": 1232155, "timestamp":"2020-01-01T00:00:01Z" },
 { "key": "k2", "value": "v1", "offset": 1232156, "timestamp":"2020-01-01T00:00:05Z" }
@@ -267,7 +271,7 @@ For example, if we output `key,value,offset,timestamp`, an output file might loo
 
 OR
 
-```
+```json
 [
 { "key": "user1", "value": {"name": "John", "address": {"city": "London"}}, "offset": 1232155, "timestamp":"2020-01-01T00:00:01Z" }
 ]
@@ -285,6 +289,74 @@ as `key.converter` and/or `value.converter` to make output files human-readable.
  - The value of the `format.output.fields.value.encoding` property is ignored for this data format.
  - Value/Key schema will not be presented in output file, even if `value.converter.schemas.enable` property is `true`.
  But, it is still important to set this property correctly, so that connector could read records correctly. 
+
+#### Parquet format example
+
+For example, if we output `key,offset,timestamp,headers,value`, an output Parquet schema might look like this:
+```json
+{
+    "type": "record", "fields": [
+      {"name": "key", "type": "RecordKeySchema"},
+      {"name": "offset", "type": "long"},
+      {"name": "timestamp", "type": "long"},
+      {"name": "headers", "type": "map"},
+      {"name": "value", "type": "RecordValueSchema"}
+  ]
+}
+```
+where `RecordKeySchema` - a key schema and `RecordValueSchema` - a record value schema.
+This means that in case you have the record and key schema like: 
+
+Key schema:
+```json
+{
+  "type": "string"
+}
+```
+
+Record schema:
+```json
+{
+    "type": "record", "fields": [
+      {"name": "foo", "type": "string"},
+      {"name": "bar", "type": "long"}
+  ]
+}
+```
+the final `Avro` schema for `Parquet` is:
+```json
+{
+    "type": "record", "fields": [
+      {"name": "key", "type": "string"},
+      {"name": "offset", "type": "long"},
+      {"name": "timestamp", "type": "long"},
+      {"name": "headers", "type": "map", "values": "long"},
+      { "name": "value", 
+        "type": "record", 
+        "fields": [
+          {"name": "foo", "type": "string"},
+          {"name": "bar", "type": "long"}
+        ]
+      }
+  ]
+}
+```
+
+**NB!**
+- The value of the `format.output.fields.value.encoding` property is ignored for this data format.
+- Due to Avro limitation message headers values must be the same datatype
+- If you use `org.apache.kafka.connect.json.JsonConverter` be sure that you message contains schema. E.g. possible `JSON` message:
+    ```json
+    {
+      "schema": {
+        "type": "struct", 
+        "fields": [
+          {"type":"string", "field": "name"}
+        ]
+      }, "payload": {"name":  "foo"}}
+    }
+    ```
+- Connector works just fine with and without Schema Registry 
 
 ## Configuration
 
@@ -320,7 +392,7 @@ value.converter=org.apache.kafka.connect.json.JsonConverter
 value.converter.schemas.enable=false
 
 # The type of data format used to write data to the GCS output files.
-# The supported values are: `csv`, `jsonl`.
+# The supported values are: `csv`, `json`, `jsonl` and `parquet`.
 # Optional, the default is `csv`.
 format.output.type=jsonl
 
