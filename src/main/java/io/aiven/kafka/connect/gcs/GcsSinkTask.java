@@ -16,14 +16,11 @@
 
 package io.aiven.kafka.connect.gcs;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
+import java.nio.channels.Channels;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.zip.GZIPOutputStream;
 
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
@@ -34,17 +31,12 @@ import org.apache.kafka.connect.sink.SinkTask;
 import io.aiven.kafka.connect.common.grouper.RecordGrouper;
 import io.aiven.kafka.connect.common.grouper.RecordGrouperFactory;
 import io.aiven.kafka.connect.common.output.OutputWriter;
-import io.aiven.kafka.connect.common.output.jsonwriter.JsonLinesOutputWriter;
-import io.aiven.kafka.connect.common.output.jsonwriter.JsonOutputWriter;
-import io.aiven.kafka.connect.common.output.plainwriter.PlainOutputWriter;
 
-import com.github.luben.zstd.ZstdOutputStream;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.xerial.snappy.SnappyOutputStream;
 
 public final class GcsSinkTask extends SinkTask {
     private static final Logger log = LoggerFactory.getLogger(GcsSinkConnector.class);
@@ -90,19 +82,6 @@ public final class GcsSinkTask extends SinkTask {
         }
     }
 
-    private OutputWriter getOutputWriter(final OutputStream outputStream) {
-        switch (this.config.getFormatType()) {
-            case CSV:
-                return new PlainOutputWriter(config.getOutputFields(), outputStream);
-            case JSONL:
-                return new JsonLinesOutputWriter(config.getOutputFields(), outputStream);
-            case JSON:
-                return new JsonOutputWriter(config.getOutputFields(), outputStream);
-            default:
-                throw new ConnectException("Unsupported format type " + config.getFormatType());
-        }
-    }
-
     @Override
     public void put(final Collection<SinkRecord> records) {
         Objects.requireNonNull(records, "records cannot be null");
@@ -121,37 +100,17 @@ public final class GcsSinkTask extends SinkTask {
 
     private void flushFile(final String filename, final List<SinkRecord> records) {
         final BlobInfo blob = BlobInfo
-            .newBuilder(config.getBucketName(), config.getPrefix() + filename)
-            .build();
-
-        try (final ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-            // Don't group these two tries,
-            // because the internal one must be closed before writing to GCS.
-            try (final OutputStream compressedStream = getCompressedStream(baos)) {
-                try (final OutputWriter outputWriter = getOutputWriter(compressedStream)) {
-                    for (final SinkRecord record: records) {
-                        outputWriter.writeRecord(record);
-                    }
-                }
-            }
-            storage.create(blob, baos.toByteArray());
+                .newBuilder(config.getBucketName(), config.getPrefix() + filename)
+                .build();
+        try (final var out = Channels.newOutputStream(storage.writer(blob));
+             final var writer = OutputWriter.builder()
+                     .withExternalProperties(config.originalsStrings())
+                     .withOutputFields(config.getOutputFields())
+                     .withCompressionType(config.getCompressionType())
+                     .build(out, config.getFormatType())) {
+            writer.writeRecords(records);
         } catch (final Exception e) {
             throw new ConnectException(e);
-        }
-    }
-
-    private OutputStream getCompressedStream(final OutputStream outputStream) throws IOException {
-        Objects.requireNonNull(outputStream, "outputStream cannot be null");
-
-        switch (config.getCompressionType()) {
-            case ZSTD:
-                return new ZstdOutputStream(outputStream);
-            case GZIP:
-                return new GZIPOutputStream(outputStream);
-            case SNAPPY:
-                return new SnappyOutputStream(outputStream);
-            default:
-                return outputStream;
         }
     }
 
