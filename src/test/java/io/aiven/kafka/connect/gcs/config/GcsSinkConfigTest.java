@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -48,6 +49,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.threeten.bp.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -189,6 +191,102 @@ final class GcsSinkConfigTest {
         assertIterableEquals(Collections.singleton(
             new OutputField(OutputFieldType.VALUE, OutputFieldEncodingType.BASE64)), config.getOutputFields());
         assertEquals(FormatType.forName("csv"), config.getFormatType());
+        assertEquals(Duration.ofMillis(GcsSinkConfig.GCS_RETRY_BACKOFF_INITIAL_DELAY_MS_DEFAULT),
+                config.getGcsRetryBackoffInitialDelay());
+        assertEquals(Duration.ofMillis(GcsSinkConfig.GCS_RETRY_BACKOFF_MAX_DELAY_MS_DEFAULT),
+                config.getGcsRetryBackoffMaxDelay());
+        assertEquals(Duration.ofMillis(GcsSinkConfig.GCS_RETRY_BACKOFF_TOTAL_TIMEOUT_MS_DEFAULT),
+                config.getGcsRetryBackoffTotalTimeout());
+        assertEquals(GcsSinkConfig.GCS_RETRY_BACKOFF_MAX_ATTEMPTS_DEFAULT,
+                config.getGcsRetryBackoffMaxAttempts());
+        assertEquals(GcsSinkConfig.GCS_RETRY_BACKOFF_DELAY_MULTIPLIER_DEFAULT,
+                config.getGcsRetryBackoffDelayMultiplier());
+    }
+
+    @Test
+    void customRetryPolicySettings() {
+        final var properties = Map.of(
+                "gcs.bucket.name", "test-bucket",
+                "kafka.retry.backoff.ms", "1000",
+                "gcs.retry.backoff.initial.delay.ms", "2000",
+                "gcs.retry.backoff.max.delay.ms", "3000",
+                "gcs.retry.backoff.delay.multiplier", "2.0",
+                "gcs.retry.backoff.total.timeout.ms", "4000",
+                "gcs.retry.backoff.max.attempts", "100"
+        );
+        final var config = new GcsSinkConfig(properties);
+        assertEquals(1000, config.getKafkaRetryBackoffMs());
+        assertEquals(Duration.ofMillis(2000), config.getGcsRetryBackoffInitialDelay());
+        assertEquals(Duration.ofMillis(3000), config.getGcsRetryBackoffMaxDelay());
+        assertEquals(Duration.ofMillis(4000), config.getGcsRetryBackoffTotalTimeout());
+        assertEquals(2.0D, config.getGcsRetryBackoffDelayMultiplier());
+        assertEquals(100, config.getGcsRetryBackoffMaxAttempts());
+    }
+
+    @Test
+    void wrongRetryPolicySettings() {
+        final var initialDelayProp = Map.of(
+                "gcs.bucket.name", "test-bucket",
+                "gcs.retry.backoff.initial.delay.ms", "-1"
+        );
+        final var initialDelayE =
+                assertThrows(ConfigException.class, () -> new GcsSinkConfig(initialDelayProp));
+        assertEquals(
+                "Invalid value -1 for configuration gcs.retry.backoff.initial.delay.ms: "
+                + "Value must be at least 0", initialDelayE.getMessage());
+
+        final var maxDelayProp = Map.of(
+                "gcs.bucket.name", "test-bucket",
+                "gcs.retry.backoff.max.delay.ms", "-1"
+        );
+        final var maxDelayE =
+                assertThrows(ConfigException.class, () -> new GcsSinkConfig(maxDelayProp));
+        assertEquals(
+                "Invalid value -1 for configuration gcs.retry.backoff.max.delay.ms: "
+                        + "Value must be at least 0", maxDelayE.getMessage());
+
+        final var delayMultiplayerProp = Map.of(
+                "gcs.bucket.name", "test-bucket",
+                "gcs.retry.backoff.delay.multiplier", "-1",
+                "gcs.retry.backoff.total.timeout.ms", "-1",
+                "gcs.retry.backoff.max.attempts", "-1"
+        );
+        final var delayMultiplayerE =
+                assertThrows(ConfigException.class, () -> new GcsSinkConfig(delayMultiplayerProp));
+        assertEquals(
+                "Invalid value -1.0 for configuration gcs.retry.backoff.delay.multiplier: "
+                        + "Value must be at least 1.0", delayMultiplayerE.getMessage());
+
+        final var maxAttemptsProp = Map.of(
+                "gcs.bucket.name", "test-bucket",
+                "gcs.retry.backoff.max.attempts", "-1"
+        );
+        final var maxAttemptsE =
+                assertThrows(ConfigException.class, () -> new GcsSinkConfig(maxAttemptsProp));
+        assertEquals(
+                "Invalid value -1 for configuration gcs.retry.backoff.max.attempts: "
+                        + "Value must be at least 0", maxAttemptsE.getMessage());
+
+        final var totalTimeoutProp = Map.of(
+                "gcs.bucket.name", "test-bucket",
+                "gcs.retry.backoff.total.timeout.ms", "-1"
+        );
+        final var totalTimeoutE =
+                assertThrows(ConfigException.class, () -> new GcsSinkConfig(totalTimeoutProp));
+        assertEquals(
+                "Invalid value -1 for configuration gcs.retry.backoff.total.timeout.ms: "
+                        + "Value must be at least 0", totalTimeoutE.getMessage());
+
+        final var tooBigTotoalTimeoutProp = Map.of(
+                "gcs.bucket.name", "test-bucket",
+                "gcs.retry.backoff.total.timeout.ms", String.valueOf(TimeUnit.HOURS.toMillis(25))
+        );
+
+        final var tooBigTotalTimeoutE =
+                assertThrows(ConfigException.class, () -> new GcsSinkConfig(tooBigTotoalTimeoutProp));
+        assertEquals(
+                "Invalid value 90000000 for configuration gcs.retry.backoff.total.timeout.ms: "
+                        + "Value must be no more than 86400000 (24 hours)", tooBigTotalTimeoutE.getMessage());
     }
 
     @ParameterizedTest

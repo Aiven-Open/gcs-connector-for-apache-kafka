@@ -36,7 +36,8 @@ import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.header.ConnectHeaders;
 import org.apache.kafka.connect.header.Header;
 import org.apache.kafka.connect.sink.SinkRecord;
-
+import org.apache.kafka.connect.sink.SinkTaskContext;
+    
 import io.aiven.kafka.connect.common.config.CompressionType;
 import io.aiven.kafka.connect.gcs.testutils.BucketAccessor;
 import io.aiven.kafka.connect.gcs.testutils.Record;
@@ -46,15 +47,22 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.contrib.nio.testing.LocalStorageHelper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import org.assertj.core.util.introspection.FieldSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
+import org.threeten.bp.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 final class GcsSinkTaskTest {
 
@@ -326,19 +334,19 @@ final class GcsSinkTaskTest {
         properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
         final GcsSinkTask task = new GcsSinkTask(properties, storage);
 
-        task.put(Arrays.asList(
+        task.put(List.of(
             createRecord("topic0", 0, "key0", "value0", 100, 1000)));
-        task.put(Arrays.asList(
+        task.put(List.of(
             createRecord("topic0", 0, "key1", "value1", 101, 1001)));
         task.flush(null);
-        task.put(Arrays.asList(
+        task.put(List.of(
             createRecord("topic0", 0, "key2", "value2", 102, 1002)));
-        task.put(Arrays.asList(
+        task.put(List.of(
             createRecord("topic0", 0, "key3", "value3", 103, 1003)));
         task.flush(null);
-        task.put(Arrays.asList(
+        task.put(List.of(
             createRecord("topic0", 0, "key4", "value4", 104, 1004)));
-        task.put(Arrays.asList(
+        task.put(List.of(
             createRecord("topic0", 0, "key5", "value5", 105, 1005)));
         task.flush(null);
 
@@ -388,6 +396,74 @@ final class GcsSinkTaskTest {
                 readSplittedAndDecodedLinesFromBlob("topic0-0-" + i + compressionType.extension(), compression, 0)
             );
         }
+    }
+
+    @Test
+    void setupDefaultRetryPolicy() throws Exception {
+        final var mockedContext = mock(SinkTaskContext.class);
+        final var task = new GcsSinkTask();
+        task.initialize(mockedContext);
+
+        final var props = Map.of(
+                "gcs.bucket.name", "the_bucket",
+                "gcs.credentials.path",
+                    getClass().getClassLoader().getResource("test_gcs_credentials.json").getPath()
+        );
+
+        task.start(props);
+
+        final var storage =  FieldSupport.EXTRACTION.fieldValue("storage", Storage.class, task);
+        final var retrySettings = storage.getOptions().getRetrySettings();
+
+        verify(mockedContext, never()).timeout(anyLong());
+
+        assertThat(retrySettings.isJittered())
+                .isTrue();
+        assertThat(retrySettings.getInitialRetryDelay())
+                .isEqualTo(Duration.ofMillis(GcsSinkConfig.GCS_RETRY_BACKOFF_INITIAL_DELAY_MS_DEFAULT));
+        assertThat(retrySettings.getMaxRetryDelay())
+                .isEqualTo(Duration.ofMillis(GcsSinkConfig.GCS_RETRY_BACKOFF_MAX_DELAY_MS_DEFAULT));
+        assertThat(retrySettings.getRetryDelayMultiplier())
+                .isEqualTo(GcsSinkConfig.GCS_RETRY_BACKOFF_DELAY_MULTIPLIER_DEFAULT);
+        assertThat(retrySettings.getTotalTimeout())
+                .isEqualTo(Duration.ofMillis(GcsSinkConfig.GCS_RETRY_BACKOFF_TOTAL_TIMEOUT_MS_DEFAULT));
+        assertThat(retrySettings.getMaxAttempts())
+                .isEqualTo(GcsSinkConfig.GCS_RETRY_BACKOFF_MAX_ATTEMPTS_DEFAULT);
+    }
+
+    @Test
+    void setupCustomRetryPolicy() throws Exception {
+        final var mockedContext = mock(SinkTaskContext.class);
+        final var kafkaBackoffMsCaptor = ArgumentCaptor.forClass(Long.class);
+        final var task = new GcsSinkTask();
+        task.initialize(mockedContext);
+
+        final var props = Map.of(
+                "gcs.bucket.name", "the_bucket",
+                "gcs.credentials.path",
+                    getClass().getClassLoader().getResource("test_gcs_credentials.json").getPath(),
+                "kafka.retry.backoff.ms", "1",
+                "gcs.retry.backoff.initial.delay.ms", "2",
+                "gcs.retry.backoff.max.delay.ms", "3",
+                "gcs.retry.backoff.delay.multiplier", "4",
+                "gcs.retry.backoff.total.timeout.ms", "5",
+                "gcs.retry.backoff.max.attempts", "6"
+        );
+
+        task.start(props);
+
+        final var storage =  FieldSupport.EXTRACTION.fieldValue("storage", Storage.class, task);
+        final var retrySettings = storage.getOptions().getRetrySettings();
+
+        verify(mockedContext).timeout(kafkaBackoffMsCaptor.capture());
+
+        assertThat(retrySettings.isJittered()).isTrue();
+        assertThat(kafkaBackoffMsCaptor.getValue()).isEqualTo(1L);
+        assertThat(retrySettings.getInitialRetryDelay()).isEqualTo(Duration.ofMillis(2L));
+        assertThat(retrySettings.getMaxRetryDelay()).isEqualTo(Duration.ofMillis(3L));
+        assertThat(retrySettings.getRetryDelayMultiplier()).isEqualTo(4.0D);
+        assertThat(retrySettings.getTotalTimeout()).isEqualTo(Duration.ofMillis(5L));
+        assertThat(retrySettings.getMaxAttempts()).isEqualTo(6);
     }
 
     @Test
