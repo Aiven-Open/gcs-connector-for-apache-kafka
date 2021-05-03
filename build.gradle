@@ -70,7 +70,7 @@ ext {
     // https://docs.confluent.io/current/installation/versions-interoperability.html
     confluentPlatformVersion = "4.1.4"
     aivenConnectCommonsVersion = "0.5.0"
-    testcontainersVersion = "1.14.3"
+    testcontainersVersion = "1.15.3"
     slf4jVersion = "1.7.30"
 }
 
