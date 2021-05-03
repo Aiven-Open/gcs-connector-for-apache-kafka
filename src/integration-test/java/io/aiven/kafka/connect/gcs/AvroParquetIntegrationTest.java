@@ -46,6 +46,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.testcontainers.containers.KafkaContainer;
+import org.testcontainers.containers.Network;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -66,6 +67,7 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
             // Expose both Kafka ports:
             // 9092 can be used inside Docker network (by the Schema Registry container)
             .withExposedPorts(KafkaContainer.KAFKA_PORT, 9092)
+            .withNetwork(Network.newNetwork())
             .withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false");
 
     @Container
