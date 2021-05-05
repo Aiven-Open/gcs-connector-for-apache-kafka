@@ -51,6 +51,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -581,6 +582,42 @@ final class GcsSinkTaskTest {
     }
 
     @Test
+    final void supportUnwrappedJsonEnvelopeForStructAndJsonL() {
+        final String compression = "none";
+        properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
+        properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_CONFIG, "value");
+        properties.put(GcsSinkConfig.FORMAT_OUTPUT_ENVELOPE_CONFIG, "false");
+        properties.put(GcsSinkConfig.FORMAT_OUTPUT_TYPE_CONFIG, "jsonl");
+
+        final GcsSinkTask task = new GcsSinkTask(properties, storage);
+
+        final List<SinkRecord> records = Arrays.asList(
+                createRecordWithStructValueSchema("topic0", 0, "key0", "name0", 10, 1000),
+                createRecordWithStructValueSchema("topic0", 1, "key1", "name1", 20, 1001),
+                createRecordWithStructValueSchema("topic1", 0, "key2", "name2", 30, 1002)
+        );
+
+        task.put(records);
+        task.flush(null);
+
+        final CompressionType compressionType = CompressionType.forName(compression);
+
+        assertThat(testBucketAccessor.getBlobNames())
+                .containsExactly(
+                        "topic0-0-10" + compressionType.extension(),
+                        "topic0-1-20" + compressionType.extension(),
+                        "topic1-0-30" + compressionType.extension());
+
+        assertThat(readRawLinesFromBlob("topic0-0-10", compression))
+                .containsExactly("{\"name\":\"name0\"}");
+        assertThat(readRawLinesFromBlob("topic0-1-20", compression))
+                .containsExactly("{\"name\":\"name1\"}");
+        assertThat(readRawLinesFromBlob("topic1-0-30", compression))
+                .containsExactly("{\"name\":\"name2\"}");
+    }
+
+
+    @Test
     final void supportStructValuesForClassicJson() {
         final String compression = "none";
         properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
@@ -617,6 +654,41 @@ final class GcsSinkTaskTest {
         assertIterableEquals(
             Arrays.asList("[", "{\"value\":{\"name\":\"name2\"},\"key\":\"key2\"}", "]"),
             readRawLinesFromBlob("topic1-0-30", compression));
+    }
+
+    @Test
+    final void supportUnwrappedJsonEnvelopeForStructAndClassicJson() {
+        final String compression = "none";
+        properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
+        properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_CONFIG, "value");
+        properties.put(GcsSinkConfig.FORMAT_OUTPUT_ENVELOPE_CONFIG, "false");
+        properties.put(GcsSinkConfig.FORMAT_OUTPUT_TYPE_CONFIG, "json");
+
+        final GcsSinkTask task = new GcsSinkTask(properties, storage);
+
+        final List<SinkRecord> records = Arrays.asList(
+                createRecordWithStructValueSchema("topic0", 0, "key0", "name0", 10, 1000),
+                createRecordWithStructValueSchema("topic0", 1, "key1", "name1", 20, 1001),
+                createRecordWithStructValueSchema("topic1", 0, "key2", "name2", 30, 1002)
+        );
+
+        task.put(records);
+        task.flush(null);
+
+        final CompressionType compressionType = CompressionType.forName(compression);
+
+        assertThat(testBucketAccessor.getBlobNames())
+                .containsExactly(
+                        "topic0-0-10" + compressionType.extension(),
+                        "topic0-1-20" + compressionType.extension(),
+                        "topic1-0-30" + compressionType.extension());
+
+        assertThat(readRawLinesFromBlob("topic0-0-10", compression))
+                .containsExactly("[", "{\"name\":\"name0\"}", "]");
+        assertThat(readRawLinesFromBlob("topic0-1-20", compression))
+                .containsExactly("[", "{\"name\":\"name1\"}", "]");
+        assertThat(readRawLinesFromBlob("topic1-0-30", compression))
+                .containsExactly("[", "{\"name\":\"name2\"}", "]");
     }
 
     private SinkRecord createRecordWithStructValueSchema(final String topic,

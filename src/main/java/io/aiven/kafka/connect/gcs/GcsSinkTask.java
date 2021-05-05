@@ -107,6 +107,7 @@ public final class GcsSinkTask extends SinkTask {
                      .withExternalProperties(config.originalsStrings())
                      .withOutputFields(config.getOutputFields())
                      .withCompressionType(config.getCompressionType())
+                     .withEnvelopeEnabled(config.envelopeEnabled())
                      .build(out, config.getFormatType())) {
             writer.writeRecords(records);
         } catch (final Exception e) {
