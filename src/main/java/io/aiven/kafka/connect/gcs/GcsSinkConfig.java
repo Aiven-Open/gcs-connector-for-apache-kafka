@@ -72,7 +72,7 @@ public final class GcsSinkConfig extends AivenCommonConfig {
         final GcsSinkConfigDef configDef = new GcsSinkConfigDef();
         addGcsConfigGroup(configDef);
         addFileConfigGroup(configDef);
-        addFormatConfigGroup(configDef);
+        addOutputFieldsFormatConfigGroup(configDef, OutputFieldType.VALUE);
         return configDef;
     }
 
@@ -273,77 +273,6 @@ public final class GcsSinkConfig extends AivenCommonConfig {
             FILE_NAME_TIMESTAMP_SOURCE
         );
 
-    }
-
-    private static void addFormatConfigGroup(final ConfigDef configDef) {
-        int formatGroupCounter = 0;
-
-        addFormatTypeConfig(configDef, formatGroupCounter);
-
-        final String supportedOutputFields = OutputFieldType.names().stream()
-            .map(f -> "'" + f + "'")
-            .collect(Collectors.joining(", "));
-        configDef.define(
-            FORMAT_OUTPUT_FIELDS_CONFIG,
-            ConfigDef.Type.LIST,
-            OutputFieldType.VALUE.name,
-            new ConfigDef.Validator() {
-                @Override
-                public void ensureValid(final String name, final Object value) {
-                    assert value instanceof List;
-                    @SuppressWarnings("unchecked") final List<String> valueList = (List<String>) value;
-                    if (valueList.isEmpty()) {
-                        throw new ConfigException(
-                            FORMAT_OUTPUT_FIELDS_CONFIG, valueList,
-                            "cannot be empty");
-                    }
-                    for (final String fieldName : valueList) {
-                        if (!OutputFieldType.isValidName(fieldName)) {
-                            throw new ConfigException(
-                                FORMAT_OUTPUT_FIELDS_CONFIG, value,
-                                "supported values are: " + supportedOutputFields);
-                        }
-                    }
-                }
-            },
-            ConfigDef.Importance.MEDIUM,
-            "Fields to put into output files. "
-                + "The supported values are: " + supportedOutputFields + ".",
-            GROUP_FORMAT,
-            formatGroupCounter++,
-            ConfigDef.Width.NONE,
-            FORMAT_OUTPUT_FIELDS_CONFIG,
-            FixedSetRecommender.ofSupportedValues(OutputFieldType.names())
-        );
-
-        final String supportedValueFieldEncodingTypes = CompressionType.names().stream()
-            .map(f -> "'" + f + "'")
-            .collect(Collectors.joining(", "));
-        configDef.define(
-            FORMAT_OUTPUT_FIELDS_VALUE_ENCODING_CONFIG,
-            ConfigDef.Type.STRING,
-            OutputFieldEncodingType.BASE64.name,
-            new ConfigDef.Validator() {
-                @Override
-                public void ensureValid(final String name, final Object value) {
-                    assert value instanceof String;
-                    final String valueStr = (String) value;
-                    if (!OutputFieldEncodingType.names().contains(valueStr)) {
-                        throw new ConfigException(
-                            FORMAT_OUTPUT_FIELDS_VALUE_ENCODING_CONFIG, valueStr,
-                            "supported values are: " + supportedValueFieldEncodingTypes);
-                    }
-                }
-            },
-            ConfigDef.Importance.MEDIUM,
-            "The type of encoding for the value field. "
-                + "The supported values are: " + supportedOutputFields + ".",
-            GROUP_FORMAT,
-            formatGroupCounter++,
-            ConfigDef.Width.NONE,
-            FORMAT_OUTPUT_FIELDS_VALUE_ENCODING_CONFIG,
-            FixedSetRecommender.ofSupportedValues(OutputFieldEncodingType.names())
-        );
     }
 
     public GcsSinkConfig(final Map<String, String> properties) {

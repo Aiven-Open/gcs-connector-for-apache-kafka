@@ -42,6 +42,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -66,6 +68,8 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
     private KafkaProducer<byte[], byte[]> producer;
 
     private ConnectRunner connectRunner;
+    @TempDir
+    Path tmpDir;
 
 
     @BeforeEach
@@ -104,7 +108,7 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    final void allOutputFields(@TempDir final Path tmpDir)
+    final void allOutputFields()
             throws ExecutionException, InterruptedException, IOException {
         final var compression = "none";
         final Map<String, String> connectorConfig = basicConnectorConfig(compression);
@@ -166,7 +170,7 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    final void allOutputFieldsJsonValueAsString(@TempDir final Path tmpDir)
+    final void allOutputFieldsJsonValueAsString()
             throws ExecutionException, InterruptedException, IOException {
         final var compression = "none";
         final Map<String, String> connectorConfig = basicConnectorConfig(compression);
@@ -227,12 +231,14 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
         }
     }
 
-    @Test
-    final void jsonValue(@TempDir final Path tmpDir)
+    @ParameterizedTest
+    @CsvSource({"true, {\"value\": {\"name\": \"%s\"}} ", "false, {\"name\": \"%s\"}"})
+    final void jsonValue(final String envelopeEnabled, final String expectedOutput)
             throws ExecutionException, InterruptedException, IOException {
         final var compression = "none";
         final Map<String, String> connectorConfig = basicConnectorConfig(compression);
         connectorConfig.put("format.output.fields", "value");
+        connectorConfig.put("format.output.envelope", envelopeEnabled);
         connectorConfig.put("format.output.fields.value.encoding", "none");
         connectorConfig.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
         connectorConfig.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
@@ -286,7 +292,7 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
                 final var name = "user-" + cnt;
                 final String blobName = getBlobName(partition, 0, compression);
                 final var record = blobContents.get(blobName).get(i);
-                final String expectedLine = "{\"value\": {\"name\": \"" + name + "\"}}";
+                final String expectedLine = String.format(expectedOutput, name);
                 assertEquals(expectedLine, record.toString());
                 cnt += 1;
             }
@@ -294,7 +300,7 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    final void schemaChanged(@TempDir final Path tmpDir)
+    final void schemaChanged()
             throws ExecutionException, InterruptedException, IOException {
         final var compression = "none";
         final Map<String, String> connectorConfig = basicConnectorConfig(compression);
