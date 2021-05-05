@@ -31,7 +31,7 @@ subdirectories in the bucket.
 
 `<filename>` is the file name. The connector has the configurable
 template for file names. It supports placeholders with variable names:
-`{{ variable_name }}`. Currently supported variables are:
+`{{ variable_name }}`. Currently, supported variables are:
 - `topic` - the Kafka topic;
 - `partition` - the Kafka partition;
 - `start_offset:padding=true|false` - the Kafka offset of the first record in the file, if `padding` sets to `true` will set leading zeroes for offset, default is `false`;
@@ -59,7 +59,7 @@ Please see the description of properties in the "Configuration" section.
 Only the certain combinations of variables and parameters are allowed in the file name
 template (however, variables in a template can be in any order). Each
 combination determines the mode of record grouping the connector will
-use. Currently supported combinations of variables and the corresponding
+use. Currently, supported combinations of variables and the corresponding
 record grouping modes are:
 - `topic`, `partition`, `start_offset`, and `timestamp` - grouping by the topic,
   partition, and timestamp;
@@ -76,7 +76,7 @@ Incoming records are being grouped until flushed.
 #### Grouping by the topic and partition
 
 In this mode, the connector groups records by the topic and partition.
-When a file is written, a offset of the first record in it is added to
+When a file is written, an offset of the first record in it is added to
 its name.
 
 For example, let's say the template is
@@ -177,7 +177,7 @@ non-deterministic.
 Output files are text files that contain one record per line (i.e.,
 they're separated by `\n`) except `PARQUET` format
 
-There are three types of data format available: 
+There are four types of data format available: 
  - **[Default]** Flat structure, where field values are separated by comma (`csv`)
     
     Configuration: ```format.output.type=csv```. 
@@ -289,6 +289,33 @@ as `key.converter` and/or `value.converter` to make output files human-readable.
  - The value of the `format.output.fields.value.encoding` property is ignored for this data format.
  - Value/Key schema will not be presented in output file, even if `value.converter.schemas.enable` property is `true`.
  But, it is still important to set this property correctly, so that connector could read records correctly. 
+   
+##### NB!
+
+For both JSON and JSONL another example could be for a single field output e.g. `value`, a record line might look like:
+
+```json
+{ "value": "v0" }
+```
+
+OR
+
+```json
+{ "value": {"name": "John", "address": {"city": "London"}} }
+```
+
+In this case it sometimes make sense to get rid of additional JSON object wrapping the actual value using `format.output.envelope`.
+Having `format.output.envelope=false` can produce the following output:
+
+```json
+"v0"
+```
+
+OR
+
+```json
+{"name": "John", "address": {"city": "London"}}
+```
 
 #### Parquet format example
 
@@ -342,6 +369,20 @@ the final `Avro` schema for `Parquet` is:
 }
 ```
 
+
+For a single-field output e.g. `value`, a record line might look like:
+
+```json
+{ "value": {"name": "John", "address": {"city": "London"}} }
+```
+
+In this case it sometimes make sense to get rid of additional JSON object wrapping the actual value using `format.output.envelope`.
+Having `format.output.envelope=false` can produce the following output:
+
+```json
+{"name": "John", "address": {"city": "London"}}
+```
+
 **NB!**
 - The value of the `format.output.fields.value.encoding` property is ignored for this data format.
 - Due to Avro limitation message headers values must be the same datatype
@@ -353,10 +394,11 @@ the final `Avro` schema for `Parquet` is:
         "fields": [
           {"type":"string", "field": "name"}
         ]
-      }, "payload": {"name":  "foo"}}
+      }, "payload": {"name":  "foo"}
     }
     ```
 - Connector works just fine with and without Schema Registry 
+- `format.output.envelope=false` is ignored if the value is not of type `org.apache.avro.Schema.Type.RECORD` or `org.apache.avro.Schema.Type.MAP`.
 
 ## Configuration
 
@@ -433,6 +475,10 @@ gcs.credentials.json={"type":"...", ...}
 # Optional, the default is `value`.
 format.output.fields=key,value,offset,timestamp,headers
 
+# The option to enbale/disable wrapping of plain values into additional JSON object(aka envelope)
+# Optional, the default value is `true`.
+format.output.envelope=true
+
 # The prefix to be added to the name of each file put on GCS.
 # See the GCS naming requirements https://cloud.google.com/storage/docs/naming
 # Optional, the default is empty.
@@ -490,7 +536,7 @@ After that, the latest changes you've done to Commons will be used.
 
 When you finish developing the feature and is sure Commons won't need to change:
 1. Make a proper release of Commons.
-2. Publish the artifact to the currently used globally accesible repository.
+2. Publish the artifact to the currently used globally accessible repository.
 3. Change the version of Commons in the connector to the published one.
 
 ### Integration testing
@@ -514,7 +560,7 @@ The default GCP credentials will be used during the test (see [the GCP
 documentation](https://cloud.google.com/docs/authentication/getting-started)
 and
 [the comment in GCP SDK code](https://github.com/googleapis/google-auth-library-java/blob/6698b3f6b5ab6017e28f68971406ca765807e169/oauth2_http/java/com/google/auth/oauth2/GoogleCredentials.java#L68)).
-This can be overridden either by seting the path to the GCP credentials
+This can be overridden either by setting the path to the GCP credentials
 file or by setting the credentials JSON string explicitly. (See
 [Configuration section](#configuration) for details). 
 
@@ -532,7 +578,7 @@ To specify the GCS credentials JSON, use `gcsCredentialsJson` property:
     -PgcsCredentialsJson='{type":"...", ...}'
 ```
 
-Gralde allows to set properties using environment variables, for
+Gradle allows setting properties using environment variables, for
 example, `ORG_GRADLE_PROJECT_testGcsBucket=test-bucket-name`. See more
 about the ways to set properties
 [here](https://docs.gradle.org/current/userguide/build_environment.html#sec:project_properties).
