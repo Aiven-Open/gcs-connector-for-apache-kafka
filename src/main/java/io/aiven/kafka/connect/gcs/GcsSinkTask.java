@@ -32,6 +32,7 @@ import io.aiven.kafka.connect.common.grouper.RecordGrouper;
 import io.aiven.kafka.connect.common.grouper.RecordGrouperFactory;
 import io.aiven.kafka.connect.common.output.OutputWriter;
 
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
@@ -68,10 +69,22 @@ public final class GcsSinkTask extends SinkTask {
 
         this.config = new GcsSinkConfig(props);
         this.storage = StorageOptions.newBuilder()
-            .setCredentials(config.getCredentials())
-            .build()
-            .getService();
+                .setCredentials(config.getCredentials())
+                .setRetrySettings(
+                        RetrySettings
+                                .newBuilder()
+                                .setJittered(true)
+                                .setInitialRetryDelay(config.getGcsRetryBackoffInitialDelay())
+                                .setMaxRetryDelay(config.getGcsRetryBackoffMaxDelay())
+                                .setRetryDelayMultiplier(config.getGcsRetryBackoffDelayMultiplier())
+                                .setTotalTimeout(config.getGcsRetryBackoffTotalTimeout())
+                                .setMaxAttempts(config.getGcsRetryBackoffMaxAttempts())
+                                .build()
+                ).build().getService();
         initRest();
+        if (Objects.nonNull(config.getKafkaRetryBackoffMs())) {
+            context.timeout(config.getKafkaRetryBackoffMs());
+        }
     }
 
     private void initRest() {

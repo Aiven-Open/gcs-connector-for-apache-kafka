@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -43,6 +44,7 @@ import io.aiven.kafka.connect.common.templating.Template;
 import com.google.auth.oauth2.GoogleCredentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.threeten.bp.Duration;
 
 public final class GcsSinkConfig extends AivenCommonConfig {
     private static final Logger log = LoggerFactory.getLogger(GcsSinkConfig.class);
@@ -60,19 +62,41 @@ public final class GcsSinkConfig extends AivenCommonConfig {
     public static final String FILE_NAME_TIMESTAMP_TIMEZONE = "file.name.timestamp.timezone";
     public static final String FILE_NAME_TIMESTAMP_SOURCE = "file.name.timestamp.source";
 
-    private static final String GROUP_FORMAT = "Format";
     public static final String FORMAT_OUTPUT_FIELDS_CONFIG = "format.output.fields";
     public static final String FORMAT_OUTPUT_FIELDS_VALUE_ENCODING_CONFIG = "format.output.fields.value.encoding";
 
-    public static final String NAME_CONFIG = "name";
+    private static final String GROUP_GCS_RETRY_BACKOFF_POLICY = "GCS retry backoff policy";
 
-    private static final String DEFAULT_FILENAME_TEMPLATE = "{{topic}}-{{partition}}-{{start_offset}}";
+    public static final String GCS_RETRY_BACKOFF_INITIAL_DELAY_MS_CONFIG = "gcs.retry.backoff.initial.delay.ms";
+
+    public static final String GCS_RETRY_BACKOFF_MAX_DELAY_MS_CONFIG = "gcs.retry.backoff.max.delay.ms";
+
+    public static final String GCS_RETRY_BACKOFF_DELAY_MULTIPLIER_CONFIG = "gcs.retry.backoff.delay.multiplier";
+
+    public static final String GCS_RETRY_BACKOFF_TOTAL_TIMEOUT_MS_CONFIG = "gcs.retry.backoff.total.timeout.ms";
+
+    public static final String GCS_RETRY_BACKOFF_MAX_ATTEMPTS_CONFIG = "gcs.retry.backoff.max.attempts";
+
+    //All default from GCS client, hardcoded here since GCS hadn't constants
+    public static final long GCS_RETRY_BACKOFF_INITIAL_DELAY_MS_DEFAULT = 1_000L;
+
+    public static final long GCS_RETRY_BACKOFF_MAX_DELAY_MS_DEFAULT = 32_000L;
+
+    public static final double GCS_RETRY_BACKOFF_DELAY_MULTIPLIER_DEFAULT = 2.0D;
+
+    public static final long GCS_RETRY_BACKOFF_TOTAL_TIMEOUT_MS_DEFAULT = 50_000L;
+
+    public static final int GCS_RETRY_BACKOFF_MAX_ATTEMPTS_DEFAULT = 6;
+
+    public static final String NAME_CONFIG = "name";
 
     public static ConfigDef configDef() {
         final GcsSinkConfigDef configDef = new GcsSinkConfigDef();
         addGcsConfigGroup(configDef);
         addFileConfigGroup(configDef);
         addOutputFieldsFormatConfigGroup(configDef, OutputFieldType.VALUE);
+        addKafkaBackoffPolicy(configDef);
+        addGcsRetryPolicies(configDef);
         return configDef;
     }
 
@@ -117,6 +141,88 @@ public final class GcsSinkConfig extends AivenCommonConfig {
             gcsGroupCounter++,
             ConfigDef.Width.NONE,
             GCS_BUCKET_NAME_CONFIG
+        );
+    }
+
+    private static void addGcsRetryPolicies(final ConfigDef configDef) {
+        var retryPolicyGroupCounter = 0;
+        configDef.define(
+                GCS_RETRY_BACKOFF_INITIAL_DELAY_MS_CONFIG,
+                ConfigDef.Type.LONG,
+                GCS_RETRY_BACKOFF_INITIAL_DELAY_MS_DEFAULT,
+                ConfigDef.Range.atLeast(0L),
+                ConfigDef.Importance.MEDIUM,
+                "Initial retry delay in milliseconds. The default value is 0",
+                GROUP_GCS_RETRY_BACKOFF_POLICY,
+                retryPolicyGroupCounter++,
+                ConfigDef.Width.NONE,
+                GCS_RETRY_BACKOFF_INITIAL_DELAY_MS_CONFIG
+        );
+        configDef.define(
+                GCS_RETRY_BACKOFF_MAX_DELAY_MS_CONFIG,
+                ConfigDef.Type.LONG,
+                GCS_RETRY_BACKOFF_MAX_DELAY_MS_DEFAULT,
+                ConfigDef.Range.atLeast(0L),
+                ConfigDef.Importance.MEDIUM,
+                "Maximum retry delay in milliseconds. The default value is 0",
+                GROUP_GCS_RETRY_BACKOFF_POLICY,
+                retryPolicyGroupCounter++,
+                ConfigDef.Width.NONE,
+                GCS_RETRY_BACKOFF_MAX_DELAY_MS_CONFIG
+        );
+        configDef.define(
+                GCS_RETRY_BACKOFF_DELAY_MULTIPLIER_CONFIG,
+                ConfigDef.Type.DOUBLE,
+                GCS_RETRY_BACKOFF_DELAY_MULTIPLIER_DEFAULT,
+                ConfigDef.Range.atLeast(1.0D),
+                ConfigDef.Importance.MEDIUM,
+                "Retry delay multiplier. The default value is 1.0",
+                GROUP_GCS_RETRY_BACKOFF_POLICY,
+                retryPolicyGroupCounter++,
+                ConfigDef.Width.NONE,
+                GCS_RETRY_BACKOFF_DELAY_MULTIPLIER_CONFIG
+        );
+        configDef.define(
+                GCS_RETRY_BACKOFF_MAX_ATTEMPTS_CONFIG,
+                ConfigDef.Type.INT,
+                GCS_RETRY_BACKOFF_MAX_ATTEMPTS_DEFAULT,
+                ConfigDef.Range.atLeast(0L),
+                ConfigDef.Importance.MEDIUM,
+                "Retry max attempts. The default value is 0",
+                GROUP_GCS_RETRY_BACKOFF_POLICY,
+                retryPolicyGroupCounter++,
+                ConfigDef.Width.NONE,
+                GCS_RETRY_BACKOFF_MAX_ATTEMPTS_CONFIG
+        );
+        configDef.define(
+                GCS_RETRY_BACKOFF_TOTAL_TIMEOUT_MS_CONFIG,
+                ConfigDef.Type.LONG,
+                GCS_RETRY_BACKOFF_TOTAL_TIMEOUT_MS_DEFAULT,
+                new ConfigDef.Validator() {
+
+                    static final long TOTAL_TIME_MAX = 86400000; // 24 hours
+
+                    @Override
+                    public void ensureValid(final String name, final Object value) {
+                        if (Objects.isNull(value)) {
+                            return;
+                        }
+                        assert value instanceof Long;
+                        final var longValue = (Long) value;
+                        if (longValue < 0) {
+                            throw new ConfigException(name, value, "Value must be at least 0");
+                        } else if (longValue > TOTAL_TIME_MAX) {
+                            throw new ConfigException(name, value,
+                                    "Value must be no more than " + TOTAL_TIME_MAX + " (24 hours)");
+                        }
+                    }
+                },
+                ConfigDef.Importance.MEDIUM,
+                "Retry total timeout in milliseconds. The default value is 0",
+                GROUP_GCS_RETRY_BACKOFF_POLICY,
+                retryPolicyGroupCounter++,
+                ConfigDef.Width.NONE,
+                GCS_RETRY_BACKOFF_TOTAL_TIMEOUT_MS_CONFIG
         );
     }
 
@@ -373,12 +479,24 @@ public final class GcsSinkConfig extends AivenCommonConfig {
         return originalsStrings().get(NAME_CONFIG);
     }
 
-    private String resolveFilenameTemplate() {
-        String fileNameTemplate = getString(FILE_NAME_TEMPLATE_CONFIG);
-        if (fileNameTemplate == null) {
-            fileNameTemplate = DEFAULT_FILENAME_TEMPLATE + getCompressionType().extension();
-        }
-        return fileNameTemplate;
+    public int getGcsRetryBackoffMaxAttempts() {
+        return getInt(GCS_RETRY_BACKOFF_MAX_ATTEMPTS_CONFIG);
+    }
+
+    public double getGcsRetryBackoffDelayMultiplier() {
+        return getDouble(GCS_RETRY_BACKOFF_DELAY_MULTIPLIER_CONFIG);
+    }
+
+    public Duration getGcsRetryBackoffTotalTimeout() {
+        return Duration.ofMillis(getLong(GCS_RETRY_BACKOFF_TOTAL_TIMEOUT_MS_CONFIG));
+    }
+
+    public Duration getGcsRetryBackoffInitialDelay() {
+        return Duration.ofMillis(getLong(GCS_RETRY_BACKOFF_INITIAL_DELAY_MS_CONFIG));
+    }
+
+    public Duration getGcsRetryBackoffMaxDelay() {
+        return Duration.ofMillis(getLong(GCS_RETRY_BACKOFF_MAX_DELAY_MS_CONFIG));
     }
 
 }
