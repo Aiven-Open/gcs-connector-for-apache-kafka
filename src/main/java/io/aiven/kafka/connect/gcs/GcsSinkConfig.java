@@ -152,7 +152,8 @@ public final class GcsSinkConfig extends AivenCommonConfig {
                 GCS_RETRY_BACKOFF_INITIAL_DELAY_MS_DEFAULT,
                 ConfigDef.Range.atLeast(0L),
                 ConfigDef.Importance.MEDIUM,
-                "Initial retry delay in milliseconds. The default value is 0",
+                "Initial retry delay in milliseconds. The default value is "
+                        + GCS_RETRY_BACKOFF_INITIAL_DELAY_MS_DEFAULT,
                 GROUP_GCS_RETRY_BACKOFF_POLICY,
                 retryPolicyGroupCounter++,
                 ConfigDef.Width.NONE,
@@ -164,7 +165,8 @@ public final class GcsSinkConfig extends AivenCommonConfig {
                 GCS_RETRY_BACKOFF_MAX_DELAY_MS_DEFAULT,
                 ConfigDef.Range.atLeast(0L),
                 ConfigDef.Importance.MEDIUM,
-                "Maximum retry delay in milliseconds. The default value is 0",
+                "Maximum retry delay in milliseconds. The default value is "
+                        + GCS_RETRY_BACKOFF_MAX_DELAY_MS_DEFAULT,
                 GROUP_GCS_RETRY_BACKOFF_POLICY,
                 retryPolicyGroupCounter++,
                 ConfigDef.Width.NONE,
@@ -176,7 +178,8 @@ public final class GcsSinkConfig extends AivenCommonConfig {
                 GCS_RETRY_BACKOFF_DELAY_MULTIPLIER_DEFAULT,
                 ConfigDef.Range.atLeast(1.0D),
                 ConfigDef.Importance.MEDIUM,
-                "Retry delay multiplier. The default value is 1.0",
+                "Retry delay multiplier. The default value is "
+                        + GCS_RETRY_BACKOFF_DELAY_MULTIPLIER_DEFAULT,
                 GROUP_GCS_RETRY_BACKOFF_POLICY,
                 retryPolicyGroupCounter++,
                 ConfigDef.Width.NONE,
@@ -188,7 +191,8 @@ public final class GcsSinkConfig extends AivenCommonConfig {
                 GCS_RETRY_BACKOFF_MAX_ATTEMPTS_DEFAULT,
                 ConfigDef.Range.atLeast(0L),
                 ConfigDef.Importance.MEDIUM,
-                "Retry max attempts. The default value is 0",
+                "Retry max attempts. The default value is "
+                        + GCS_RETRY_BACKOFF_MAX_ATTEMPTS_DEFAULT,
                 GROUP_GCS_RETRY_BACKOFF_POLICY,
                 retryPolicyGroupCounter++,
                 ConfigDef.Width.NONE,
@@ -218,7 +222,8 @@ public final class GcsSinkConfig extends AivenCommonConfig {
                     }
                 },
                 ConfigDef.Importance.MEDIUM,
-                "Retry total timeout in milliseconds. The default value is 0",
+                "Retry total timeout in milliseconds. The default value is "
+                        + GCS_RETRY_BACKOFF_TOTAL_TIMEOUT_MS_DEFAULT,
                 GROUP_GCS_RETRY_BACKOFF_POLICY,
                 retryPolicyGroupCounter++,
                 ConfigDef.Width.NONE,

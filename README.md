@@ -400,6 +400,38 @@ Having `format.output.envelope=false` can produce the following output:
 - Connector works just fine with and without Schema Registry 
 - `format.output.envelope=false` is ignored if the value is not of type `org.apache.avro.Schema.Type.RECORD` or `org.apache.avro.Schema.Type.MAP`.
 
+## Retry strategy configuration property
+
+There are six configuration properties to configure retry strategy exist.
+
+### Kafka connect retry strategy properties
+
+- `kafka.retry.backoff.ms` - The retry backoff in milliseconds. This config is used to notify Kafka Connect to retry delivering a message batch or 
+  performing recovery in case of transient exceptions. Maximum value is `24` hours.
+
+### Google Cloud Storage retry strategy
+- `gcs.retry.backoff.initial.delay.ms` - Initial retry delay in milliseconds. 
+    This config controls the delay before the first retry. 
+    Subsequent retries will use this value adjusted 
+    according to the `gcs.retry.backoff.delay.multiplier`. 
+    The default value is `1000 ms`. 
+- `gcs.retry.backoff.delay.multiplier` - Retry delay multiplier. 
+    This config controls the change in retry delay. 
+    The retry delay of the previous call is multiplied by it to calculate 
+    the retry delay for the next call. The default value is `2.0`.
+- `gcs.retry.backoff.max.delay.ms` - Maximum retry delay in milliseconds. 
+    This config puts a limit on the value of the retry delay, 
+    so that the `gcs.retry.backoff.delay.multiplier` value 
+    can't increase the retry delay higher than this amount. 
+    The default value is `32 000` ms.
+- `gcs.retry.backoff.total.timeout.ms` - Retry total timeout in milliseconds.
+    This config controls over how long the logic should keep trying the 
+    remote call until it gives up completely. The default value is `50 000` ms. 
+    The maximum value is `24` hours.
+- `gcs.retry.backoff.max.attempts` - Retry max attempts.
+  This config defines the maximum number of attempts to perform.
+  The default value is `6`.
+
 ## Configuration
 
 [Here](https://kafka.apache.org/documentation/#connect_running) you can
