@@ -33,8 +33,8 @@ subdirectories in the bucket.
 template for file names. It supports placeholders with variable names:
 `{{ variable_name }}`. Currently, supported variables are:
 - `topic` - the Kafka topic;
-- `partition` - the Kafka partition;
-- `start_offset:padding=true|false` - the Kafka offset of the first record in the file, if `padding` sets to `true` will set leading zeroes for offset, default is `false`;
+- `partition:padding=true|false` - the Kafka partition, if `padding` set to `true` it will set leading zeroes for offset, the default value is `false`;
+- `start_offset:padding=true|false` - the Kafka offset of the first record in the file, if `padding` set to `true` it will set leading zeroes for offset, the default value is `false`;
 - `timestamp:unit=yyyy|MM|dd|HH` - the timestamp of when the Kafka record has been processed by the connector.
    - `unit` parameter values:
      - `yyyy` - year, e.g. `2020` (please note that `YYYY` is deprecated and is interpreted as `yyyy`)
@@ -47,6 +47,11 @@ To add zero padding to Kafka offsets, you need to add additional parameter `padd
 which value can be `true` or `false` (the default). 
 For example: `{{topic}}-{{partition}}-{{start_offset:padding=true}}.gz` 
 will produce file names like `mytopic-1-00000000000000000001.gz`.
+
+To add zero padding to partition number, you need to add additional parameter `padding` in the `partiiton` variable,
+which value can be `true` or `false` (the default).
+For example: `{{topic}}-{{partition}}-{{start_offset:padding=true}}.gz`
+will produce file names like `mytopic-1-0000000001.gz`.
 
 To add formatted timestamps, use `timestamp` variable.<br/>
 For example: `{{topic}}-{{partition}}-{{start_offset}}-{{timestamp:unit=yyyy}}{{timestamp:unit=MM}}{{timestamp:unit=dd}}.gz` 
@@ -534,9 +539,9 @@ file.name.timestamp.source=wallclock
 
 # The file name template.
 # See "File name format" section.
-# Optional, the default is `{{topic}}-{{partition}}-{{start_offset:padding=false}}` or
-# `{{topic}}-{{partition}}-{{start_offset:padding=false}}.gz` if the compression is enabled.
-file.name.template={{topic}}-{{partition}}-{{start_offset:padding=true}}.gz
+# Optional, the default is `{{topic}}-{{partition:padding=false}}-{{start_offset:padding=false}}` or
+# `{{topic}}-{{partition:padding=false}}-{{start_offset:padding=false}}.gz` if the compression is enabled.
+file.name.template={{topic}}-{{partition:padding=true}}-{{start_offset:padding=true}}.gz
 ```
 
 ## Getting releases

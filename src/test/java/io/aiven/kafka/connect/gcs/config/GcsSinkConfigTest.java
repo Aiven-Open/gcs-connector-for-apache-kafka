@@ -97,7 +97,7 @@ final class GcsSinkConfigTest {
             "file.name.template",
             "{{topic}}-{{timestamp:unit=yyyy}}-"
                 + "{{timestamp:unit=MM}}-{{timestamp:unit=dd}}"
-                + "-{{partition}}-{{start_offset:padding=true}}.gz",
+                + "-{{partition:padding=true}}-{{start_offset:padding=true}}.gz",
             "gcs.bucket.name", "asdasd"
         );
 
@@ -737,7 +737,8 @@ final class GcsSinkConfigTest {
         final var expectedErrorMessage = "Invalid value {{start_offset:padding=FALSE}}-{{partition}}-{{topic}} "
             + "for configuration file.name.template: "
             + "unsupported set of template variables parameters, "
-            + "supported sets are: start_offset:padding=true|false,timestamp:unit=yyyy|MM|dd|HH";
+            + "supported sets are: "
+            + "partition:padding=true|false,start_offset:padding=true|false,timestamp:unit=yyyy|MM|dd|HH";
 
         expectErrorMessageForConfigurationInConfigDefValidation(
             properties, "file.name.template", expectedErrorMessage);
