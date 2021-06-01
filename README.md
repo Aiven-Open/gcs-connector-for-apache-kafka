@@ -50,8 +50,8 @@ will produce file names like `mytopic-1-00000000000000000001.gz`.
 
 To add zero padding to partition number, you need to add additional parameter `padding` in the `partiiton` variable,
 which value can be `true` or `false` (the default).
-For example: `{{topic}}-{{partition}}-{{start_offset:padding=true}}.gz`
-will produce file names like `mytopic-1-0000000001.gz`.
+For example: `{{topic}}-{{partition:padding=true}}-{{start_offset}}.gz`
+will produce file names like `mytopic-0000000001-1.gz`.
 
 To add formatted timestamps, use `timestamp` variable.<br/>
 For example: `{{topic}}-{{partition}}-{{start_offset}}-{{timestamp:unit=yyyy}}{{timestamp:unit=MM}}{{timestamp:unit=dd}}.gz` 
