@@ -1,4 +1,4 @@
-# Aiven Kafka GCS Connector
+# Kafka GCS Connector
 
 ![Pull Request Workflow](https://github.com/aiven/aiven-kafka-connect-gcs/workflows/Pull%20Request%20Workflow/badge.svg)
 
