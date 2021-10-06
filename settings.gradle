@@ -1,1 +1,1 @@
-rootProject.name = 'aiven-kafka-connect-gcs'
+rootProject.name = 'gcs-connector-for-apache-kafka'
