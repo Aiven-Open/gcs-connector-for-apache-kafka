@@ -1,4 +1,4 @@
-# GCS Sink Connector for Apache Kafka
+# Aiven's GCS Sink Connector for Apache Kafka
 
 ![Pull Request Workflow](https://github.com/aiven/gcs-connector-for-apache-kafka/workflows/Pull%20Request%20Workflow/badge.svg)
 
