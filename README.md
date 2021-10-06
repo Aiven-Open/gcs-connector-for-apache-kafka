@@ -1,6 +1,6 @@
-# Kafka GCS Connector
+# GCS Sink Connector for Apache Kafka
 
-![Pull Request Workflow](https://github.com/aiven/aiven-kafka-connect-gcs/workflows/Pull%20Request%20Workflow/badge.svg)
+![Pull Request Workflow](https://github.com/aiven/gcs-connector-for-apache-kafka/workflows/Pull%20Request%20Workflow/badge.svg)
 
 This is a sink
 [Kafka Connect](https://kafka.apache.org/documentation/#connect)
@@ -553,7 +553,7 @@ Release JARs are available in Maven Central:
 ```xml
 <dependency>
   <groupId>io.aiven</groupId>
-  <artifactId>aiven-kafka-connect-gcs</artifactId>
+  <artifactId>gcs-connector-for-apache-kafka</artifactId>
   <version>x.y.z</version>
 </dependency>
 ```
