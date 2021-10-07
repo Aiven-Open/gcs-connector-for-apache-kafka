@@ -252,7 +252,7 @@ jacoco {
 }
 
 processResources {
-    filesMatching('aiven-kafka-connect-gcs-version.properties') {
+    filesMatching('gcs-connector-for-apache-kafka-version.properties') {
         expand(version: version)
     }
 }
@@ -269,15 +269,15 @@ publishing {
     publications {
         maven(MavenPublication) {
             groupId = getGroup()
-            artifactId = "aiven-kafka-connect-gcs"
+            artifactId = "gcs-connector-for-apache-kafka"
             version = getVersion()
 
             from components.java
 
             pom {
-                name = "Aiven Kafka GCS sink connector"
-                description = "Aiven Kafka GCS sink connector"
-                url = "https://github.com/aiven/aiven-kafka-connect-gcs"
+                name = "Aiven's GCS Sink Connector for Apache Kafka"
+                description = "Aiven's GCS Sink Connector for Apache Kafka"
+                url = "https://github.com/aiven/gcs-connector-for-apache-kafka"
                 organization {
                     name = "Aiven Oy"
                     url = "https://aiven.io"
@@ -300,9 +300,9 @@ publishing {
                 }
 
                 scm {
-                    connection = 'scm:git:git://github.com:aiven/aiven-kafka-connect-gcs.git'
-                    developerConnection = 'scm:git:ssh://github.com:aiven/aiven-kafka-connect-gcs.git'
-                    url = 'https://github.com/aiven/aiven-kafka-connect-gcs'
+                    connection = 'scm:git:git://github.com:aiven/gcs-connector-for-apache-kafka.git'
+                    developerConnection = 'scm:git:ssh://github.com:aiven/gcs-connector-for-apache-kafka.git'
+                    url = 'https://github.com/aiven/gcs-connector-for-apache-kafka'
                 }
             }
         }

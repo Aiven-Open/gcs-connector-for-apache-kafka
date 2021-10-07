@@ -58,12 +58,12 @@ abstract class AbstractIntegrationTest {
         testBucketAccessor = new BucketAccessor(storage, testBucketName);
         testBucketAccessor.ensureWorking();
 
-        gcsPrefix = "aiven-kafka-connect-gcs-test-"
+        gcsPrefix = "gcs-connector-for-apache-kafka-test-"
             + ZonedDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) + "/";
 
-        final File testDir = Files.createTempDirectory("aiven-kafka-connect-gcs-test-").toFile();
+        final File testDir = Files.createTempDirectory("gcs-connector-for-apache-kafka-test-").toFile();
 
-        pluginDir = new File(testDir, "plugins/aiven-kafka-connect-gcs/");
+        pluginDir = new File(testDir, "plugins/gcs-connector-for-apache-kafka/");
         assert pluginDir.mkdirs();
 
         final File distFile = new File(System.getProperty("integration-test.distribution.file.path"));
