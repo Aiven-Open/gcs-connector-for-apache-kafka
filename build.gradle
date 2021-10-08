@@ -69,7 +69,7 @@ ext {
     // Compatible with Kafka version:
     // https://docs.confluent.io/current/installation/versions-interoperability.html
     confluentPlatformVersion = "4.1.4"
-    aivenConnectCommonsVersion = "0.7.0"
+    aivenConnectCommonsVersion = "0.7.1"
     testcontainersVersion = "1.15.3"
     slf4jVersion = "1.7.30"
 }
@@ -119,7 +119,7 @@ dependencies {
 
     implementation "com.google.guava:guava:27.1-jre"
 
-    implementation "io.aiven:aiven-kafka-connect-commons:$aivenConnectCommonsVersion"
+    implementation "io.aiven:commons-for-apache-kafka-connect:$aivenConnectCommonsVersion"
 
     implementation "org.slf4j:slf4j-api:$slf4jVersion"
 
@@ -135,7 +135,7 @@ dependencies {
     testImplementation "org.apache.kafka:connect-json:$kafkaVersion"
     testImplementation "com.google.cloud:google-cloud-nio:0.84.0-alpha"
     testImplementation "org.mockito:mockito-core:3.3.3"
-    testImplementation "io.aiven:aiven-kafka-connect-commons:$aivenConnectCommonsVersion"
+    testImplementation "io.aiven:commons-for-apache-kafka-connect:$aivenConnectCommonsVersion"
 
     testRuntimeOnly "org.slf4j:slf4j-log4j12:$slf4jVersion"
     testImplementation "org.xerial.snappy:snappy-java:1.1.7.5"
@@ -156,7 +156,7 @@ dependencies {
 
     integrationTestImplementation "org.apache.avro:avro:1.8.1"
 
-    integrationTestImplementation "io.aiven:aiven-kafka-connect-commons:$aivenConnectCommonsVersion"
+    integrationTestImplementation "io.aiven:commons-for-apache-kafka-connect:$aivenConnectCommonsVersion"
 
     testImplementation ("org.apache.parquet:parquet-tools:1.11.1") {
         exclude group: "org.slf4j", module: "slf4j-api"
