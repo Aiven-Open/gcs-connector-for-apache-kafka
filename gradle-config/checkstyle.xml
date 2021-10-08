@@ -37,12 +37,6 @@
     <property name="localeLanguage" value="en"/>
     <property name="fileExtensions" value="java, properties, xml"/>
 
-    <!-- See http://checkstyle.sourceforge.net/config_header.html#RegexpHeader -->
-    <module name="RegexpHeader">
-        <property name="fileExtensions" value="java"/>
-        <property name="headerFile" value="${config_loc}/java.header" default="checkstyle/java.header"/>
-    </module>
-
     <!-- See http://checkstyle.sourceforge.net/config_whitespace.html#FileTabCharacter -->
     <module name="FileTabCharacter">
         <property name="eachLine" value="true"/>

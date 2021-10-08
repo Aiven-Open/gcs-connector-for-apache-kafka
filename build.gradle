@@ -38,6 +38,9 @@ plugins {
 
     // https://docs.gradle.org/current/userguide/signing_plugin.html
     id "signing"
+
+    // https://plugins.gradle.org/plugin/com.diffplug.spotless
+    id "com.diffplug.spotless" version "5.16.0"
 }
 
 group = "io.aiven"
@@ -226,7 +229,31 @@ dependencies {
 
 checkstyle {
     toolVersion "9.2.1"
-    getConfigDirectory().set(rootProject.file("checkstyle/"))
+    getConfigDirectory().set(rootProject.file("gradle-config/"))
+}
+
+spotless {
+  format 'misc', {
+    // define the files to apply `misc` to
+    target '*.gradle', '*.md', '.gitignore'
+    targetExclude ".*/**", "**/build/**", "**/.gradle/**"
+
+    // define the steps to apply to those files
+    trimTrailingWhitespace()
+    indentWithSpaces()
+    endWithNewline()
+  }
+
+  java {
+    licenseHeaderFile file("${project.rootDir}/gradle-config/java.header")
+    importOrder("javax", "java", "org.apache.kafka", "io.aiven", "")
+    removeUnusedImports()
+    replaceRegex("No wildcard imports.", "import(?:\\s+static)?\\s+[^\\*\\s]+\\*;(\r\n|\r|\n)", '$1')
+    eclipse().configFile("${project.rootDir}/gradle-config/aiven-eclipse-formatter.xml")
+    indentWithSpaces()
+    endWithNewline()
+    trimTrailingWhitespace()
+  }
 }
 
 task integrationTest(type: Test) {
