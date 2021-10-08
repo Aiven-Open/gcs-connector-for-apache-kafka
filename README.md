@@ -562,7 +562,7 @@ Release JARs are available in Maven Central:
 
 ### Developing together with Commons library
 
-This project depends on [Common Module for Apache Kafka Connect](https://github.com/aiven/commons-for-apache-kafka-connect). Normally, an artifact of it published to a globally accessible repository is used. However, if you need to introduce changes to both this connector and Commons library at the same time, you should short-circuit the development loop via locally published artifacts. Please follow this steps:
+This project depends on [Common Module for Apache Kafka Connect](https://github.com/aiven/commons-for-apache-kafka-connect). Normally, an artifact from a globally accessible repository is used. However, if you need to introduce changes to both this connector and Commons library at the same time, you should short-circuit the development loop via locally published artifacts. Please follow these steps:
 1. Checkout the master `HEAD` of Commons.
 2. Ensure the version [here](https://github.com/aiven/commons-for-apache-kafka-connect/blob/master/gradle.properties) is with `-SNAPSHOT` prefix.
 3. Make changes to Commons.
