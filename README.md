@@ -560,21 +560,21 @@ Release JARs are available in Maven Central:
 
 ## Development
 
-### Developing together with Commons library
+### Developing together with Common Module for Apache Kafka Connect library
 
-This project depends on [Common Module for Apache Kafka Connect](https://github.com/aiven/commons-for-apache-kafka-connect). Normally, an artifact from a globally accessible repository is used. However, if you need to introduce changes to both this connector and Commons library at the same time, you should short-circuit the development loop via locally published artifacts. Please follow these steps:
-1. Checkout the master `HEAD` of Commons.
+This project depends on [Common Module for Apache Kafka Connect](https://github.com/aiven/commons-for-apache-kafka-connect). Normally, an artifact from a globally accessible repository is used. However, if you need to introduce changes to both this connector and Common Module for Apache Kafka Connect library at the same time, you should short-circuit the development loop via locally published artifacts. Please follow these steps:
+1. Checkout the master `HEAD` of Common Module for Apache Kafka Connect.
 2. Ensure the version [here](https://github.com/aiven/commons-for-apache-kafka-connect/blob/master/gradle.properties) is with `-SNAPSHOT` prefix.
-3. Make changes to Commons.
+3. Make changes to Common Module for Apache Kafka Connect.
 4. Publish it locally with `./gradlew publishToMavenLocal`.
-5. Change the version in the connector's [`build.gradle`](build.gradle) (`ext.aivenConnectCommonsVersion`) to match the published snapshot version of Commons.
+5. Change the version in the connector's [`build.gradle`](build.gradle) (`ext.aivenConnectCommonsVersion`) to match the published snapshot version of Common Module for Apache Kafka Connect.
 
-After that, the latest changes you've done to Commons will be used.
+After that, the latest changes you've done to Common Module for Apache Kafka Connect will be used.
 
-When you finish developing the feature and is sure Commons won't need to change:
-1. Make a proper release of Commons.
+When you finish developing the feature and is sure Common Module for Apacha Kafka Connect won't need to change:
+1. Make a proper release of Common Module for Apache Kafka Connect.
 2. Publish the artifact to the currently used globally accessible repository.
-3. Change the version of Commons in the connector to the published one.
+3. Change the version of Common Module for Apache Kafka Connect in the connector to the published one.
 
 ### Integration testing
 
