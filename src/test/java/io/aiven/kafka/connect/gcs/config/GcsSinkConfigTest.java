@@ -1001,6 +1001,18 @@ final class GcsSinkConfigTest {
         assertEquals(TimestampSource.WallclockTimestampSource.class, c.getFilenameTimestampSource().getClass());
     }
 
+    @Test
+    void validationPassesPartitionedFieldName() {
+        final Map<String, String> properties = Map.of(
+            "gcs.bucket.name", "test-bucket",
+            "file.name.timestamp.timezone", "Europe/Berlin",
+            "partition.field.name", "event_occurrence_timestamp"
+
+        );
+
+        assertConfigDefValidationPasses(properties);
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"jsonl", "json", "csv"})
     void supportedFormatTypeConfig(final String formatType) {

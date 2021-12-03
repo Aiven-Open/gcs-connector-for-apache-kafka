@@ -61,6 +61,7 @@ public final class GcsSinkConfig extends AivenCommonConfig {
     public static final String FILE_MAX_RECORDS = "file.max.records";
     public static final String FILE_NAME_TIMESTAMP_TIMEZONE = "file.name.timestamp.timezone";
     public static final String FILE_NAME_TIMESTAMP_SOURCE = "file.name.timestamp.source";
+    public static final String PARTITION_FIELD_NAME = "partition.field.name";
 
     public static final String FORMAT_OUTPUT_FIELDS_CONFIG = "format.output.fields";
     public static final String FORMAT_OUTPUT_FIELDS_VALUE_ENCODING_CONFIG = "format.output.fields.value.encoding";
@@ -382,6 +383,19 @@ public final class GcsSinkConfig extends AivenCommonConfig {
             fileGroupCounter,
             ConfigDef.Width.SHORT,
             FILE_NAME_TIMESTAMP_SOURCE
+        );
+
+        configDef.define(
+            PARTITION_FIELD_NAME,
+            ConfigDef.Type.STRING,
+            null,
+            null,
+            ConfigDef.Importance.MEDIUM,
+            "Specifies the underlying timestamp field to use for filename partitioning.",
+            GROUP_FILE,
+            fileGroupCounter,
+            ConfigDef.Width.SHORT,
+            PARTITION_FIELD_NAME
         );
 
     }
