@@ -1,9 +1,9 @@
-# Aiven's GCS Sink Connector for Apache Kafka
+# Aiven's GCS Sink Connector for Apache Kafka®
 
 ![Pull Request Workflow](https://github.com/aiven/gcs-connector-for-apache-kafka/workflows/Pull%20Request%20Workflow/badge.svg)
 
 This is a sink
-[Kafka Connect](https://kafka.apache.org/documentation/#connect)
+[Apache Kafka Connect](https://kafka.apache.org/documentation/#connect)
 connector that stores Kafka messages in a
 [Google Cloud Storage (GCS)](https://cloud.google.com/storage/) bucket.
 
@@ -409,9 +409,9 @@ Having `format.output.envelope=false` can produce the following output:
 
 There are six configuration properties to configure retry strategy exist.
 
-### Kafka connect retry strategy properties
+### Apache Kafka connect retry strategy properties
 
-- `kafka.retry.backoff.ms` - The retry backoff in milliseconds. This config is used to notify Kafka Connect to retry delivering a message batch or 
+- `kafka.retry.backoff.ms` - The retry backoff in milliseconds. This config is used to notify Apache Kafka Connect to retry delivering a message batch or 
   performing recovery in case of transient exceptions. Maximum value is `24` hours.
 
 ### Google Cloud Storage retry strategy
@@ -624,6 +624,10 @@ about the ways to set properties
 
 TBD
 
-# License
+## License
 
 This project is licensed under the [Apache License, Version 2.0](LICENSE).
+
+## Trademarks
+
+Apache Kafka, Apache Kafka Connect are either registered trademarks or trademarks of the Apache Software Foundation in the United States and/or other countries. Google Cloud Storage (GCS) is a trademark and property of their respective owners. All product and service names used in this website are for identification purposes only and do not imply endorsement.
