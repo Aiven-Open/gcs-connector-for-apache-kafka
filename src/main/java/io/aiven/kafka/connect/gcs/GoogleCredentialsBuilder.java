@@ -44,7 +44,7 @@ public final class GoogleCredentialsBuilder {
      * @return a {@link GoogleCredentials} constructed based on the input.
      * @throws IOException              if some error getting the credentials happen.
      * @throws IllegalArgumentException
-     * if both {@code credentialsPath} and {@code credentialsJson} are non-{@code null}.
+     *     if both {@code credentialsPath} and {@code credentialsJson} are non-{@code null}.
      */
     public static GoogleCredentials build(final String credentialsPath,
                                           final String credentialsJson) throws IOException, IllegalArgumentException {
