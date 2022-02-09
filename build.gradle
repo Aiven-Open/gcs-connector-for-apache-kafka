@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+import org.gradle.util.DistributionLocator
+import org.gradle.util.GradleVersion
+
 plugins {
     // https://docs.gradle.org/current/userguide/java_library_plugin.html
     id "java-library"
@@ -54,6 +57,19 @@ java {
 
     withJavadocJar()
     withSourcesJar()
+}
+
+wrapper {
+    distributionType = 'ALL'
+    doLast {
+        final DistributionLocator locator = new DistributionLocator()
+        final GradleVersion version = GradleVersion.version(wrapper.gradleVersion)
+        final URI distributionUri = locator.getDistributionFor(version, wrapper.distributionType.name().toLowerCase(Locale.ENGLISH))
+        final URI sha256Uri = new URI(distributionUri.toString() + ".sha256")
+        final String sha256Sum = new String(sha256Uri.toURL().bytes)
+        wrapper.getPropertiesFile() << "distributionSha256Sum=${sha256Sum}\n"
+        println "Added checksum to wrapper properties"
+    }
 }
 
 compileJava {
@@ -123,8 +139,8 @@ dependencies {
 
     implementation "org.slf4j:slf4j-api:$slf4jVersion"
 
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.4.1'
-    testImplementation 'org.hamcrest:hamcrest:2.1'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.8.2'
+    testImplementation 'org.hamcrest:hamcrest:2.2'
     testImplementation "net.jqwik:jqwik:1.1.5"
 
     // is provided by "jqwik", but need this in testImplementation scope
@@ -205,7 +221,7 @@ dependencies {
 }
 
 checkstyle {
-    toolVersion "8.29"
+    toolVersion "9.2.1"
     getConfigDirectory().set(rootProject.file("checkstyle/"))
 }
 
@@ -248,7 +264,7 @@ test {
 }
 
 jacoco {
-    toolVersion = "0.8.5"
+    toolVersion = "0.8.7"
 }
 
 processResources {
