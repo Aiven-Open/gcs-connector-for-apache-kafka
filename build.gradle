@@ -154,7 +154,7 @@ dependencies {
     testImplementation "io.aiven:commons-for-apache-kafka-connect:$aivenConnectCommonsVersion"
 
     testRuntimeOnly "org.slf4j:slf4j-log4j12:$slf4jVersion"
-    testImplementation "org.xerial.snappy:snappy-java:1.1.7.5"
+    testImplementation "org.xerial.snappy:snappy-java:1.1.8.4"
     testImplementation "com.github.luben:zstd-jni:1.4.5-4"
 
     integrationTestImplementation "org.xerial.snappy:snappy-java:1.1.7.5"
