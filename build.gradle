@@ -87,7 +87,7 @@ ext {
     confluentPlatformVersion = "4.1.4"
     aivenConnectCommonsVersion = "0.7.1"
     testcontainersVersion = "1.15.3"
-    slf4jVersion = "1.7.30"
+    slf4jVersion = "1.7.36"
 }
 
 distributions {
