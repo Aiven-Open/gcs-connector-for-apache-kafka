@@ -174,7 +174,7 @@ dependencies {
 
     integrationTestImplementation "io.aiven:commons-for-apache-kafka-connect:$aivenConnectCommonsVersion"
 
-    testImplementation ("org.apache.parquet:parquet-tools:1.11.1") {
+    testImplementation ("org.apache.parquet:parquet-tools:1.11.2") {
         exclude group: "org.slf4j", module: "slf4j-api"
     }
     testImplementation("org.apache.hadoop:hadoop-mapreduce-client-core:3.3.0") {
