@@ -84,7 +84,7 @@ ext {
     kafkaVersion = "1.1.0"
     // Compatible with Kafka version:
     // https://docs.confluent.io/current/installation/versions-interoperability.html
-    confluentPlatformVersion = "4.1.4"
+    confluentPlatformVersion = "7.0.1"
     aivenConnectCommonsVersion = "0.7.1"
     testcontainersVersion = "1.16.3"
     slf4jVersion = "1.7.36"
@@ -174,7 +174,7 @@ dependencies {
 
     integrationTestImplementation "io.aiven:commons-for-apache-kafka-connect:$aivenConnectCommonsVersion"
 
-    testImplementation ("org.apache.parquet:parquet-tools:1.11.1") {
+    testImplementation ("org.apache.parquet:parquet-tools:1.11.2") {
         exclude group: "org.slf4j", module: "slf4j-api"
     }
     testImplementation("org.apache.hadoop:hadoop-mapreduce-client-core:3.3.0") {
