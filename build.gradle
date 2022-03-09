@@ -133,7 +133,7 @@ dependencies {
         exclude group: "com.google.guava", module: "guava"
     }
 
-    implementation "com.google.guava:guava:27.1-jre"
+    implementation "com.google.guava:guava:31.1-jre"
 
     implementation "io.aiven:commons-for-apache-kafka-connect:$aivenConnectCommonsVersion"
 
