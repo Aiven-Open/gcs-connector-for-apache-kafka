@@ -141,7 +141,7 @@ dependencies {
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.8.2'
     testImplementation 'org.hamcrest:hamcrest:2.2'
-    testImplementation "net.jqwik:jqwik:1.1.5"
+    testImplementation "net.jqwik:jqwik:1.6.4"
 
     // is provided by "jqwik", but need this in testImplementation scope
     testImplementation "net.jqwik:jqwik-engine:1.6.4"
