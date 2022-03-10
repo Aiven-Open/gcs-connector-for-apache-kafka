@@ -73,7 +73,6 @@ public final class GcsSinkTask extends SinkTask {
                 .setRetrySettings(
                         RetrySettings
                                 .newBuilder()
-                                .setJittered(true)
                                 .setInitialRetryDelay(config.getGcsRetryBackoffInitialDelay())
                                 .setMaxRetryDelay(config.getGcsRetryBackoffMaxDelay())
                                 .setRetryDelayMultiplier(config.getGcsRetryBackoffDelayMultiplier())
