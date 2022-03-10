@@ -144,7 +144,7 @@ dependencies {
     testImplementation "net.jqwik:jqwik:1.6.5"
 
     // is provided by "jqwik", but need this in testImplementation scope
-    testImplementation "net.jqwik:jqwik-engine:1.6.4"
+    testImplementation "net.jqwik:jqwik-engine:1.6.5"
 
     testImplementation "org.apache.kafka:connect-api:$kafkaVersion"
     testImplementation "org.apache.kafka:connect-runtime:$kafkaVersion"
