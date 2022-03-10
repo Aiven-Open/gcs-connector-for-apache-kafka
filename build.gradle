@@ -169,7 +169,7 @@ dependencies {
     integrationTestImplementation "org.testcontainers:kafka:$testcontainersVersion" // this is not Kafka version
     integrationTestImplementation "io.confluent:kafka-avro-serializer:$confluentPlatformVersion"
     integrationTestImplementation "io.confluent:kafka-connect-avro-converter:$confluentPlatformVersion"
-
+    integrationTestImplementation "org.awaitility:awaitility:4.2.0"
     integrationTestImplementation "org.apache.avro:avro:1.11.0"
 
     integrationTestImplementation "io.aiven:commons-for-apache-kafka-connect:$aivenConnectCommonsVersion"
