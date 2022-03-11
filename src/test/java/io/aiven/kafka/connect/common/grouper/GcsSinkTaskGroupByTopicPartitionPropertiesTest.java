@@ -36,6 +36,7 @@ import com.google.common.collect.Lists;
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 import net.jqwik.api.constraints.IntRange;
+import org.junit.jupiter.api.Disabled;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
@@ -63,6 +64,7 @@ final class GcsSinkTaskGroupByTopicPartitionPropertiesTest extends PbtBase {
     }
 
     @Property
+    @Disabled("See https://github.com/aiven/gcs-connector-for-apache-kafka/issues/143")
     final void limited(@ForAll("recordBatches") final List<List<SinkRecord>> recordBatches,
                        @ForAll @IntRange(min = 1, max = 100) final int maxRecordsPerFile) {
         genericTry(recordBatches, maxRecordsPerFile);
