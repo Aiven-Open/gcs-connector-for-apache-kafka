@@ -60,8 +60,6 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
 
     private static final String CONNECTOR_NAME = "aiven-gcs-sink-connector-parquet";
 
-    private static final int OFFSET_FLUSH_INTERVAL_MS = 5000;
-
     @Container
     private final KafkaContainer kafka = new KafkaContainer()
             // Expose both Kafka ports:
@@ -147,14 +145,13 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
             sendFuture.get();
         }
 
-        // TODO more robust way to detect that Connect finished processing
-        Thread.sleep(OFFSET_FLUSH_INTERVAL_MS * 2);
-
         final List<String> expectedBlobs = List.of(
                 getBlobName(0, 0, compression),
                 getBlobName(1, 0, compression),
                 getBlobName(2, 0, compression),
                 getBlobName(3, 0, compression));
+
+        awaitAllBlobsWritten(expectedBlobs.size());
         assertIterableEquals(expectedBlobs, testBucketAccessor.getBlobNames(gcsPrefix));
 
         final Map<String, List<GenericRecord>> blobContents = new HashMap<>();
@@ -218,14 +215,13 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
             sendFuture.get();
         }
 
-        // TODO more robust way to detect that Connect finished processing
-        Thread.sleep(OFFSET_FLUSH_INTERVAL_MS * 2);
-
         final List<String> expectedBlobs = List.of(
                 getBlobName(0, 0, compression),
                 getBlobName(1, 0, compression),
                 getBlobName(2, 0, compression),
                 getBlobName(3, 0, compression));
+
+        awaitAllBlobsWritten(expectedBlobs.size());
         assertIterableEquals(expectedBlobs, testBucketAccessor.getBlobNames(gcsPrefix));
 
         final Map<String, List<GenericRecord>> blobContents = new HashMap<>();
@@ -303,9 +299,6 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
             sendFuture.get();
         }
 
-        // TODO more robust way to detect that Connect finished processing
-        Thread.sleep(OFFSET_FLUSH_INTERVAL_MS * 2);
-
         final List<String> expectedBlobs = Arrays.asList(
                 getBlobName(0, 0, compression),
                 getBlobName(0, 5, compression),
@@ -316,6 +309,8 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
                 getBlobName(3, 0, compression),
                 getBlobName(3, 5, compression)
         );
+
+        awaitAllBlobsWritten(expectedBlobs.size());
         assertIterableEquals(expectedBlobs, testBucketAccessor.getBlobNames(gcsPrefix));
 
         final var blobContents = new ArrayList<String>();

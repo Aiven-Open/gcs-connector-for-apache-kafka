@@ -19,6 +19,7 @@ package io.aiven.kafka.connect.gcs;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -29,9 +30,13 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import org.junit.jupiter.api.BeforeAll;
 
+import static org.awaitility.Awaitility.await;
+
 abstract class AbstractIntegrationTest {
     protected static final String TEST_TOPIC_0 = "test-topic-0";
     protected static final String TEST_TOPIC_1 = "test-topic-1";
+
+    protected static final int OFFSET_FLUSH_INTERVAL_MS = 5000;
 
     protected static String gcsCredentialsPath;
     protected static String gcsCredentialsJson;
@@ -83,5 +88,13 @@ abstract class AbstractIntegrationTest {
     protected String getBlobName(final String key, final String compression) {
         final String result = String.format("%s%s", gcsPrefix, key);
         return result + CompressionType.forName(compression).extension();
+    }
+
+    protected void awaitAllBlobsWritten(final int expectedBlobCount) {
+        await("All expected files stored on GCS")
+                .atMost(Duration.ofMillis(OFFSET_FLUSH_INTERVAL_MS * 3))
+                .pollInterval(Duration.ofMillis(300))
+                .until(() -> testBucketAccessor.getBlobNames(gcsPrefix).size() >= expectedBlobCount);
+
     }
 }
