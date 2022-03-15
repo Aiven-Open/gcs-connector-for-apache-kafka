@@ -16,6 +16,14 @@
 
 package io.aiven.kafka.connect.gcs.config;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertIterableEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import java.io.IOException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -51,88 +59,68 @@ import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.threeten.bp.Duration;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertIterableEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 /**
  * Tests {@link GcsSinkConfig} class.
  */
 final class GcsSinkConfigTest {
 
     @ParameterizedTest
-    @ValueSource(strings = {
-        "",
-        "{{topic}}", "{{partition}}", "{{start_offset}}",
-        "{{topic}}-{{partition}}", "{{topic}}-{{start_offset}}", "{{partition}}-{{start_offset}}",
-        "{{topic}}-{{partition}}-{{start_offset}}-{{key}}",
-        "{{topic}}-{{partition}}-{{start_offset}}-{{unknown}}"
-    })
+    @ValueSource(strings = { "", "{{topic}}", "{{partition}}", "{{start_offset}}", "{{topic}}-{{partition}}",
+            "{{topic}}-{{start_offset}}", "{{partition}}-{{start_offset}}",
+            "{{topic}}-{{partition}}-{{start_offset}}-{{key}}",
+            "{{topic}}-{{partition}}-{{start_offset}}-{{unknown}}" })
     final void incorrectFilenameTemplates(final String template) {
-        final Map<String, String> properties = Map.of(
-            "file.name.template", template,
-            "gcs.bucket.name", "some-bucket"
-        );
+        final Map<String, String> properties = Map.of("file.name.template", template, "gcs.bucket.name", "some-bucket");
 
-        final ConfigValue v = GcsSinkConfig.configDef().validate(properties).stream()
-            .filter(x -> x.name().equals(GcsSinkConfig.FILE_NAME_TEMPLATE_CONFIG))
-            .findFirst()
-            .get();
+        final ConfigValue v = GcsSinkConfig.configDef()
+                .validate(properties)
+                .stream()
+                .filter(x -> x.name().equals(GcsSinkConfig.FILE_NAME_TEMPLATE_CONFIG))
+                .findFirst()
+                .get();
         assertFalse(v.errorMessages().isEmpty());
 
-        final var t = assertThrows(
-            ConfigException.class,
-            () -> new GcsSinkConfig(properties)
-        );
+        final var t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
         assertTrue(t.getMessage().startsWith("Invalid value "));
     }
 
     @Test
     void acceptMultipleParametersWithTheSameName() {
-        final Map<String, String> properties = Map.of(
-            "file.name.template",
-            "{{topic}}-{{timestamp:unit=yyyy}}-"
-                + "{{timestamp:unit=MM}}-{{timestamp:unit=dd}}"
-                + "-{{partition:padding=true}}-{{start_offset:padding=true}}.gz",
-            "gcs.bucket.name", "asdasd"
-        );
+        final Map<String, String> properties = Map
+                .of("file.name.template",
+                        "{{topic}}-{{timestamp:unit=yyyy}}-" + "{{timestamp:unit=MM}}-{{timestamp:unit=dd}}"
+                                + "-{{partition:padding=true}}-{{start_offset:padding=true}}.gz",
+                        "gcs.bucket.name", "asdasd");
 
         assertConfigDefValidationPasses(properties);
 
         final Template t = new GcsSinkConfig(properties).getFilenameTemplate();
         final String fileName = t.instance()
-            .bindVariable("topic", () -> "a")
-            .bindVariable("timestamp", VariableTemplatePart.Parameter::value)
-            .bindVariable("partition", () -> "p")
-            .bindVariable("start_offset", VariableTemplatePart.Parameter::value)
-            .render();
+                .bindVariable("topic", () -> "a")
+                .bindVariable("timestamp", VariableTemplatePart.Parameter::value)
+                .bindVariable("partition", () -> "p")
+                .bindVariable("start_offset", VariableTemplatePart.Parameter::value)
+                .render();
         assertEquals("a-yyyy-MM-dd-p-true.gz", fileName);
     }
 
     @Test
     void correctlySupportDeprecatedYyyyUppercase() {
-        final Map<String, String> properties = Map.of(
-            "file.name.template",
-            "{{topic}}-"
-                + "{{timestamp:unit=YYYY}}-{{timestamp:unit=yyyy}}-"
-                + "{{ timestamp:unit=YYYY }}-{{ timestamp:unit=yyyy }}"
-                + "-{{partition}}-{{start_offset:padding=true}}.gz",
-            "gcs.bucket.name", "asdasd"
-        );
+        final Map<String, String> properties = Map.of("file.name.template",
+                "{{topic}}-" + "{{timestamp:unit=YYYY}}-{{timestamp:unit=yyyy}}-"
+                        + "{{ timestamp:unit=YYYY }}-{{ timestamp:unit=yyyy }}"
+                        + "-{{partition}}-{{start_offset:padding=true}}.gz",
+                "gcs.bucket.name", "asdasd");
 
         assertConfigDefValidationPasses(properties);
 
         final Template t = new GcsSinkConfig(properties).getFilenameTemplate();
         final String fileName = t.instance()
-            .bindVariable("topic", () -> "_")
-            .bindVariable("timestamp", VariableTemplatePart.Parameter::value)
-            .bindVariable("partition", () -> "_")
-            .bindVariable("start_offset", () -> "_")
-            .render();
+                .bindVariable("topic", () -> "_")
+                .bindVariable("timestamp", VariableTemplatePart.Parameter::value)
+                .bindVariable("partition", () -> "_")
+                .bindVariable("start_offset", () -> "_")
+                .render();
         assertEquals("_-yyyy-yyyy-yyyy-yyyy-_-_.gz", fileName);
     }
 
@@ -140,40 +128,28 @@ final class GcsSinkConfigTest {
     void requiredConfigurations() {
         final Map<String, String> properties = Map.of();
 
-        final var expectedErrorMessage =
-            "Missing required configuration \"gcs.bucket.name\" which has no default value.";
+        final var expectedErrorMessage = "Missing required configuration \"gcs.bucket.name\" which has no default value.";
 
-        expectErrorMessageForConfigurationInConfigDefValidation(
-            properties, "gcs.bucket.name", expectedErrorMessage);
-        final Throwable t = assertThrows(
-            ConfigException.class,
-            () -> new GcsSinkConfig(properties));
+        expectErrorMessageForConfigurationInConfigDefValidation(properties, "gcs.bucket.name", expectedErrorMessage);
+        final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
         assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
     void emptyGcsBucketName() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", ""
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "");
 
-        final var expectedErrorMessage =
-            "Invalid value  for configuration gcs.bucket.name: String must be non-empty";
+        final var expectedErrorMessage = "Invalid value  for configuration gcs.bucket.name: String must be non-empty";
 
-        expectErrorMessageForConfigurationInConfigDefValidation(
-            properties, "gcs.bucket.name", expectedErrorMessage);
+        expectErrorMessageForConfigurationInConfigDefValidation(properties, "gcs.bucket.name", expectedErrorMessage);
 
-        final Throwable t = assertThrows(
-            ConfigException.class,
-            () -> new GcsSinkConfig(properties));
+        final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
         assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
     void correctMinimalConfig() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket");
 
         assertConfigDefValidationPasses(properties);
 
@@ -182,14 +158,15 @@ final class GcsSinkConfigTest {
         assertEquals(CompressionType.NONE, config.getCompressionType());
         assertEquals("", config.getPrefix());
         assertEquals("a-b-c",
-            config.getFilenameTemplate()
-                .instance()
-                .bindVariable("topic", () -> "a")
-                .bindVariable("partition", () -> "b")
-                .bindVariable("start_offset", () -> "c")
-                .render());
-        assertIterableEquals(Collections.singleton(
-            new OutputField(OutputFieldType.VALUE, OutputFieldEncodingType.BASE64)), config.getOutputFields());
+                config.getFilenameTemplate()
+                        .instance()
+                        .bindVariable("topic", () -> "a")
+                        .bindVariable("partition", () -> "b")
+                        .bindVariable("start_offset", () -> "c")
+                        .render());
+        assertIterableEquals(
+                Collections.singleton(new OutputField(OutputFieldType.VALUE, OutputFieldEncodingType.BASE64)),
+                config.getOutputFields());
         assertEquals(FormatType.forName("csv"), config.getFormatType());
         assertEquals(Duration.ofMillis(GcsSinkConfig.GCS_RETRY_BACKOFF_INITIAL_DELAY_MS_DEFAULT),
                 config.getGcsRetryBackoffInitialDelay());
@@ -197,23 +174,17 @@ final class GcsSinkConfigTest {
                 config.getGcsRetryBackoffMaxDelay());
         assertEquals(Duration.ofMillis(GcsSinkConfig.GCS_RETRY_BACKOFF_TOTAL_TIMEOUT_MS_DEFAULT),
                 config.getGcsRetryBackoffTotalTimeout());
-        assertEquals(GcsSinkConfig.GCS_RETRY_BACKOFF_MAX_ATTEMPTS_DEFAULT,
-                config.getGcsRetryBackoffMaxAttempts());
+        assertEquals(GcsSinkConfig.GCS_RETRY_BACKOFF_MAX_ATTEMPTS_DEFAULT, config.getGcsRetryBackoffMaxAttempts());
         assertEquals(GcsSinkConfig.GCS_RETRY_BACKOFF_DELAY_MULTIPLIER_DEFAULT,
                 config.getGcsRetryBackoffDelayMultiplier());
     }
 
     @Test
     void customRetryPolicySettings() {
-        final var properties = Map.of(
-                "gcs.bucket.name", "test-bucket",
-                "kafka.retry.backoff.ms", "1000",
-                "gcs.retry.backoff.initial.delay.ms", "2000",
-                "gcs.retry.backoff.max.delay.ms", "3000",
-                "gcs.retry.backoff.delay.multiplier", "2.0",
-                "gcs.retry.backoff.total.timeout.ms", "4000",
-                "gcs.retry.backoff.max.attempts", "100"
-        );
+        final var properties = Map.of("gcs.bucket.name", "test-bucket", "kafka.retry.backoff.ms", "1000",
+                "gcs.retry.backoff.initial.delay.ms", "2000", "gcs.retry.backoff.max.delay.ms", "3000",
+                "gcs.retry.backoff.delay.multiplier", "2.0", "gcs.retry.backoff.total.timeout.ms", "4000",
+                "gcs.retry.backoff.max.attempts", "100");
         final var config = new GcsSinkConfig(properties);
         assertEquals(1000, config.getKafkaRetryBackoffMs());
         assertEquals(Duration.ofMillis(2000), config.getGcsRetryBackoffInitialDelay());
@@ -225,77 +196,52 @@ final class GcsSinkConfigTest {
 
     @Test
     void wrongRetryPolicySettings() {
-        final var initialDelayProp = Map.of(
-                "gcs.bucket.name", "test-bucket",
-                "gcs.retry.backoff.initial.delay.ms", "-1"
-        );
-        final var initialDelayE =
-                assertThrows(ConfigException.class, () -> new GcsSinkConfig(initialDelayProp));
+        final var initialDelayProp = Map.of("gcs.bucket.name", "test-bucket", "gcs.retry.backoff.initial.delay.ms",
+                "-1");
+        final var initialDelayE = assertThrows(ConfigException.class, () -> new GcsSinkConfig(initialDelayProp));
         assertEquals(
-                "Invalid value -1 for configuration gcs.retry.backoff.initial.delay.ms: "
-                + "Value must be at least 0", initialDelayE.getMessage());
+                "Invalid value -1 for configuration gcs.retry.backoff.initial.delay.ms: " + "Value must be at least 0",
+                initialDelayE.getMessage());
 
-        final var maxDelayProp = Map.of(
-                "gcs.bucket.name", "test-bucket",
-                "gcs.retry.backoff.max.delay.ms", "-1"
-        );
-        final var maxDelayE =
-                assertThrows(ConfigException.class, () -> new GcsSinkConfig(maxDelayProp));
+        final var maxDelayProp = Map.of("gcs.bucket.name", "test-bucket", "gcs.retry.backoff.max.delay.ms", "-1");
+        final var maxDelayE = assertThrows(ConfigException.class, () -> new GcsSinkConfig(maxDelayProp));
+        assertEquals("Invalid value -1 for configuration gcs.retry.backoff.max.delay.ms: " + "Value must be at least 0",
+                maxDelayE.getMessage());
+
+        final var delayMultiplayerProp = Map.of("gcs.bucket.name", "test-bucket", "gcs.retry.backoff.delay.multiplier",
+                "-1", "gcs.retry.backoff.total.timeout.ms", "-1", "gcs.retry.backoff.max.attempts", "-1");
+        final var delayMultiplayerE = assertThrows(ConfigException.class,
+                () -> new GcsSinkConfig(delayMultiplayerProp));
+        assertEquals("Invalid value -1.0 for configuration gcs.retry.backoff.delay.multiplier: "
+                + "Value must be at least 1.0", delayMultiplayerE.getMessage());
+
+        final var maxAttemptsProp = Map.of("gcs.bucket.name", "test-bucket", "gcs.retry.backoff.max.attempts", "-1");
+        final var maxAttemptsE = assertThrows(ConfigException.class, () -> new GcsSinkConfig(maxAttemptsProp));
+        assertEquals("Invalid value -1 for configuration gcs.retry.backoff.max.attempts: " + "Value must be at least 0",
+                maxAttemptsE.getMessage());
+
+        final var totalTimeoutProp = Map.of("gcs.bucket.name", "test-bucket", "gcs.retry.backoff.total.timeout.ms",
+                "-1");
+        final var totalTimeoutE = assertThrows(ConfigException.class, () -> new GcsSinkConfig(totalTimeoutProp));
         assertEquals(
-                "Invalid value -1 for configuration gcs.retry.backoff.max.delay.ms: "
-                        + "Value must be at least 0", maxDelayE.getMessage());
+                "Invalid value -1 for configuration gcs.retry.backoff.total.timeout.ms: " + "Value must be at least 0",
+                totalTimeoutE.getMessage());
 
-        final var delayMultiplayerProp = Map.of(
-                "gcs.bucket.name", "test-bucket",
-                "gcs.retry.backoff.delay.multiplier", "-1",
-                "gcs.retry.backoff.total.timeout.ms", "-1",
-                "gcs.retry.backoff.max.attempts", "-1"
-        );
-        final var delayMultiplayerE =
-                assertThrows(ConfigException.class, () -> new GcsSinkConfig(delayMultiplayerProp));
-        assertEquals(
-                "Invalid value -1.0 for configuration gcs.retry.backoff.delay.multiplier: "
-                        + "Value must be at least 1.0", delayMultiplayerE.getMessage());
+        final var tooBigTotoalTimeoutProp = Map.of("gcs.bucket.name", "test-bucket",
+                "gcs.retry.backoff.total.timeout.ms", String.valueOf(TimeUnit.HOURS.toMillis(25)));
 
-        final var maxAttemptsProp = Map.of(
-                "gcs.bucket.name", "test-bucket",
-                "gcs.retry.backoff.max.attempts", "-1"
-        );
-        final var maxAttemptsE =
-                assertThrows(ConfigException.class, () -> new GcsSinkConfig(maxAttemptsProp));
-        assertEquals(
-                "Invalid value -1 for configuration gcs.retry.backoff.max.attempts: "
-                        + "Value must be at least 0", maxAttemptsE.getMessage());
-
-        final var totalTimeoutProp = Map.of(
-                "gcs.bucket.name", "test-bucket",
-                "gcs.retry.backoff.total.timeout.ms", "-1"
-        );
-        final var totalTimeoutE =
-                assertThrows(ConfigException.class, () -> new GcsSinkConfig(totalTimeoutProp));
-        assertEquals(
-                "Invalid value -1 for configuration gcs.retry.backoff.total.timeout.ms: "
-                        + "Value must be at least 0", totalTimeoutE.getMessage());
-
-        final var tooBigTotoalTimeoutProp = Map.of(
-                "gcs.bucket.name", "test-bucket",
-                "gcs.retry.backoff.total.timeout.ms", String.valueOf(TimeUnit.HOURS.toMillis(25))
-        );
-
-        final var tooBigTotalTimeoutE =
-                assertThrows(ConfigException.class, () -> new GcsSinkConfig(tooBigTotoalTimeoutProp));
-        assertEquals(
-                "Invalid value 90000000 for configuration gcs.retry.backoff.total.timeout.ms: "
-                        + "Value must be no more than 86400000 (24 hours)", tooBigTotalTimeoutE.getMessage());
+        final var tooBigTotalTimeoutE = assertThrows(ConfigException.class,
+                () -> new GcsSinkConfig(tooBigTotoalTimeoutProp));
+        assertEquals("Invalid value 90000000 for configuration gcs.retry.backoff.total.timeout.ms: "
+                + "Value must be no more than 86400000 (24 hours)", tooBigTotalTimeoutE.getMessage());
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"none", "gzip", "snappy", "zstd"})
+    @ValueSource(strings = { "none", "gzip", "snappy", "zstd" })
     void correctFullConfig(final String compression) {
         final Map<String, String> properties = new HashMap<>();
-        properties.put(
-            "gcs.credentials.path",
-            getClass().getClassLoader().getResource("test_gcs_credentials.json").getPath());
+        properties.put("gcs.credentials.path",
+                getClass().getClassLoader().getResource("test_gcs_credentials.json").getPath());
         properties.put("gcs.bucket.name", "test-bucket");
         properties.put("file.compression.type", compression);
         properties.put("file.name.prefix", "test-prefix");
@@ -313,30 +259,28 @@ final class GcsSinkConfigTest {
         assertEquals(42, config.getMaxRecordsPerFile());
         assertEquals("test-prefix", config.getPrefix());
         assertEquals("a-b-c-d.gz",
-            config.getFilenameTemplate()
-                .instance()
-                .bindVariable("topic", () -> "a")
-                .bindVariable("partition", () -> "b")
-                .bindVariable("start_offset", () -> "c")
-                .bindVariable("timestamp", () -> "d")
-                .render());
-        assertIterableEquals(Arrays.asList(
-            new OutputField(OutputFieldType.KEY, OutputFieldEncodingType.NONE),
-            new OutputField(OutputFieldType.VALUE, OutputFieldEncodingType.BASE64),
-            new OutputField(OutputFieldType.OFFSET, OutputFieldEncodingType.NONE),
-            new OutputField(OutputFieldType.TIMESTAMP, OutputFieldEncodingType.NONE)), config.getOutputFields());
+                config.getFilenameTemplate()
+                        .instance()
+                        .bindVariable("topic", () -> "a")
+                        .bindVariable("partition", () -> "b")
+                        .bindVariable("start_offset", () -> "c")
+                        .bindVariable("timestamp", () -> "d")
+                        .render());
+        assertIterableEquals(
+                Arrays.asList(new OutputField(OutputFieldType.KEY, OutputFieldEncodingType.NONE),
+                        new OutputField(OutputFieldType.VALUE, OutputFieldEncodingType.BASE64),
+                        new OutputField(OutputFieldType.OFFSET, OutputFieldEncodingType.NONE),
+                        new OutputField(OutputFieldType.TIMESTAMP, OutputFieldEncodingType.NONE)),
+                config.getOutputFields());
 
         assertEquals(ZoneOffset.UTC, config.getFilenameTimezone());
-        assertEquals(
-            TimestampSource.WallclockTimestampSource.class,
-            config.getFilenameTimestampSource().getClass()
-        );
+        assertEquals(TimestampSource.WallclockTimestampSource.class, config.getFilenameTimestampSource().getClass());
 
     }
 
     @ParameterizedTest
     @NullSource
-    @ValueSource(strings = {"none", "gzip", "snappy", "zstd"})
+    @ValueSource(strings = { "none", "gzip", "snappy", "zstd" })
     void supportedCompression(final String compression) {
         final Map<String, String> properties = new HashMap<>();
         properties.put("gcs.bucket.name", "test-bucket");
@@ -347,78 +291,63 @@ final class GcsSinkConfigTest {
         assertConfigDefValidationPasses(properties);
 
         final GcsSinkConfig config = new GcsSinkConfig(properties);
-        final CompressionType expectedCompressionType =
-                compression == null ? CompressionType.NONE : CompressionType.forName(compression);
+        final CompressionType expectedCompressionType = compression == null
+                ? CompressionType.NONE
+                : CompressionType.forName(compression);
         assertEquals(expectedCompressionType, config.getCompressionType());
     }
 
     @Test
     void unsupportedCompressionType() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.compression.type", "unsupported"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.compression.type",
+                "unsupported");
 
         final var expectedErrorMessage = "Invalid value unsupported for configuration file.compression.type: "
-            + "supported values are: 'none', 'gzip', 'snappy', 'zstd'";
+                + "supported values are: 'none', 'gzip', 'snappy', 'zstd'";
 
-        final var v = expectErrorMessageForConfigurationInConfigDefValidation(
-            properties, "file.compression.type", expectedErrorMessage);
+        final var v = expectErrorMessageForConfigurationInConfigDefValidation(properties, "file.compression.type",
+                expectedErrorMessage);
         assertIterableEquals(List.of("none", "gzip", "snappy", "zstd"), v.recommendedValues());
 
-        final Throwable t = assertThrows(
-            ConfigException.class, () -> new GcsSinkConfig(properties)
-        );
+        final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
         assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
     void emptyOutputField() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "format.output.fields", ""
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "format.output.fields", "");
 
         final var expectedErrorMessage = "Invalid value [] for configuration format.output.fields: cannot be empty";
 
-        final var v = expectErrorMessageForConfigurationInConfigDefValidation(
-            properties, "format.output.fields", expectedErrorMessage);
+        final var v = expectErrorMessageForConfigurationInConfigDefValidation(properties, "format.output.fields",
+                expectedErrorMessage);
         assertIterableEquals(List.of("key", "value", "offset", "timestamp", "headers"), v.recommendedValues());
 
-        final Throwable t = assertThrows(
-            ConfigException.class, () -> new GcsSinkConfig(properties)
-        );
+        final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
         assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
     void unsupportedOutputField() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "format.output.fields", "key,value,offset,timestamp,headers,unsupported"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "format.output.fields",
+                "key,value,offset,timestamp,headers,unsupported");
 
         final var expectedErrorMessage = "Invalid value [key, value, offset, timestamp, headers, unsupported] "
-            + "for configuration format.output.fields: "
-            + "supported values are: 'key', 'value', 'offset', 'timestamp', 'headers'";
+                + "for configuration format.output.fields: "
+                + "supported values are: 'key', 'value', 'offset', 'timestamp', 'headers'";
 
-        final var v = expectErrorMessageForConfigurationInConfigDefValidation(
-            properties, "format.output.fields", expectedErrorMessage);
+        final var v = expectErrorMessageForConfigurationInConfigDefValidation(properties, "format.output.fields",
+                expectedErrorMessage);
         assertIterableEquals(List.of("key", "value", "offset", "timestamp", "headers"), v.recommendedValues());
 
-        final Throwable t = assertThrows(
-            ConfigException.class, () -> new GcsSinkConfig(properties)
-        );
+        final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
         assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
     void gcsCredentialsPath() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "gcs.credentials.path",
-            getClass().getClassLoader().getResource("test_gcs_credentials.json").getPath()
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "gcs.credentials.path",
+                getClass().getClassLoader().getResource("test_gcs_credentials.json").getPath());
 
         assertConfigDefValidationPasses(properties);
 
@@ -433,10 +362,8 @@ final class GcsSinkConfigTest {
         final Map<String, String> properties = new HashMap<>();
         properties.put("gcs.bucket.name", "test-bucket");
 
-        final String credentialsJson = Resources.toString(
-            getClass().getClassLoader().getResource("test_gcs_credentials.json"),
-            StandardCharsets.UTF_8
-        );
+        final String credentialsJson = Resources
+                .toString(getClass().getClassLoader().getResource("test_gcs_credentials.json"), StandardCharsets.UTF_8);
         properties.put("gcs.credentials.json", credentialsJson);
 
         assertConfigDefValidationPasses(properties);
@@ -462,16 +389,13 @@ final class GcsSinkConfigTest {
 
         final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
         assertEquals(
-            "\"gcs.credentials.path\" and \"gcs.credentials.json\" are mutually exclusive options, but both are set.",
-            t.getMessage());
+                "\"gcs.credentials.path\" and \"gcs.credentials.json\" are mutually exclusive options, but both are set.",
+                t.getMessage());
     }
 
     @Test
     void connectorName() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "name", "test-connector"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "name", "test-connector");
 
         assertConfigDefValidationPasses(properties);
 
@@ -487,42 +411,31 @@ final class GcsSinkConfigTest {
         properties.put("file.name.prefix", longString);
 
         final var expectedErrorMessage = "Invalid value " + longString + " for configuration gcs.bucket.name: "
-            + "cannot be longer than 1024 characters";
+                + "cannot be longer than 1024 characters";
 
-        expectErrorMessageForConfigurationInConfigDefValidation(
-            properties, "file.name.prefix", expectedErrorMessage);
+        expectErrorMessageForConfigurationInConfigDefValidation(properties, "file.name.prefix", expectedErrorMessage);
 
-        final Throwable t = assertThrows(
-            ConfigException.class,
-            () -> new GcsSinkConfig(properties));
+        final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
         assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
     void fileNamePrefixProhibitedPrefix() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.name.prefix", ".well-known/acme-challenge/something"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.name.prefix",
+                ".well-known/acme-challenge/something");
 
-        final var expectedErrorMessage =
-            "Invalid value .well-known/acme-challenge/something for configuration gcs.bucket.name: "
-            + "cannot start with '.well-known/acme-challenge'";
+        final var expectedErrorMessage = "Invalid value .well-known/acme-challenge/something for configuration gcs.bucket.name: "
+                + "cannot start with '.well-known/acme-challenge'";
 
-        expectErrorMessageForConfigurationInConfigDefValidation(
-            properties, "file.name.prefix", expectedErrorMessage);
+        expectErrorMessageForConfigurationInConfigDefValidation(properties, "file.name.prefix", expectedErrorMessage);
 
-        final Throwable t = assertThrows(
-            ConfigException.class,
-            () -> new GcsSinkConfig(properties));
+        final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
         assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
     void maxRecordsPerFileNotSet() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket");
 
         assertConfigDefValidationPasses(properties);
 
@@ -532,10 +445,7 @@ final class GcsSinkConfigTest {
 
     @Test
     void maxRecordsPerFileSetCorrect() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.max.records", "42"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.max.records", "42");
 
         assertConfigDefValidationPasses(properties);
 
@@ -545,26 +455,20 @@ final class GcsSinkConfigTest {
 
     @Test
     void maxRecordsPerFileSetIncorrect() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.max.records", "-42"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.max.records", "-42");
 
         final var expectedErrorMessage = "Invalid value -42 for configuration file.max.records: "
-            + "must be a non-negative integer number";
+                + "must be a non-negative integer number";
 
-        expectErrorMessageForConfigurationInConfigDefValidation(
-            properties, "file.max.records", expectedErrorMessage);
+        expectErrorMessageForConfigurationInConfigDefValidation(properties, "file.max.records", expectedErrorMessage);
 
-        final Throwable t = assertThrows(
-            ConfigException.class,
-            () -> new GcsSinkConfig(properties));
+        final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
         assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @ParameterizedTest
     @NullSource
-    @ValueSource(strings = {"none", "gzip", "snappy", "zstd"})
+    @ValueSource(strings = { "none", "gzip", "snappy", "zstd" })
     void filenameTemplateNotSet(final String compression) {
         final Map<String, String> properties = new HashMap<>();
         properties.put("gcs.bucket.name", "test-bucket");
@@ -574,337 +478,255 @@ final class GcsSinkConfigTest {
 
         assertConfigDefValidationPasses(properties);
 
-        final CompressionType compressionType =
-                compression == null ? CompressionType.NONE : CompressionType.forName(compression);
+        final CompressionType compressionType = compression == null
+                ? CompressionType.NONE
+                : CompressionType.forName(compression);
         final String expected = "a-b-c" + compressionType.extension();
 
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         final String actual = config.getFilenameTemplate()
-            .instance()
-            .bindVariable("topic", () -> "a")
-            .bindVariable("partition", () -> "b")
-            .bindVariable("start_offset", () -> "c")
-            .render();
+                .instance()
+                .bindVariable("topic", () -> "a")
+                .bindVariable("partition", () -> "b")
+                .bindVariable("start_offset", () -> "c")
+                .render();
         assertEquals(expected, actual);
     }
 
     @Test
     void topicPartitionOffsetFilenameTemplateVariablesOrder1() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.name.template", "{{topic}}-{{partition}}-{{start_offset}}"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.name.template",
+                "{{topic}}-{{partition}}-{{start_offset}}");
 
         assertConfigDefValidationPasses(properties);
 
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         final String actual = config.getFilenameTemplate()
-            .instance()
-            .bindVariable("topic", () -> "a")
-            .bindVariable("partition", () -> "b")
-            .bindVariable("start_offset", () -> "c")
-            .render();
+                .instance()
+                .bindVariable("topic", () -> "a")
+                .bindVariable("partition", () -> "b")
+                .bindVariable("start_offset", () -> "c")
+                .render();
         assertEquals("a-b-c", actual);
     }
 
     @Test
     void topicPartitionOffsetFilenameTemplateVariablesOrder2() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.name.template", "{{start_offset}}-{{partition}}-{{topic}}"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.name.template",
+                "{{start_offset}}-{{partition}}-{{topic}}");
 
         assertConfigDefValidationPasses(properties);
 
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         final String actual = config.getFilenameTemplate()
-            .instance()
-            .bindVariable("topic", () -> "a")
-            .bindVariable("partition", () -> "b")
-            .bindVariable("start_offset", () -> "c")
-            .render();
+                .instance()
+                .bindVariable("topic", () -> "a")
+                .bindVariable("partition", () -> "b")
+                .bindVariable("start_offset", () -> "c")
+                .render();
         assertEquals("c-b-a", actual);
     }
 
     @Test
     void acceptFilenameTemplateVariablesParameters() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.name.template", "{{start_offset:padding=true}}-{{partition}}-{{topic}}"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.name.template",
+                "{{start_offset:padding=true}}-{{partition}}-{{topic}}");
 
         assertConfigDefValidationPasses(properties);
         final GcsSinkConfig config = new GcsSinkConfig(properties);
         final String actual = config.getFilenameTemplate()
-            .instance()
-            .bindVariable("topic", () -> "a")
-            .bindVariable("partition", () -> "b")
-            .bindVariable("start_offset", parameter -> {
-                assertEquals("padding", parameter.name());
-                assertTrue(parameter.asBoolean());
-                return "c";
-            })
-            .render();
+                .instance()
+                .bindVariable("topic", () -> "a")
+                .bindVariable("partition", () -> "b")
+                .bindVariable("start_offset", parameter -> {
+                    assertEquals("padding", parameter.name());
+                    assertTrue(parameter.asBoolean());
+                    return "c";
+                })
+                .render();
         assertEquals("c-b-a", actual);
     }
 
     @Test
     void keyFilenameTemplateVariable() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.name.template", "{{key}}"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.name.template",
+                "{{key}}");
 
         assertConfigDefValidationPasses(properties);
 
         final GcsSinkConfig config = new GcsSinkConfig(properties);
-        final String actual = config.getFilenameTemplate()
-            .instance()
-            .bindVariable("key", () -> "a")
-            .render();
+        final String actual = config.getFilenameTemplate().instance().bindVariable("key", () -> "a").render();
         assertEquals("a", actual);
     }
 
     @Test
     void emptyFilenameTemplate() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.name.template", ""
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.name.template", "");
 
         final var expectedErrorMessage = "Invalid value  for configuration file.name.template: "
-            + "unsupported set of template variables, "
-            + "supported sets are: topic,partition,start_offset,timestamp; key";
+                + "unsupported set of template variables, "
+                + "supported sets are: topic,partition,start_offset,timestamp; key";
 
-        expectErrorMessageForConfigurationInConfigDefValidation(
-            properties, "file.name.template", expectedErrorMessage);
+        expectErrorMessageForConfigurationInConfigDefValidation(properties, "file.name.template", expectedErrorMessage);
 
-        final Throwable t = assertThrows(
-            ConfigException.class,
-            () -> new GcsSinkConfig(properties));
+        final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
         assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
     void filenameTemplateUnknownVariable() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.name.template", "{{ aaa }}{{ topic }}{{ partition }}{{ start_offset }}"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.name.template",
+                "{{ aaa }}{{ topic }}{{ partition }}{{ start_offset }}");
 
         final var expectedErrorMessage = "Invalid value {{ aaa }}{{ topic }}{{ partition }}{{ start_offset }} "
-            + "for configuration file.name.template: "
-            + "unsupported set of template variables, "
-            + "supported sets are: topic,partition,start_offset,timestamp; key";
+                + "for configuration file.name.template: " + "unsupported set of template variables, "
+                + "supported sets are: topic,partition,start_offset,timestamp; key";
 
-        expectErrorMessageForConfigurationInConfigDefValidation(
-            properties, "file.name.template", expectedErrorMessage);
+        expectErrorMessageForConfigurationInConfigDefValidation(properties, "file.name.template", expectedErrorMessage);
 
-        final Throwable t = assertThrows(
-            ConfigException.class,
-            () -> new GcsSinkConfig(properties));
+        final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
         assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
     void filenameTemplateNoTopic() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.name.template", "{{ partition }}{{ start_offset }}"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.name.template",
+                "{{ partition }}{{ start_offset }}");
 
-        final var expectedErrorMessage =
-            "Invalid value {{ partition }}{{ start_offset }} for configuration file.name.template: "
-            + "unsupported set of template variables, "
-            + "supported sets are: topic,partition,start_offset,timestamp; key";
+        final var expectedErrorMessage = "Invalid value {{ partition }}{{ start_offset }} for configuration file.name.template: "
+                + "unsupported set of template variables, "
+                + "supported sets are: topic,partition,start_offset,timestamp; key";
 
-        expectErrorMessageForConfigurationInConfigDefValidation(
-            properties, "file.name.template", expectedErrorMessage);
+        expectErrorMessageForConfigurationInConfigDefValidation(properties, "file.name.template", expectedErrorMessage);
 
-        final Throwable t = assertThrows(
-            ConfigException.class,
-            () -> new GcsSinkConfig(properties));
+        final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
         assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
     void wrongVariableParameterValue() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.name.template", "{{start_offset:padding=FALSE}}-{{partition}}-{{topic}}"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.name.template",
+                "{{start_offset:padding=FALSE}}-{{partition}}-{{topic}}");
 
         final var expectedErrorMessage = "Invalid value {{start_offset:padding=FALSE}}-{{partition}}-{{topic}} "
-            + "for configuration file.name.template: "
-            + "unsupported set of template variables parameters, "
-            + "supported sets are: "
-            + "partition:padding=true|false,start_offset:padding=true|false,timestamp:unit=yyyy|MM|dd|HH";
+                + "for configuration file.name.template: " + "unsupported set of template variables parameters, "
+                + "supported sets are: "
+                + "partition:padding=true|false,start_offset:padding=true|false,timestamp:unit=yyyy|MM|dd|HH";
 
-        expectErrorMessageForConfigurationInConfigDefValidation(
-            properties, "file.name.template", expectedErrorMessage);
+        expectErrorMessageForConfigurationInConfigDefValidation(properties, "file.name.template", expectedErrorMessage);
 
-        final Throwable t = assertThrows(
-            ConfigException.class,
-            () -> new GcsSinkConfig(properties)
-        );
+        final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
         assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
     void variableWithoutRequiredParameterValue() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.name.template", "{{start_offset}}-{{partition}}-{{topic}}-{{timestamp}}"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.name.template",
+                "{{start_offset}}-{{partition}}-{{topic}}-{{timestamp}}");
 
         final var expectedErrorMessage = "Invalid value {{start_offset}}-{{partition}}-{{topic}}-{{timestamp}} "
-            + "for configuration file.name.template: "
-            + "parameter unit is required for the the variable timestamp, "
-            + "supported values are: yyyy|MM|dd|HH";
+                + "for configuration file.name.template: "
+                + "parameter unit is required for the the variable timestamp, " + "supported values are: yyyy|MM|dd|HH";
 
-        expectErrorMessageForConfigurationInConfigDefValidation(
-            properties, "file.name.template", expectedErrorMessage);
+        expectErrorMessageForConfigurationInConfigDefValidation(properties, "file.name.template", expectedErrorMessage);
 
-        final Throwable t = assertThrows(
-            ConfigException.class,
-            () -> new GcsSinkConfig(properties)
-        );
+        final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
         assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
     void wrongVariableWithoutParameter() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.name.template", "{{start_offset:}}-{{partition}}-{{topic}}"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.name.template",
+                "{{start_offset:}}-{{partition}}-{{topic}}");
 
         final var expectedErrorMessage = "Invalid value {{start_offset:}}-{{partition}}-{{topic}} "
-            + "for configuration file.name.template: "
-            + "Wrong variable with parameter definition";
+                + "for configuration file.name.template: " + "Wrong variable with parameter definition";
 
-        expectErrorMessageForConfigurationInConfigDefValidation(
-            properties, "file.name.template", expectedErrorMessage);
+        expectErrorMessageForConfigurationInConfigDefValidation(properties, "file.name.template", expectedErrorMessage);
 
-        final Throwable t = assertThrows(
-            ConfigException.class,
-            () -> new GcsSinkConfig(properties)
-        );
+        final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
         assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
     void noVariableWithParameter() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.name.template", "{{:padding=true}}-{{partition}}-{{topic}}"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.name.template",
+                "{{:padding=true}}-{{partition}}-{{topic}}");
 
         final var expectedErrorMessage = "Invalid value {{:padding=true}}-{{partition}}-{{topic}} "
-            + "for configuration file.name.template: "
-            + "Variable name hasn't been set for template: {{:padding=true}}-{{partition}}-{{topic}}";
+                + "for configuration file.name.template: "
+                + "Variable name hasn't been set for template: {{:padding=true}}-{{partition}}-{{topic}}";
 
-        expectErrorMessageForConfigurationInConfigDefValidation(
-            properties, "file.name.template", expectedErrorMessage);
+        expectErrorMessageForConfigurationInConfigDefValidation(properties, "file.name.template", expectedErrorMessage);
 
-        final Throwable t = assertThrows(
-            ConfigException.class,
-            () -> new GcsSinkConfig(properties)
-        );
-        assertEquals(expectedErrorMessage, t.getMessage()
-        );
+        final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
+        assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
     void wrongVariableWithoutParameterValue() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.name.template", "{{start_offset:padding=}}-{{partition}}-{{topic}}"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.name.template",
+                "{{start_offset:padding=}}-{{partition}}-{{topic}}");
 
         final var expectedErrorMessage = "Invalid value {{start_offset:padding=}}-{{partition}}-{{topic}} "
-            + "for configuration file.name.template: "
-            + "Parameter value for variable `start_offset` and parameter `padding` has not been set";
+                + "for configuration file.name.template: "
+                + "Parameter value for variable `start_offset` and parameter `padding` has not been set";
 
-        expectErrorMessageForConfigurationInConfigDefValidation(
-            properties, "file.name.template", expectedErrorMessage);
+        expectErrorMessageForConfigurationInConfigDefValidation(properties, "file.name.template", expectedErrorMessage);
 
-        final Throwable t = assertThrows(
-            ConfigException.class,
-            () -> new GcsSinkConfig(properties)
-        );
+        final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
         assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
     void wrongVariableWithoutParameterName() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.name.template", "{{start_offset:=true}}-{{partition}}-{{topic}}"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.name.template",
+                "{{start_offset:=true}}-{{partition}}-{{topic}}");
 
         final var expectedErrorMessage = "Invalid value {{start_offset:=true}}-{{partition}}-{{topic}} "
-            + "for configuration file.name.template: "
-            + "Parameter name for variable `start_offset` has not been set";
+                + "for configuration file.name.template: "
+                + "Parameter name for variable `start_offset` has not been set";
 
-        expectErrorMessageForConfigurationInConfigDefValidation(
-            properties, "file.name.template", expectedErrorMessage);
+        expectErrorMessageForConfigurationInConfigDefValidation(properties, "file.name.template", expectedErrorMessage);
 
-        final Throwable t = assertThrows(
-            ConfigException.class,
-            () -> new GcsSinkConfig(properties)
-        );
+        final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
         assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
     void filenameTemplateNoPartition() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.name.template", "{{ topic }}{{ start_offset }}"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.name.template",
+                "{{ topic }}{{ start_offset }}");
 
-        final var expectedErrorMessage =
-            "Invalid value {{ topic }}{{ start_offset }} for configuration file.name.template: "
-            + "unsupported set of template variables, "
-            + "supported sets are: topic,partition,start_offset,timestamp; key";
+        final var expectedErrorMessage = "Invalid value {{ topic }}{{ start_offset }} for configuration file.name.template: "
+                + "unsupported set of template variables, "
+                + "supported sets are: topic,partition,start_offset,timestamp; key";
 
-        expectErrorMessageForConfigurationInConfigDefValidation(
-            properties, "file.name.template", expectedErrorMessage);
+        expectErrorMessageForConfigurationInConfigDefValidation(properties, "file.name.template", expectedErrorMessage);
 
-        final Throwable t = assertThrows(
-            ConfigException.class,
-            () -> new GcsSinkConfig(properties));
+        final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
         assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
     void filenameTemplateNoStartOffset() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.name.template", "{{ topic }}{{ partition }}"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.name.template",
+                "{{ topic }}{{ partition }}");
 
-        final var expectedErrorMessage =
-            "Invalid value {{ topic }}{{ partition }} for configuration file.name.template: "
-            + "unsupported set of template variables, "
-            + "supported sets are: topic,partition,start_offset,timestamp; key";
+        final var expectedErrorMessage = "Invalid value {{ topic }}{{ partition }} for configuration file.name.template: "
+                + "unsupported set of template variables, "
+                + "supported sets are: topic,partition,start_offset,timestamp; key";
 
-        expectErrorMessageForConfigurationInConfigDefValidation(
-            properties, "file.name.template", expectedErrorMessage);
+        expectErrorMessageForConfigurationInConfigDefValidation(properties, "file.name.template", expectedErrorMessage);
 
-        final Throwable t = assertThrows(
-            ConfigException.class,
-            () -> new GcsSinkConfig(properties));
+        final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
         assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
     void keyFilenameTemplateAndLimitedRecordsPerFileNotSet() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.name.template", "{{key}}"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.name.template",
+                "{{key}}");
 
         assertConfigDefValidationPasses(properties);
         assertDoesNotThrow(() -> new GcsSinkConfig(properties));
@@ -912,11 +734,8 @@ final class GcsSinkConfigTest {
 
     @Test
     void keyFilenameTemplateAndLimitedRecordsPerFile1() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.name.template", "{{key}}",
-            "file.max.records", "1"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.name.template", "{{key}}",
+                "file.max.records", "1");
 
         assertConfigDefValidationPasses(properties);
         assertDoesNotThrow(() -> new GcsSinkConfig(properties));
@@ -924,28 +743,21 @@ final class GcsSinkConfigTest {
 
     @Test
     void keyFilenameTemplateAndLimitedRecordsPerFileMoreThan1() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.name.template", "{{key}}",
-            "file.max.records", "42"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.name.template", "{{key}}",
+                "file.max.records", "42");
 
         // Should pass here, because ConfigDef validation doesn't check interdependencies.
         assertConfigDefValidationPasses(properties);
 
-        final Throwable t = assertThrows(
-            ConfigException.class,
-            () -> new GcsSinkConfig(properties));
+        final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
         assertEquals("When file.name.template is {{key}}, file.max.records must be either 1 or not set",
-            t.getMessage());
+                t.getMessage());
     }
 
     @Test
     void correctShortFilenameTimezone() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.name.timestamp.timezone", "CET"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.name.timestamp.timezone",
+                "CET");
 
         assertConfigDefValidationPasses(properties);
 
@@ -955,10 +767,8 @@ final class GcsSinkConfigTest {
 
     @Test
     void correctLongFilenameTimezone() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.name.timestamp.timezone", "Europe/Berlin"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.name.timestamp.timezone",
+                "Europe/Berlin");
 
         assertConfigDefValidationPasses(properties);
 
@@ -968,32 +778,23 @@ final class GcsSinkConfigTest {
 
     @Test
     void wrongFilenameTimestampSource() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.name.timestamp.timezone", "Europe/Berlin",
-            "file.name.timestamp.source", "UNKNOWN_TIMESTAMP_SOURCE"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.name.timestamp.timezone",
+                "Europe/Berlin", "file.name.timestamp.source", "UNKNOWN_TIMESTAMP_SOURCE");
 
         final var expectedErrorMessage = "Invalid value UNKNOWN_TIMESTAMP_SOURCE for configuration "
-            + "file.name.timestamp.source: Unknown timestamp source: UNKNOWN_TIMESTAMP_SOURCE";
+                + "file.name.timestamp.source: Unknown timestamp source: UNKNOWN_TIMESTAMP_SOURCE";
 
-        expectErrorMessageForConfigurationInConfigDefValidation(
-            properties, "file.name.timestamp.source", expectedErrorMessage);
+        expectErrorMessageForConfigurationInConfigDefValidation(properties, "file.name.timestamp.source",
+                expectedErrorMessage);
 
-        final Throwable t = assertThrows(
-            ConfigException.class,
-            () -> new GcsSinkConfig(properties)
-        );
+        final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
         assertEquals(expectedErrorMessage, t.getMessage());
     }
 
     @Test
     void correctFilenameTimestampSource() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "file.name.timestamp.timezone", "Europe/Berlin",
-            "file.name.timestamp.source", "wallclock"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.name.timestamp.timezone",
+                "Europe/Berlin", "file.name.timestamp.source", "wallclock");
 
         assertConfigDefValidationPasses(properties);
 
@@ -1002,12 +803,10 @@ final class GcsSinkConfigTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"jsonl", "json", "csv"})
+    @ValueSource(strings = { "jsonl", "json", "csv" })
     void supportedFormatTypeConfig(final String formatType) {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "format.output.type", formatType
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "format.output.type",
+                formatType);
 
         assertConfigDefValidationPasses(properties);
 
@@ -1019,22 +818,17 @@ final class GcsSinkConfigTest {
 
     @Test
     void wrongFormatTypeConfig() {
-        final Map<String, String> properties = Map.of(
-            "gcs.bucket.name", "test-bucket",
-            "format.output.type", "unknown"
-        );
+        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "format.output.type",
+                "unknown");
 
         final var expectedErrorMessage = "Invalid value unknown for configuration format.output.type: "
-            + "supported values are: 'csv', 'json', 'jsonl', 'parquet'";
+                + "supported values are: 'csv', 'json', 'jsonl', 'parquet'";
 
-        final var v = expectErrorMessageForConfigurationInConfigDefValidation(
-            properties, "format.output.type", expectedErrorMessage);
+        final var v = expectErrorMessageForConfigurationInConfigDefValidation(properties, "format.output.type",
+                expectedErrorMessage);
         assertIterableEquals(List.of("csv", "json", "jsonl", "parquet"), v.recommendedValues());
 
-        final Throwable t = assertThrows(
-            ConfigException.class,
-            () -> new GcsSinkConfig(properties)
-        );
+        final Throwable t = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
         assertEquals(expectedErrorMessage, t.getMessage());
     }
 
@@ -1044,10 +838,8 @@ final class GcsSinkConfigTest {
         }
     }
 
-    private ConfigValue expectErrorMessageForConfigurationInConfigDefValidation(
-        final Map<String, String> properties,
-        final String configuration,
-        final String expectedErrorMessage) {
+    private ConfigValue expectErrorMessageForConfigurationInConfigDefValidation(final Map<String, String> properties,
+            final String configuration, final String expectedErrorMessage) {
         ConfigValue result = null;
         for (final ConfigValue v : GcsSinkConfig.configDef().validate(properties)) {
             if (v.name().equals(configuration)) {

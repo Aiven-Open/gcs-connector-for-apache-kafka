@@ -48,9 +48,7 @@ final class ConnectRunner {
     private Herder herder;
     private Connect connect;
 
-    public ConnectRunner(final File pluginDir,
-                         final String bootstrapServers,
-                         final int offsetFlushIntervalMs) {
+    public ConnectRunner(final File pluginDir, final String bootstrapServers, final int offsetFlushIntervalMs) {
         this.pluginDir = pluginDir;
         this.bootstrapServers = bootstrapServers;
         this.offsetFlushInterval = offsetFlushIntervalMs;
@@ -82,8 +80,7 @@ final class ConnectRunner {
         final Plugins plugins = new Plugins(workerProps);
         final StandaloneConfig config = new StandaloneConfig(workerProps);
 
-        final Worker worker = new Worker(
-            workerId, time, plugins, config, new MemoryOffsetBackingStore());
+        final Worker worker = new Worker(workerId, time, plugins, config, new MemoryOffsetBackingStore());
         herder = new StandaloneHerder(worker, kafkaClusterId);
 
         final RestServer rest = new RestServer(config);
@@ -97,20 +94,17 @@ final class ConnectRunner {
         assert herder != null;
 
         final FutureCallback<Herder.Created<ConnectorInfo>> cb = new FutureCallback<>(
-            new Callback<Herder.Created<ConnectorInfo>>() {
-                @Override
-                public void onCompletion(final Throwable error, final Herder.Created<ConnectorInfo> info) {
-                    if (error != null) {
-                        log.error("Failed to create job");
-                    } else {
-                        log.info("Created connector {}", info.result().name());
+                new Callback<Herder.Created<ConnectorInfo>>() {
+                    @Override
+                    public void onCompletion(final Throwable error, final Herder.Created<ConnectorInfo> info) {
+                        if (error != null) {
+                            log.error("Failed to create job");
+                        } else {
+                            log.info("Created connector {}", info.result().name());
+                        }
                     }
-                }
-            });
-        herder.putConnectorConfig(
-            config.get(ConnectorConfig.NAME_CONFIG),
-            config, false, cb
-        );
+                });
+        herder.putConnectorConfig(config.get(ConnectorConfig.NAME_CONFIG), config, false, cb);
 
         final Herder.Created<ConnectorInfo> connectorInfoCreated = cb.get();
         assert connectorInfoCreated.created();

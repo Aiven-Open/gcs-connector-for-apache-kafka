@@ -16,6 +16,9 @@
 
 package io.aiven.kafka.connect.gcs;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertIterableEquals;
+
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -47,20 +50,17 @@ import org.testcontainers.containers.Network;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertIterableEquals;
-
 @Testcontainers
 final class AvroIntegrationTest extends AbstractIntegrationTest {
     private static final String CONNECTOR_NAME = "aiven-gcs-sink-connector";
 
     @Container
     private final KafkaContainer kafka = new KafkaContainer()
-        // Expose both Kafka ports:
-        // 9092 can be used inside Docker network (by the Schema Registry container)
-        .withExposedPorts(KafkaContainer.KAFKA_PORT, 9092)
-        .withNetwork(Network.newNetwork())
-        .withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false");
+            // Expose both Kafka ports:
+            // 9092 can be used inside Docker network (by the Schema Registry container)
+            .withExposedPorts(KafkaContainer.KAFKA_PORT, 9092)
+            .withNetwork(Network.newNetwork())
+            .withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false");
 
     @Container
     private final SchemaRegistryContainer schemaRegistry = new SchemaRegistryContainer(kafka);
@@ -108,16 +108,9 @@ final class AvroIntegrationTest extends AbstractIntegrationTest {
 
     private String getTimestampBlobName(final int partition, final int startOffset) {
         final ZonedDateTime time = ZonedDateTime.now(ZoneId.of("UTC"));
-        return String.format(
-                "%s%s-%d-%d-%s-%s-%s",
-                gcsPrefix,
-                TEST_TOPIC_0,
-                partition,
-                startOffset,
-                time.format(DateTimeFormatter.ofPattern("yyyy")),
-                time.format(DateTimeFormatter.ofPattern("MM")),
-                time.format(DateTimeFormatter.ofPattern("dd"))
-        );
+        return String.format("%s%s-%d-%d-%s-%s-%s", gcsPrefix, TEST_TOPIC_0, partition, startOffset,
+                time.format(DateTimeFormatter.ofPattern("yyyy")), time.format(DateTimeFormatter.ofPattern("MM")),
+                time.format(DateTimeFormatter.ofPattern("dd")));
     }
 
     @Test
@@ -130,8 +123,8 @@ final class AvroIntegrationTest extends AbstractIntegrationTest {
         connectorConfig.put("format.output.type", "jsonl");
         connectRunner.createConnector(connectorConfig);
 
-        final Schema valueSchema = new Schema.Parser().parse("{\"type\":\"record\",\"name\":\"value\","
-            + "\"fields\":[{\"name\":\"name\",\"type\":\"string\"}]}");
+        final Schema valueSchema = new Schema.Parser().parse(
+                "{\"type\":\"record\",\"name\":\"value\"," + "\"fields\":[{\"name\":\"name\",\"type\":\"string\"}]}");
 
         final List<Future<RecordMetadata>> sendFutures = new ArrayList<>();
         int cnt = 0;
@@ -150,11 +143,8 @@ final class AvroIntegrationTest extends AbstractIntegrationTest {
             sendFuture.get();
         }
 
-        final List<String> expectedBlobs = Arrays.asList(
-            getBlobName(0, 0, compression),
-            getBlobName(1, 0, compression),
-            getBlobName(2, 0, compression),
-            getBlobName(3, 0, compression));
+        final List<String> expectedBlobs = Arrays.asList(getBlobName(0, 0, compression), getBlobName(1, 0, compression),
+                getBlobName(2, 0, compression), getBlobName(3, 0, compression));
 
         awaitAllBlobsWritten(expectedBlobs.size());
         assertIterableEquals(expectedBlobs, testBucketAccessor.getBlobNames(gcsPrefix));
@@ -180,12 +170,9 @@ final class AvroIntegrationTest extends AbstractIntegrationTest {
         }
     }
 
-    private Future<RecordMetadata> sendMessageAsync(final String topicName,
-                                                    final int partition,
-                                                    final String key,
-                                                    final GenericRecord value) {
-        final ProducerRecord<String, GenericRecord> msg = new ProducerRecord<>(
-                topicName, partition, key, value);
+    private Future<RecordMetadata> sendMessageAsync(final String topicName, final int partition, final String key,
+            final GenericRecord value) {
+        final ProducerRecord<String, GenericRecord> msg = new ProducerRecord<>(topicName, partition, key, value);
         return producer.send(msg);
     }
 

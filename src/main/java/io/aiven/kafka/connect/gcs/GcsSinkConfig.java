@@ -77,7 +77,7 @@ public final class GcsSinkConfig extends AivenCommonConfig {
 
     public static final String GCS_RETRY_BACKOFF_MAX_ATTEMPTS_CONFIG = "gcs.retry.backoff.max.attempts";
 
-    //All default from GCS client, hardcoded here since GCS hadn't constants
+    // All default from GCS client, hardcoded here since GCS hadn't constants
     public static final long GCS_RETRY_BACKOFF_INITIAL_DELAY_MS_DEFAULT = 1_000L;
 
     public static final long GCS_RETRY_BACKOFF_MAX_DELAY_MS_DEFAULT = 32_000L;
@@ -102,107 +102,49 @@ public final class GcsSinkConfig extends AivenCommonConfig {
 
     private static void addGcsConfigGroup(final ConfigDef configDef) {
         int gcsGroupCounter = 0;
-        configDef.define(
-            GCS_CREDENTIALS_PATH_CONFIG,
-            ConfigDef.Type.STRING,
-            null,
-            ConfigDef.Importance.LOW,
-            "The path to a GCP credentials file. "
-                + "If not provided, the connector will try to detect the credentials automatically. "
-                + "Cannot be set together with \"" + GCS_CREDENTIALS_JSON_CONFIG + "\"",
-            GROUP_GCS,
-            gcsGroupCounter++,
-            ConfigDef.Width.NONE,
-            GCS_CREDENTIALS_PATH_CONFIG
-        );
+        configDef.define(GCS_CREDENTIALS_PATH_CONFIG, ConfigDef.Type.STRING, null, ConfigDef.Importance.LOW,
+                "The path to a GCP credentials file. "
+                        + "If not provided, the connector will try to detect the credentials automatically. "
+                        + "Cannot be set together with \"" + GCS_CREDENTIALS_JSON_CONFIG + "\"",
+                GROUP_GCS, gcsGroupCounter++, ConfigDef.Width.NONE, GCS_CREDENTIALS_PATH_CONFIG);
 
-        configDef.define(
-            GCS_CREDENTIALS_JSON_CONFIG,
-            ConfigDef.Type.PASSWORD,
-            null,
-            ConfigDef.Importance.LOW,
-            "GCP credentials as a JSON string. "
-                + "If not provided, the connector will try to detect the credentials automatically. "
-                + "Cannot be set together with \"" + GCS_CREDENTIALS_PATH_CONFIG + "\"",
-            GROUP_GCS,
-            gcsGroupCounter++,
-            ConfigDef.Width.NONE,
-            GCS_CREDENTIALS_JSON_CONFIG
-        );
+        configDef.define(GCS_CREDENTIALS_JSON_CONFIG, ConfigDef.Type.PASSWORD, null, ConfigDef.Importance.LOW,
+                "GCP credentials as a JSON string. "
+                        + "If not provided, the connector will try to detect the credentials automatically. "
+                        + "Cannot be set together with \"" + GCS_CREDENTIALS_PATH_CONFIG + "\"",
+                GROUP_GCS, gcsGroupCounter++, ConfigDef.Width.NONE, GCS_CREDENTIALS_JSON_CONFIG);
 
-        configDef.define(
-            GCS_BUCKET_NAME_CONFIG,
-            ConfigDef.Type.STRING,
-            ConfigDef.NO_DEFAULT_VALUE,
-            new ConfigDef.NonEmptyString(),
-            ConfigDef.Importance.HIGH,
-            "The GCS bucket name to store output files in.",
-            GROUP_GCS,
-            gcsGroupCounter++,
-            ConfigDef.Width.NONE,
-            GCS_BUCKET_NAME_CONFIG
-        );
+        configDef.define(GCS_BUCKET_NAME_CONFIG, ConfigDef.Type.STRING, ConfigDef.NO_DEFAULT_VALUE,
+                new ConfigDef.NonEmptyString(), ConfigDef.Importance.HIGH,
+                "The GCS bucket name to store output files in.", GROUP_GCS, gcsGroupCounter++, ConfigDef.Width.NONE,
+                GCS_BUCKET_NAME_CONFIG);
     }
 
     private static void addGcsRetryPolicies(final ConfigDef configDef) {
         var retryPolicyGroupCounter = 0;
-        configDef.define(
-                GCS_RETRY_BACKOFF_INITIAL_DELAY_MS_CONFIG,
-                ConfigDef.Type.LONG,
-                GCS_RETRY_BACKOFF_INITIAL_DELAY_MS_DEFAULT,
-                ConfigDef.Range.atLeast(0L),
-                ConfigDef.Importance.MEDIUM,
+        configDef.define(GCS_RETRY_BACKOFF_INITIAL_DELAY_MS_CONFIG, ConfigDef.Type.LONG,
+                GCS_RETRY_BACKOFF_INITIAL_DELAY_MS_DEFAULT, ConfigDef.Range.atLeast(0L), ConfigDef.Importance.MEDIUM,
                 "Initial retry delay in milliseconds. The default value is "
                         + GCS_RETRY_BACKOFF_INITIAL_DELAY_MS_DEFAULT,
-                GROUP_GCS_RETRY_BACKOFF_POLICY,
-                retryPolicyGroupCounter++,
-                ConfigDef.Width.NONE,
-                GCS_RETRY_BACKOFF_INITIAL_DELAY_MS_CONFIG
-        );
-        configDef.define(
-                GCS_RETRY_BACKOFF_MAX_DELAY_MS_CONFIG,
-                ConfigDef.Type.LONG,
-                GCS_RETRY_BACKOFF_MAX_DELAY_MS_DEFAULT,
-                ConfigDef.Range.atLeast(0L),
-                ConfigDef.Importance.MEDIUM,
-                "Maximum retry delay in milliseconds. The default value is "
-                        + GCS_RETRY_BACKOFF_MAX_DELAY_MS_DEFAULT,
-                GROUP_GCS_RETRY_BACKOFF_POLICY,
-                retryPolicyGroupCounter++,
-                ConfigDef.Width.NONE,
-                GCS_RETRY_BACKOFF_MAX_DELAY_MS_CONFIG
-        );
-        configDef.define(
-                GCS_RETRY_BACKOFF_DELAY_MULTIPLIER_CONFIG,
-                ConfigDef.Type.DOUBLE,
-                GCS_RETRY_BACKOFF_DELAY_MULTIPLIER_DEFAULT,
-                ConfigDef.Range.atLeast(1.0D),
-                ConfigDef.Importance.MEDIUM,
-                "Retry delay multiplier. The default value is "
-                        + GCS_RETRY_BACKOFF_DELAY_MULTIPLIER_DEFAULT,
-                GROUP_GCS_RETRY_BACKOFF_POLICY,
-                retryPolicyGroupCounter++,
-                ConfigDef.Width.NONE,
-                GCS_RETRY_BACKOFF_DELAY_MULTIPLIER_CONFIG
-        );
-        configDef.define(
-                GCS_RETRY_BACKOFF_MAX_ATTEMPTS_CONFIG,
-                ConfigDef.Type.INT,
-                GCS_RETRY_BACKOFF_MAX_ATTEMPTS_DEFAULT,
-                ConfigDef.Range.atLeast(0L),
-                ConfigDef.Importance.MEDIUM,
-                "Retry max attempts. The default value is "
-                        + GCS_RETRY_BACKOFF_MAX_ATTEMPTS_DEFAULT,
-                GROUP_GCS_RETRY_BACKOFF_POLICY,
-                retryPolicyGroupCounter++,
-                ConfigDef.Width.NONE,
-                GCS_RETRY_BACKOFF_MAX_ATTEMPTS_CONFIG
-        );
-        configDef.define(
-                GCS_RETRY_BACKOFF_TOTAL_TIMEOUT_MS_CONFIG,
-                ConfigDef.Type.LONG,
-                GCS_RETRY_BACKOFF_TOTAL_TIMEOUT_MS_DEFAULT,
-                new ConfigDef.Validator() {
+                GROUP_GCS_RETRY_BACKOFF_POLICY, retryPolicyGroupCounter++, ConfigDef.Width.NONE,
+                GCS_RETRY_BACKOFF_INITIAL_DELAY_MS_CONFIG);
+        configDef.define(GCS_RETRY_BACKOFF_MAX_DELAY_MS_CONFIG, ConfigDef.Type.LONG,
+                GCS_RETRY_BACKOFF_MAX_DELAY_MS_DEFAULT, ConfigDef.Range.atLeast(0L), ConfigDef.Importance.MEDIUM,
+                "Maximum retry delay in milliseconds. The default value is " + GCS_RETRY_BACKOFF_MAX_DELAY_MS_DEFAULT,
+                GROUP_GCS_RETRY_BACKOFF_POLICY, retryPolicyGroupCounter++, ConfigDef.Width.NONE,
+                GCS_RETRY_BACKOFF_MAX_DELAY_MS_CONFIG);
+        configDef.define(GCS_RETRY_BACKOFF_DELAY_MULTIPLIER_CONFIG, ConfigDef.Type.DOUBLE,
+                GCS_RETRY_BACKOFF_DELAY_MULTIPLIER_DEFAULT, ConfigDef.Range.atLeast(1.0D), ConfigDef.Importance.MEDIUM,
+                "Retry delay multiplier. The default value is " + GCS_RETRY_BACKOFF_DELAY_MULTIPLIER_DEFAULT,
+                GROUP_GCS_RETRY_BACKOFF_POLICY, retryPolicyGroupCounter++, ConfigDef.Width.NONE,
+                GCS_RETRY_BACKOFF_DELAY_MULTIPLIER_CONFIG);
+        configDef.define(GCS_RETRY_BACKOFF_MAX_ATTEMPTS_CONFIG, ConfigDef.Type.INT,
+                GCS_RETRY_BACKOFF_MAX_ATTEMPTS_DEFAULT, ConfigDef.Range.atLeast(0L), ConfigDef.Importance.MEDIUM,
+                "Retry max attempts. The default value is " + GCS_RETRY_BACKOFF_MAX_ATTEMPTS_DEFAULT,
+                GROUP_GCS_RETRY_BACKOFF_POLICY, retryPolicyGroupCounter++, ConfigDef.Width.NONE,
+                GCS_RETRY_BACKOFF_MAX_ATTEMPTS_CONFIG);
+        configDef.define(GCS_RETRY_BACKOFF_TOTAL_TIMEOUT_MS_CONFIG, ConfigDef.Type.LONG,
+                GCS_RETRY_BACKOFF_TOTAL_TIMEOUT_MS_DEFAULT, new ConfigDef.Validator() {
 
                     static final long TOTAL_TIME_MAX = 86400000; // 24 hours
 
@@ -220,169 +162,103 @@ public final class GcsSinkConfig extends AivenCommonConfig {
                                     "Value must be no more than " + TOTAL_TIME_MAX + " (24 hours)");
                         }
                     }
-                },
-                ConfigDef.Importance.MEDIUM,
+                }, ConfigDef.Importance.MEDIUM,
                 "Retry total timeout in milliseconds. The default value is "
                         + GCS_RETRY_BACKOFF_TOTAL_TIMEOUT_MS_DEFAULT,
-                GROUP_GCS_RETRY_BACKOFF_POLICY,
-                retryPolicyGroupCounter++,
-                ConfigDef.Width.NONE,
-                GCS_RETRY_BACKOFF_TOTAL_TIMEOUT_MS_CONFIG
-        );
+                GROUP_GCS_RETRY_BACKOFF_POLICY, retryPolicyGroupCounter++, ConfigDef.Width.NONE,
+                GCS_RETRY_BACKOFF_TOTAL_TIMEOUT_MS_CONFIG);
     }
 
     private static void addFileConfigGroup(final ConfigDef configDef) {
         int fileGroupCounter = 0;
-        configDef.define(
-            FILE_NAME_PREFIX_CONFIG,
-            ConfigDef.Type.STRING,
-            "",
-            new ConfigDef.Validator() {
-                @Override
-                public void ensureValid(final String name, final Object value) {
-                    // See https://cloud.google.com/storage/docs/naming
-                    assert value instanceof String;
-                    final String valueStr = (String) value;
-                    if (valueStr.length() > 1024) {
-                        throw new ConfigException(GCS_BUCKET_NAME_CONFIG, value,
-                            "cannot be longer than 1024 characters");
-                    }
-                    if (valueStr.startsWith(".well-known/acme-challenge")) {
-                        throw new ConfigException(GCS_BUCKET_NAME_CONFIG, value,
+        configDef.define(FILE_NAME_PREFIX_CONFIG, ConfigDef.Type.STRING, "", new ConfigDef.Validator() {
+            @Override
+            public void ensureValid(final String name, final Object value) {
+                // See https://cloud.google.com/storage/docs/naming
+                assert value instanceof String;
+                final String valueStr = (String) value;
+                if (valueStr.length() > 1024) {
+                    throw new ConfigException(GCS_BUCKET_NAME_CONFIG, value, "cannot be longer than 1024 characters");
+                }
+                if (valueStr.startsWith(".well-known/acme-challenge")) {
+                    throw new ConfigException(GCS_BUCKET_NAME_CONFIG, value,
                             "cannot start with '.well-known/acme-challenge'");
-                    }
                 }
-            },
-            ConfigDef.Importance.MEDIUM,
-            "The prefix to be added to the name of each file put on GCS.",
-            GROUP_FILE,
-            fileGroupCounter++,
-            ConfigDef.Width.NONE,
-            FILE_NAME_PREFIX_CONFIG
-        );
+            }
+        }, ConfigDef.Importance.MEDIUM, "The prefix to be added to the name of each file put on GCS.", GROUP_FILE,
+                fileGroupCounter++, ConfigDef.Width.NONE, FILE_NAME_PREFIX_CONFIG);
 
-        configDef.define(
-            FILE_NAME_TEMPLATE_CONFIG,
-            ConfigDef.Type.STRING,
-            null,
-            new FilenameTemplateValidator(FILE_NAME_TEMPLATE_CONFIG),
-            ConfigDef.Importance.MEDIUM,
-            "The template for file names on GCS. "
-                + "Supports `{{ variable }}` placeholders for substituting variables. "
-                + "Currently supported variables are `topic`, `partition`, and `start_offset` "
-                + "(the offset of the first record in the file). "
-                + "Only some combinations of variables are valid, which currently are:\n"
-                + "- `topic`, `partition`, `start_offset`.",
-            GROUP_FILE,
-            fileGroupCounter++,
-            ConfigDef.Width.LONG,
-            FILE_NAME_TEMPLATE_CONFIG
-        );
+        configDef.define(FILE_NAME_TEMPLATE_CONFIG, ConfigDef.Type.STRING, null,
+                new FilenameTemplateValidator(FILE_NAME_TEMPLATE_CONFIG), ConfigDef.Importance.MEDIUM,
+                "The template for file names on GCS. "
+                        + "Supports `{{ variable }}` placeholders for substituting variables. "
+                        + "Currently supported variables are `topic`, `partition`, and `start_offset` "
+                        + "(the offset of the first record in the file). "
+                        + "Only some combinations of variables are valid, which currently are:\n"
+                        + "- `topic`, `partition`, `start_offset`.",
+                GROUP_FILE, fileGroupCounter++, ConfigDef.Width.LONG, FILE_NAME_TEMPLATE_CONFIG);
 
-        final String supportedCompressionTypes = CompressionType.names().stream()
-            .map(f -> "'" + f + "'")
-            .collect(Collectors.joining(", "));
-        configDef.define(
-            FILE_COMPRESSION_TYPE_CONFIG,
-            ConfigDef.Type.STRING,
-            CompressionType.NONE.name,
-            new ConfigDef.Validator() {
-                @Override
-                public void ensureValid(final String name, final Object value) {
-                    assert value instanceof String;
-                    final String valueStr = (String) value;
-                    if (!CompressionType.names().contains(valueStr)) {
-                        throw new ConfigException(
-                            FILE_COMPRESSION_TYPE_CONFIG, valueStr,
-                            "supported values are: " + supportedCompressionTypes);
+        final String supportedCompressionTypes = CompressionType.names()
+                .stream()
+                .map(f -> "'" + f + "'")
+                .collect(Collectors.joining(", "));
+        configDef.define(FILE_COMPRESSION_TYPE_CONFIG, ConfigDef.Type.STRING, CompressionType.NONE.name,
+                new ConfigDef.Validator() {
+                    @Override
+                    public void ensureValid(final String name, final Object value) {
+                        assert value instanceof String;
+                        final String valueStr = (String) value;
+                        if (!CompressionType.names().contains(valueStr)) {
+                            throw new ConfigException(FILE_COMPRESSION_TYPE_CONFIG, valueStr,
+                                    "supported values are: " + supportedCompressionTypes);
+                        }
                     }
-                }
-            },
-            ConfigDef.Importance.MEDIUM,
-            "The compression type used for files put on GCS. "
-                + "The supported values are: " + supportedCompressionTypes + ".",
-            GROUP_FILE,
-            fileGroupCounter++,
-            ConfigDef.Width.NONE,
-            FILE_COMPRESSION_TYPE_CONFIG,
-            FixedSetRecommender.ofSupportedValues(CompressionType.names())
-        );
+                }, ConfigDef.Importance.MEDIUM,
+                "The compression type used for files put on GCS. " + "The supported values are: "
+                        + supportedCompressionTypes + ".",
+                GROUP_FILE, fileGroupCounter++, ConfigDef.Width.NONE, FILE_COMPRESSION_TYPE_CONFIG,
+                FixedSetRecommender.ofSupportedValues(CompressionType.names()));
 
-        configDef.define(
-            FILE_MAX_RECORDS,
-            ConfigDef.Type.INT,
-            0,
-            new ConfigDef.Validator() {
-                @Override
-                public void ensureValid(final String name, final Object value) {
-                    assert value instanceof Integer;
-                    if ((Integer) value < 0) {
-                        throw new ConfigException(
-                            FILE_MAX_RECORDS, value,
-                            "must be a non-negative integer number");
-                    }
+        configDef.define(FILE_MAX_RECORDS, ConfigDef.Type.INT, 0, new ConfigDef.Validator() {
+            @Override
+            public void ensureValid(final String name, final Object value) {
+                assert value instanceof Integer;
+                if ((Integer) value < 0) {
+                    throw new ConfigException(FILE_MAX_RECORDS, value, "must be a non-negative integer number");
                 }
-            },
-            ConfigDef.Importance.MEDIUM,
-            "The maximum number of records to put in a single file. "
-                + "Must be a non-negative integer number. "
-                + "0 is interpreted as \"unlimited\", which is the default.",
-            GROUP_FILE,
-            fileGroupCounter++,
-            ConfigDef.Width.SHORT,
-            FILE_MAX_RECORDS
-        );
+            }
+        }, ConfigDef.Importance.MEDIUM,
+                "The maximum number of records to put in a single file. " + "Must be a non-negative integer number. "
+                        + "0 is interpreted as \"unlimited\", which is the default.",
+                GROUP_FILE, fileGroupCounter++, ConfigDef.Width.SHORT, FILE_MAX_RECORDS);
 
-        configDef.define(
-            FILE_NAME_TIMESTAMP_TIMEZONE,
-            ConfigDef.Type.STRING,
-            ZoneOffset.UTC.toString(),
-            new ConfigDef.Validator() {
-                @Override
-                public void ensureValid(final String name, final Object value) {
-                    try {
-                        ZoneId.of(value.toString());
-                    } catch (final Exception e) {
-                        throw new ConfigException(
-                            FILE_NAME_TIMESTAMP_TIMEZONE,
-                            value,
-                            e.getMessage());
+        configDef.define(FILE_NAME_TIMESTAMP_TIMEZONE, ConfigDef.Type.STRING, ZoneOffset.UTC.toString(),
+                new ConfigDef.Validator() {
+                    @Override
+                    public void ensureValid(final String name, final Object value) {
+                        try {
+                            ZoneId.of(value.toString());
+                        } catch (final Exception e) {
+                            throw new ConfigException(FILE_NAME_TIMESTAMP_TIMEZONE, value, e.getMessage());
+                        }
                     }
-                }
-            },
-            ConfigDef.Importance.LOW,
-            "Specifies the timezone in which the dates and time for the timestamp variable will be treated. "
-                + "Use standard shot and long names. Default is UTC",
-            GROUP_FILE,
-            fileGroupCounter++,
-            ConfigDef.Width.SHORT,
-            FILE_NAME_TIMESTAMP_TIMEZONE
-        );
+                }, ConfigDef.Importance.LOW,
+                "Specifies the timezone in which the dates and time for the timestamp variable will be treated. "
+                        + "Use standard shot and long names. Default is UTC",
+                GROUP_FILE, fileGroupCounter++, ConfigDef.Width.SHORT, FILE_NAME_TIMESTAMP_TIMEZONE);
 
-        configDef.define(
-            FILE_NAME_TIMESTAMP_SOURCE,
-            ConfigDef.Type.STRING,
-            TimestampSource.Type.WALLCLOCK.name(),
-            new ConfigDef.Validator() {
-                @Override
-                public void ensureValid(final String name, final Object value) {
-                    try {
-                        TimestampSource.Type.of(value.toString());
-                    } catch (final Exception e) {
-                        throw new ConfigException(
-                            FILE_NAME_TIMESTAMP_SOURCE,
-                            value,
-                            e.getMessage());
+        configDef.define(FILE_NAME_TIMESTAMP_SOURCE, ConfigDef.Type.STRING, TimestampSource.Type.WALLCLOCK.name(),
+                new ConfigDef.Validator() {
+                    @Override
+                    public void ensureValid(final String name, final Object value) {
+                        try {
+                            TimestampSource.Type.of(value.toString());
+                        } catch (final Exception e) {
+                            throw new ConfigException(FILE_NAME_TIMESTAMP_SOURCE, value, e.getMessage());
+                        }
                     }
-                }
-            },
-            ConfigDef.Importance.LOW,
-            "Specifies the the timestamp variable source. Default is wall-clock.",
-            GROUP_FILE,
-            fileGroupCounter,
-            ConfigDef.Width.SHORT,
-            FILE_NAME_TIMESTAMP_SOURCE
-        );
+                }, ConfigDef.Importance.LOW, "Specifies the the timestamp variable source. Default is wall-clock.",
+                GROUP_FILE, fileGroupCounter, ConfigDef.Width.SHORT, FILE_NAME_TIMESTAMP_SOURCE);
 
     }
 
@@ -400,13 +276,13 @@ public final class GcsSinkConfig extends AivenCommonConfig {
 
             final var unitYyyyPattern = Pattern.compile("\\{\\{\\s*timestamp\\s*:\\s*unit\\s*=\\s*YYYY\\s*}}");
             template = unitYyyyPattern.matcher(template)
-                .replaceAll(matchResult -> matchResult.group().replace("YYYY", "yyyy"));
+                    .replaceAll(matchResult -> matchResult.group().replace("YYYY", "yyyy"));
 
             if (!template.equals(originalTemplate)) {
-                log.warn("{{timestamp:unit=YYYY}} is no longer supported, "
-                        + "please use {{timestamp:unit=yyyy}} instead. "
-                        + "It was automatically replaced: {}",
-                    template);
+                log.warn(
+                        "{{timestamp:unit=YYYY}} is no longer supported, "
+                                + "please use {{timestamp:unit=yyyy}} instead. " + "It was automatically replaced: {}",
+                        template);
             }
 
             result.put(FILE_NAME_TEMPLATE_CONFIG, template);
@@ -421,9 +297,8 @@ public final class GcsSinkConfig extends AivenCommonConfig {
         final String credentialsPath = getString(GCS_CREDENTIALS_PATH_CONFIG);
         final Password credentialsJson = getPassword(GCS_CREDENTIALS_JSON_CONFIG);
         if (credentialsPath != null && credentialsJson != null) {
-            final String msg = String.format(
-                "\"%s\" and \"%s\" are mutually exclusive options, but both are set.",
-                GCS_CREDENTIALS_PATH_CONFIG, GCS_CREDENTIALS_JSON_CONFIG);
+            final String msg = String.format("\"%s\" and \"%s\" are mutually exclusive options, but both are set.",
+                    GCS_CREDENTIALS_PATH_CONFIG, GCS_CREDENTIALS_JSON_CONFIG);
             throw new ConfigException(msg);
         }
 
@@ -432,7 +307,7 @@ public final class GcsSinkConfig extends AivenCommonConfig {
         if (RecordGrouperFactory.KEY_RECORD.equals(RecordGrouperFactory.resolveRecordGrouperType(filenameTemplate))) {
             if (getMaxRecordsPerFile() > 1) {
                 final String msg = String.format("When %s is %s, %s must be either 1 or not set",
-                    FILE_NAME_TEMPLATE_CONFIG, filenameTemplate, FILE_MAX_RECORDS);
+                        FILE_NAME_TEMPLATE_CONFIG, filenameTemplate, FILE_MAX_RECORDS);
                 throw new ConfigException(msg);
             }
         }

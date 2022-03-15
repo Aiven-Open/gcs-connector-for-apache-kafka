@@ -16,6 +16,8 @@
 
 package io.aiven.kafka.connect.gcs;
 
+import static org.awaitility.Awaitility.await;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -29,8 +31,6 @@ import io.aiven.kafka.connect.gcs.testutils.BucketAccessor;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import org.junit.jupiter.api.BeforeAll;
-
-import static org.awaitility.Awaitility.await;
 
 abstract class AbstractIntegrationTest {
     protected static final String TEST_TOPIC_0 = "test-topic-0";
@@ -57,14 +57,14 @@ abstract class AbstractIntegrationTest {
         testBucketName = System.getProperty("integration-test.gcs.bucket");
 
         final Storage storage = StorageOptions.newBuilder()
-            .setCredentials(GoogleCredentialsBuilder.build(gcsCredentialsPath, gcsCredentialsJson))
-            .build()
-            .getService();
+                .setCredentials(GoogleCredentialsBuilder.build(gcsCredentialsPath, gcsCredentialsJson))
+                .build()
+                .getService();
         testBucketAccessor = new BucketAccessor(storage, testBucketName);
         testBucketAccessor.ensureWorking();
 
         gcsPrefix = "gcs-connector-for-apache-kafka-test-"
-            + ZonedDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) + "/";
+                + ZonedDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) + "/";
 
         final File testDir = Files.createTempDirectory("gcs-connector-for-apache-kafka-test-").toFile();
 
@@ -74,8 +74,8 @@ abstract class AbstractIntegrationTest {
         final File distFile = new File(System.getProperty("integration-test.distribution.file.path"));
         assert distFile.exists();
 
-        final String cmd = String.format("tar -xf %s --strip-components=1 -C %s",
-            distFile.toString(), pluginDir.toString());
+        final String cmd = String.format("tar -xf %s --strip-components=1 -C %s", distFile.toString(),
+                pluginDir.toString());
         final Process p = Runtime.getRuntime().exec(cmd);
         assert p.waitFor() == 0;
     }
@@ -91,8 +91,7 @@ abstract class AbstractIntegrationTest {
     }
 
     protected void awaitAllBlobsWritten(final int expectedBlobCount) {
-        await("All expected files stored on GCS")
-                .atMost(Duration.ofMillis(OFFSET_FLUSH_INTERVAL_MS * 3))
+        await("All expected files stored on GCS").atMost(Duration.ofMillis(OFFSET_FLUSH_INTERVAL_MS * 3))
                 .pollInterval(Duration.ofMillis(300))
                 .until(() -> testBucketAccessor.getBlobNames(gcsPrefix).size() >= expectedBlobCount);
 

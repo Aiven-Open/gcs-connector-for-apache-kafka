@@ -31,8 +31,8 @@ class Version {
 
     static {
         final Properties props = new Properties();
-        try (final InputStream resourceStream =
-                 Version.class.getClassLoader().getResourceAsStream(PROPERTIES_FILENAME)) {
+        try (final InputStream resourceStream = Version.class.getClassLoader()
+                .getResourceAsStream(PROPERTIES_FILENAME)) {
             props.load(resourceStream);
         } catch (final Exception e) {
             log.warn("Error while loading {}: {}", PROPERTIES_FILENAME, e.getMessage());

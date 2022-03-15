@@ -35,7 +35,7 @@ final class SchemaRegistryContainer extends GenericContainer<SchemaRegistryConta
         withNetworkAliases("schema-registry-" + Base58.randomString(6));
 
         withEnv("SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS",
-            String.format("PLAINTEXT://%s:%s", kafka.getNetworkAliases().get(0), 9092));
+                String.format("PLAINTEXT://%s:%s", kafka.getNetworkAliases().get(0), 9092));
 
         withExposedPorts(SCHEMA_REGISTRY_PORT);
         withEnv("SCHEMA_REGISTRY_HOST_NAME", "localhost");

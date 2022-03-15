@@ -16,6 +16,16 @@
 
 package io.aiven.kafka.connect.common.grouper;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -38,23 +48,14 @@ import net.jqwik.api.Property;
 import net.jqwik.api.constraints.IntRange;
 import org.junit.jupiter.api.Disabled;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 /**
- * This is a property-based test for {@link GcsSinkTask} (grouping records by the topic and partition)
- * using <a href="https://jqwik.net/docs/current/user-guide.html">jqwik</a>.
+ * This is a property-based test for {@link GcsSinkTask} (grouping records by the topic and partition) using
+ * <a href="https://jqwik.net/docs/current/user-guide.html">jqwik</a>.
  *
- * <p>The idea is to generate random batches of {@link SinkRecord}
- * (see {@link PbtBase#recordBatches()}, put them into a task, and check certain properties
- * of the written files afterwards. Files are written virtually using the in-memory GCS mock.
+ * <p>
+ * The idea is to generate random batches of {@link SinkRecord} (see {@link PbtBase#recordBatches()}, put them into a
+ * task, and check certain properties of the written files afterwards. Files are written virtually using the in-memory
+ * GCS mock.
  */
 final class GcsSinkTaskGroupByTopicPartitionPropertiesTest extends PbtBase {
 
@@ -66,12 +67,11 @@ final class GcsSinkTaskGroupByTopicPartitionPropertiesTest extends PbtBase {
     @Property
     @Disabled("See https://github.com/aiven/gcs-connector-for-apache-kafka/issues/143")
     final void limited(@ForAll("recordBatches") final List<List<SinkRecord>> recordBatches,
-                       @ForAll @IntRange(min = 1, max = 100) final int maxRecordsPerFile) {
+            @ForAll @IntRange(min = 1, max = 100) final int maxRecordsPerFile) {
         genericTry(recordBatches, maxRecordsPerFile);
     }
 
-    private void genericTry(final List<List<SinkRecord>> recordBatches,
-                            final Integer maxRecordsPerFile) {
+    private void genericTry(final List<List<SinkRecord>> recordBatches, final Integer maxRecordsPerFile) {
         final Storage storage = LocalStorageHelper.getOptions().getService();
         final BucketAccessor testBucketAccessor = new BucketAccessor(storage, TEST_BUCKET, true);
 
@@ -97,20 +97,17 @@ final class GcsSinkTaskGroupByTopicPartitionPropertiesTest extends PbtBase {
     /**
      * Checks that written files have expected names.
      */
-    private void checkExpectedFileNames(final List<List<SinkRecord>> recordBatches,
-                                        final Integer maxRecordsPerFile,
-                                        final BucketAccessor bucketAccessor) {
+    private void checkExpectedFileNames(final List<List<SinkRecord>> recordBatches, final Integer maxRecordsPerFile,
+            final BucketAccessor bucketAccessor) {
         final List<String> expectedFileNames = new ArrayList<>();
 
         for (final List<SinkRecord> recordBatch : recordBatches) {
             final Map<TopicPartition, List<SinkRecord>> groupedPerTopicPartition = recordBatch.stream()
-                .collect(
-                    Collectors.groupingBy(r -> new TopicPartition(r.topic(), r.kafkaPartition()))
-                );
+                    .collect(Collectors.groupingBy(r -> new TopicPartition(r.topic(), r.kafkaPartition())));
 
             for (final TopicPartition tp : groupedPerTopicPartition.keySet()) {
-                final List<List<SinkRecord>> chunks = Lists.partition(
-                    groupedPerTopicPartition.get(tp), effectiveMaxRecordsPerFile(maxRecordsPerFile));
+                final List<List<SinkRecord>> chunks = Lists.partition(groupedPerTopicPartition.get(tp),
+                        effectiveMaxRecordsPerFile(maxRecordsPerFile));
                 for (final List<SinkRecord> chunk : chunks) {
                     expectedFileNames.add(createFilename(chunk.get(0)));
                 }
@@ -126,10 +123,8 @@ final class GcsSinkTaskGroupByTopicPartitionPropertiesTest extends PbtBase {
     private void checkFileSizes(final BucketAccessor bucketAccessor, final Integer maxRecordsPerFile) {
         final int effectiveMax = effectiveMaxRecordsPerFile(maxRecordsPerFile);
         for (final String filename : bucketAccessor.getBlobNames()) {
-            assertThat(
-                bucketAccessor.readLines(filename, "none"),
-                hasSize(allOf(greaterThan(0), lessThanOrEqualTo(effectiveMax)))
-            );
+            assertThat(bucketAccessor.readLines(filename, "none"),
+                    hasSize(allOf(greaterThan(0), lessThanOrEqualTo(effectiveMax))));
         }
     }
 
@@ -141,7 +136,7 @@ final class GcsSinkTaskGroupByTopicPartitionPropertiesTest extends PbtBase {
      * </ul>
      */
     private void checkTotalRecordCountAndNoMultipleWrites(final int expectedCount,
-                                                          final BucketAccessor bucketAccessor) {
+            final BucketAccessor bucketAccessor) {
         final Set<String> seenRecords = new HashSet<>();
         for (final String filename : bucketAccessor.getBlobNames()) {
             for (final String line : bucketAccessor.readLines(filename, "none")) {
@@ -154,15 +149,14 @@ final class GcsSinkTaskGroupByTopicPartitionPropertiesTest extends PbtBase {
     }
 
     /**
-     * For each written file, checks that its filename
-     * (the topic and partition part) is correct for each record in it.
+     * For each written file, checks that its filename (the topic and partition part) is correct for each record in it.
      */
     private void checkTopicPartitionPartInFileNames(final BucketAccessor bucketAccessor) {
         for (final String filename : bucketAccessor.getBlobNames()) {
             final String filenameWithoutOffset = cutOffsetPart(filename);
 
-            final List<List<String>> lines = bucketAccessor
-                    .readAndDecodeLines(filename, "none", FIELD_KEY, FIELD_VALUE);
+            final List<List<String>> lines = bucketAccessor.readAndDecodeLines(filename, "none", FIELD_KEY,
+                    FIELD_VALUE);
             final String firstLineTopicAndPartition = lines.get(0).get(FIELD_VALUE);
             final String firstLineOffset = lines.get(0).get(FIELD_OFFSET);
             assertEquals(PREFIX + firstLineTopicAndPartition + "-" + firstLineOffset, filename);
@@ -186,11 +180,11 @@ final class GcsSinkTaskGroupByTopicPartitionPropertiesTest extends PbtBase {
      */
     private void checkOffsetOrderInFiles(final BucketAccessor bucketAccessor) {
         for (final String filename : bucketAccessor.getBlobNames()) {
-            final List<List<String>> lines = bucketAccessor
-                    .readAndDecodeLines(filename, "none", FIELD_KEY, FIELD_VALUE);
+            final List<List<String>> lines = bucketAccessor.readAndDecodeLines(filename, "none", FIELD_KEY,
+                    FIELD_VALUE);
             final List<Integer> offsets = lines.stream()
-                .map(line -> Integer.parseInt(line.get(FIELD_OFFSET)))
-                .collect(Collectors.toList());
+                    .map(line -> Integer.parseInt(line.get(FIELD_OFFSET)))
+                    .collect(Collectors.toList());
             for (int i = 0; i < offsets.size() - 1; i++) {
                 assertTrue(offsets.get(i) < offsets.get(i + 1));
             }

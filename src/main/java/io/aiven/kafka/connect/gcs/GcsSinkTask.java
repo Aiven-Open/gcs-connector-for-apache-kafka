@@ -53,8 +53,7 @@ public final class GcsSinkTask extends SinkTask {
     }
 
     // for testing
-    public GcsSinkTask(final Map<String, String> props,
-                          final Storage storage) {
+    public GcsSinkTask(final Map<String, String> props, final Storage storage) {
         Objects.requireNonNull(props, "props cannot be null");
         Objects.requireNonNull(storage, "storage cannot be null");
 
@@ -70,16 +69,15 @@ public final class GcsSinkTask extends SinkTask {
         this.config = new GcsSinkConfig(props);
         this.storage = StorageOptions.newBuilder()
                 .setCredentials(config.getCredentials())
-                .setRetrySettings(
-                        RetrySettings
-                                .newBuilder()
-                                .setInitialRetryDelay(config.getGcsRetryBackoffInitialDelay())
-                                .setMaxRetryDelay(config.getGcsRetryBackoffMaxDelay())
-                                .setRetryDelayMultiplier(config.getGcsRetryBackoffDelayMultiplier())
-                                .setTotalTimeout(config.getGcsRetryBackoffTotalTimeout())
-                                .setMaxAttempts(config.getGcsRetryBackoffMaxAttempts())
-                                .build()
-                ).build().getService();
+                .setRetrySettings(RetrySettings.newBuilder()
+                        .setInitialRetryDelay(config.getGcsRetryBackoffInitialDelay())
+                        .setMaxRetryDelay(config.getGcsRetryBackoffMaxDelay())
+                        .setRetryDelayMultiplier(config.getGcsRetryBackoffDelayMultiplier())
+                        .setTotalTimeout(config.getGcsRetryBackoffTotalTimeout())
+                        .setMaxAttempts(config.getGcsRetryBackoffMaxAttempts())
+                        .build())
+                .build()
+                .getService();
         initRest();
         if (Objects.nonNull(config.getKafkaRetryBackoffMs())) {
             context.timeout(config.getKafkaRetryBackoffMs());
@@ -111,16 +109,14 @@ public final class GcsSinkTask extends SinkTask {
     }
 
     private void flushFile(final String filename, final List<SinkRecord> records) {
-        final BlobInfo blob = BlobInfo
-                .newBuilder(config.getBucketName(), config.getPrefix() + filename)
-                .build();
+        final BlobInfo blob = BlobInfo.newBuilder(config.getBucketName(), config.getPrefix() + filename).build();
         try (final var out = Channels.newOutputStream(storage.writer(blob));
-             final var writer = OutputWriter.builder()
-                     .withExternalProperties(config.originalsStrings())
-                     .withOutputFields(config.getOutputFields())
-                     .withCompressionType(config.getCompressionType())
-                     .withEnvelopeEnabled(config.envelopeEnabled())
-                     .build(out, config.getFormatType())) {
+                final var writer = OutputWriter.builder()
+                        .withExternalProperties(config.originalsStrings())
+                        .withOutputFields(config.getOutputFields())
+                        .withCompressionType(config.getCompressionType())
+                        .withEnvelopeEnabled(config.envelopeEnabled())
+                        .build(out, config.getFormatType())) {
             writer.writeRecords(records);
         } catch (final Exception e) {
             throw new ConnectException(e);

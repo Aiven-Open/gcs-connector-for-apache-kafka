@@ -16,6 +16,8 @@
 
 package io.aiven.kafka.connect.gcs.config;
 
+import static org.junit.jupiter.api.Assertions.assertIterableEquals;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -27,8 +29,6 @@ import io.aiven.kafka.connect.gcs.GcsSinkConfig;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertIterableEquals;
-
 /**
  * Tests {@link GcsSinkConfig}'s config definition.
  */
@@ -39,14 +39,13 @@ final class GcsSinkConfigValidationTest {
         final Map<String, String> connectorProps = new HashMap<>();
         connectorProps.put("file.compression.type", "unknown");
 
-        final ConfigValue v = GcsSinkConfig.configDef().validate(connectorProps).stream()
-            .filter(x -> x.name().equals("file.compression.type"))
-            .findFirst()
-            .get();
-        assertIterableEquals(
-            CompressionType.names(),
-            v.recommendedValues()
-        );
+        final ConfigValue v = GcsSinkConfig.configDef()
+                .validate(connectorProps)
+                .stream()
+                .filter(x -> x.name().equals("file.compression.type"))
+                .findFirst()
+                .get();
+        assertIterableEquals(CompressionType.names(), v.recommendedValues());
     }
 
     @Test
@@ -54,13 +53,12 @@ final class GcsSinkConfigValidationTest {
         final Map<String, String> connectorProps = new HashMap<>();
         connectorProps.put("format.output.fields", "unknown");
 
-        final ConfigValue v = GcsSinkConfig.configDef().validate(connectorProps).stream()
-            .filter(x -> x.name().equals("format.output.fields"))
-            .findFirst()
-            .get();
-        assertIterableEquals(
-            OutputFieldType.names(),
-            v.recommendedValues()
-        );
+        final ConfigValue v = GcsSinkConfig.configDef()
+                .validate(connectorProps)
+                .stream()
+                .filter(x -> x.name().equals("format.output.fields"))
+                .findFirst()
+                .get();
+        assertIterableEquals(OutputFieldType.names(), v.recommendedValues());
     }
 }

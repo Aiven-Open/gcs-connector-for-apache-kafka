@@ -52,8 +52,8 @@ abstract class PbtBase {
 
     @Provide
     final Arbitrary<List<List<SinkRecord>>> recordBatches() {
-        final RandomGenerator<String> keyGenerator = RandomGenerators.samples(
-            new String[]{"key0", "key1", "key2", "key3", null});
+        final RandomGenerator<String> keyGenerator = RandomGenerators
+                .samples(new String[] { "key0", "key1", "key2", "key3", null });
 
         // TODO make generated lists shrinkable
         return Arbitraries.randomValue(random -> {
@@ -96,10 +96,8 @@ abstract class PbtBase {
 
         private int offset;
 
-        private SinkRecordBuilder(final Random random,
-                                  final RandomGenerator<String> keyGenerator,
-                                  final String topic,
-                                  final int partition) {
+        private SinkRecordBuilder(final Random random, final RandomGenerator<String> keyGenerator, final String topic,
+                final int partition) {
             this.random = random;
             this.keyGenerator = keyGenerator;
             this.topic = topic;
@@ -112,14 +110,8 @@ abstract class PbtBase {
             final String key = keyGenerator.next(random).value();
             final String value = topic + "-" + partition;
 
-            final SinkRecord record = new SinkRecord(
-                topic,
-                partition,
-                Schema.OPTIONAL_STRING_SCHEMA,
-                key,
-                Schema.OPTIONAL_BYTES_SCHEMA,
-                value.getBytes(StandardCharsets.UTF_8),
-                offset);
+            final SinkRecord record = new SinkRecord(topic, partition, Schema.OPTIONAL_STRING_SCHEMA, key,
+                    Schema.OPTIONAL_BYTES_SCHEMA, value.getBytes(StandardCharsets.UTF_8), offset);
             // Imitate gaps in offsets.
             final int offsetIncrement = random.nextInt(MAX_OFFSET_INCREMENT - 1) + 1;
             offset += offsetIncrement;

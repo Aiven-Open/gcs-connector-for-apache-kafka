@@ -39,21 +39,14 @@ public class Record {
     public long timestamp;
     public Iterable<Header> headers;
 
-    public Record(final String key,
-                  final String value,
-                  final Iterable<Header> headers) {
+    public Record(final String key, final String value, final Iterable<Header> headers) {
         this.key = key;
         this.value = value;
         this.headers = headers;
     }
 
-    public Record(final String topic,
-                  final String key,
-                  final String value,
-                  final int partition,
-                  final int offset,
-                  final long timestamp,
-                  final Iterable<Header> headers) {
+    public Record(final String topic, final String key, final String value, final int partition, final int offset,
+            final long timestamp, final Iterable<Header> headers) {
         this.topic = topic;
         this.key = key;
         this.value = value;
@@ -63,19 +56,12 @@ public class Record {
         this.headers = headers;
     }
 
-    public static Record of(final String key,
-                            final String value,
-                            final Iterable<Header> headers) {
+    public static Record of(final String key, final String value, final Iterable<Header> headers) {
         return new Record(key, value, headers);
     }
 
-    public static Record of(final String topic,
-                            final String key,
-                            final String value,
-                            final int partition,
-                            final int offset,
-                            final int timestamp,
-                            final Iterable<Header> headers) {
+    public static Record of(final String topic, final String key, final String value, final int partition,
+            final int offset, final int timestamp, final Iterable<Header> headers) {
         return new Record(topic, key, value, partition, offset, timestamp, headers);
     }
 
@@ -88,8 +74,7 @@ public class Record {
             return false;
         }
         final Record record = (Record) o;
-        return Objects.equals(key, record.key)
-                && Objects.equals(value, record.value)
+        return Objects.equals(key, record.key) && Objects.equals(value, record.value)
                 && headersEquals(headers, record.headers);
     }
 
@@ -119,17 +104,9 @@ public class Record {
     }
 
     public SinkRecord toSinkRecord() {
-        return new SinkRecord(
-                topic,
-                partition,
-                Schema.BYTES_SCHEMA,
-                key.getBytes(StandardCharsets.UTF_8),
-                Schema.BYTES_SCHEMA,
-                value.getBytes(StandardCharsets.UTF_8),
-                offset,
-                timestamp,
-                TimestampType.CREATE_TIME,
-                headers);
+        return new SinkRecord(topic, partition, Schema.BYTES_SCHEMA, key.getBytes(StandardCharsets.UTF_8),
+                Schema.BYTES_SCHEMA, value.getBytes(StandardCharsets.UTF_8), offset, timestamp,
+                TimestampType.CREATE_TIME, headers);
     }
 
     @Override
