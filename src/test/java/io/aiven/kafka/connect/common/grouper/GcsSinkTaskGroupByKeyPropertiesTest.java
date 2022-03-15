@@ -51,7 +51,7 @@ import net.jqwik.api.Property;
 final class GcsSinkTaskGroupByKeyPropertiesTest extends PbtBase {
 
     @Property
-    final void groupByKey(@ForAll("recordBatches") final List<List<SinkRecord>> recordBatches) {
+    void groupByKey(@ForAll("recordBatches") final List<List<SinkRecord>> recordBatches) {
         final Storage storage = LocalStorageHelper.getOptions().getService();
         final BucketAccessor testBucketAccessor = new BucketAccessor(storage, TEST_BUCKET, true);
 
@@ -94,7 +94,10 @@ final class GcsSinkTaskGroupByKeyPropertiesTest extends PbtBase {
                 final String keyStr = (String) record.key();
                 expectedKeySubstring = Base64.getEncoder().encodeToString(keyStr.getBytes(StandardCharsets.UTF_8));
             }
-            final String expectedValueSubstring = new String((byte[]) record.value(), StandardCharsets.UTF_8);
+            final String expectedValueSubstring = new String((byte[]) record.value(), StandardCharsets.UTF_8); // NOPMD
+                                                                                                               // instantiation
+                                                                                                               // in a
+                                                                                                               // loop
             final String expectedLine = String.format("%s,%s,%d", expectedKeySubstring, expectedValueSubstring,
                     record.kafkaOffset());
             assertEquals(expectedLine, lines.get(0));

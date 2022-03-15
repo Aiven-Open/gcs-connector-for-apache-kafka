@@ -121,7 +121,7 @@ final class GcsSinkTaskTest {
         for (final Record record : records) {
             final int offset = topicPartitionMinimumOffset.get(record.topic + "-" + record.partition);
             final String key = record.topic + "-" + record.partition + "-" + offset + extension;
-            blobNameWithRecordsMap.putIfAbsent(key, new ArrayList<>());
+            blobNameWithRecordsMap.putIfAbsent(key, new ArrayList<>()); // NOPMD
             blobNameWithRecordsMap.get(key).add(record);
         }
         return blobNameWithRecordsMap;
@@ -133,7 +133,7 @@ final class GcsSinkTaskTest {
 
     @SuppressFBWarnings
     @BeforeEach
-    final void setUp() {
+    void setUp() {
         storage = LocalStorageHelper.getOptions().getService();
         testBucketAccessor = new BucketAccessor(storage, TEST_BUCKET);
 
@@ -142,14 +142,14 @@ final class GcsSinkTaskTest {
     }
 
     @Test
-    final void version() {
+    void version() {
         final GcsSinkTask task = new GcsSinkTask(properties, storage);
         assertEquals("test-version", task.version());
     }
 
     @ParameterizedTest
     @ValueSource(strings = { "none", "gzip", "snappy", "zstd" })
-    final void basic(final String compression) {
+    void basic(final String compression) {
         properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
         final GcsSinkTask task = new GcsSinkTask(properties, storage);
 
@@ -171,7 +171,7 @@ final class GcsSinkTaskTest {
 
     @ParameterizedTest
     @ValueSource(strings = { "none", "gzip", "snappy", "zstd" })
-    final void basicWithHeaders(final String compression) {
+    void basicWithHeaders(final String compression) {
         properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
         properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_CONFIG, "key,value,timestamp,offset,headers");
         final GcsSinkTask task = new GcsSinkTask(properties, storage);
@@ -195,7 +195,7 @@ final class GcsSinkTaskTest {
 
     @ParameterizedTest
     @ValueSource(strings = { "none", "gzip", "snappy", "zstd" })
-    final void basicValuesPlain(final String compression) {
+    void basicValuesPlain(final String compression) {
         properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
         properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_VALUE_ENCODING_CONFIG, "none");
         final GcsSinkTask task = new GcsSinkTask(properties, storage);
@@ -218,7 +218,7 @@ final class GcsSinkTaskTest {
 
     @ParameterizedTest
     @ValueSource(strings = { "none", "gzip", "snappy", "zstd" })
-    final void compression(final String compression) {
+    void compression(final String compression) {
         properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
         final GcsSinkTask task = new GcsSinkTask(properties, storage);
 
@@ -253,7 +253,7 @@ final class GcsSinkTaskTest {
 
     @ParameterizedTest
     @ValueSource(strings = { "none", "gzip", "snappy", "zstd" })
-    final void allFields(final String compression) {
+    void allFields(final String compression) {
         properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
         properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_CONFIG, "key,value,timestamp,offset");
         final GcsSinkTask task = new GcsSinkTask(properties, storage);
@@ -292,7 +292,7 @@ final class GcsSinkTaskTest {
 
     @ParameterizedTest
     @ValueSource(strings = { "none", "gzip", "snappy", "zstd" })
-    final void nullKeyValueAndTimestamp(final String compression) {
+    void nullKeyValueAndTimestamp(final String compression) {
         properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
         properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_CONFIG, "key,value,timestamp,offset");
         final GcsSinkTask task = new GcsSinkTask(properties, storage);
@@ -312,7 +312,7 @@ final class GcsSinkTaskTest {
 
     @ParameterizedTest
     @ValueSource(strings = { "none", "gzip", "snappy", "zstd" })
-    final void multipleFlush(final String compression) {
+    void multipleFlush(final String compression) {
         properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
         final GcsSinkTask task = new GcsSinkTask(properties, storage);
 
@@ -340,7 +340,7 @@ final class GcsSinkTaskTest {
 
     @ParameterizedTest
     @ValueSource(strings = { "none", "gzip", "snappy", "zstd" })
-    final void maxRecordPerFile(final String compression) {
+    void maxRecordPerFile(final String compression) {
         properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
         properties.put(GcsSinkConfig.FILE_MAX_RECORDS, "1");
         final GcsSinkTask task = new GcsSinkTask(properties, storage);
@@ -366,13 +366,13 @@ final class GcsSinkTaskTest {
     }
 
     @Test
-    void setupDefaultRetryPolicy() throws Exception {
+    void setupDefaultRetryPolicy() {
         final var mockedContext = mock(SinkTaskContext.class);
         final var task = new GcsSinkTask();
         task.initialize(mockedContext);
 
         final var props = Map.of("gcs.bucket.name", "the_bucket", "gcs.credentials.path",
-                getClass().getClassLoader().getResource("test_gcs_credentials.json").getPath());
+                Thread.currentThread().getContextClassLoader().getResource("test_gcs_credentials.json").getPath());
 
         task.start(props);
 
@@ -394,14 +394,14 @@ final class GcsSinkTaskTest {
     }
 
     @Test
-    void setupCustomRetryPolicy() throws Exception {
+    void setupCustomRetryPolicy() {
         final var mockedContext = mock(SinkTaskContext.class);
         final var kafkaBackoffMsCaptor = ArgumentCaptor.forClass(Long.class);
         final var task = new GcsSinkTask();
         task.initialize(mockedContext);
 
         final var props = Map.of("gcs.bucket.name", "the_bucket", "gcs.credentials.path",
-                getClass().getClassLoader().getResource("test_gcs_credentials.json").getPath(),
+                Thread.currentThread().getContextClassLoader().getResource("test_gcs_credentials.json").getPath(),
                 "kafka.retry.backoff.ms", "1", "gcs.retry.backoff.initial.delay.ms", "2",
                 "gcs.retry.backoff.max.delay.ms", "3", "gcs.retry.backoff.delay.multiplier", "4",
                 "gcs.retry.backoff.total.timeout.ms", "5", "gcs.retry.backoff.max.attempts", "6");
@@ -423,7 +423,7 @@ final class GcsSinkTaskTest {
     }
 
     @Test
-    final void prefix() {
+    void prefix() {
         properties.put(GcsSinkConfig.FILE_NAME_PREFIX_CONFIG, "prefix-");
         final GcsSinkTask task = new GcsSinkTask(properties, storage);
 
@@ -436,7 +436,7 @@ final class GcsSinkTaskTest {
 
     @ParameterizedTest
     @ValueSource(strings = { "none", "gzip", "snappy", "zstd" })
-    final void groupByKey(final String compression) {
+    void groupByKey(final String compression) {
         properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
         properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_CONFIG, "key,value");
         properties.put("file.name.template", "{{key}}");
@@ -471,7 +471,7 @@ final class GcsSinkTaskTest {
     }
 
     @Test
-    final void failedForStringValuesByDefault() {
+    void failedForStringValuesByDefault() {
         final String compression = "none";
         properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
         properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_CONFIG, "key,value");
@@ -487,13 +487,13 @@ final class GcsSinkTaskTest {
 
         task.put(records);
 
-        final Throwable t = assertThrows(ConnectException.class, () -> task.flush(null));
+        final Throwable throwable = assertThrows(ConnectException.class, () -> task.flush(null));
         assertEquals("org.apache.kafka.connect.errors.DataException: "
-                + "Record value schema type must be BYTES, STRING given", t.getMessage());
+                + "Record value schema type must be BYTES, STRING given", throwable.getMessage());
     }
 
     @Test
-    final void supportStringValuesForJsonL() {
+    void supportStringValuesForJsonL() {
         final String compression = "none";
         properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
         properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_CONFIG, "key,value");
@@ -525,7 +525,7 @@ final class GcsSinkTaskTest {
     }
 
     @Test
-    final void failedForStructValuesByDefault() {
+    void failedForStructValuesByDefault() {
         final String compression = "none";
         properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
         properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_CONFIG, "key,value");
@@ -540,13 +540,13 @@ final class GcsSinkTaskTest {
 
         task.put(records);
 
-        final Throwable t = assertThrows(ConnectException.class, () -> task.flush(null));
+        final Throwable throwable = assertThrows(ConnectException.class, () -> task.flush(null));
         assertEquals("org.apache.kafka.connect.errors.DataException: "
-                + "Record value schema type must be BYTES, STRUCT given", t.getMessage());
+                + "Record value schema type must be BYTES, STRUCT given", throwable.getMessage());
     }
 
     @Test
-    final void supportStructValuesForJsonL() {
+    void supportStructValuesForJsonL() {
         final String compression = "none";
         properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
         properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_CONFIG, "key,value");
@@ -580,7 +580,7 @@ final class GcsSinkTaskTest {
     }
 
     @Test
-    final void supportUnwrappedJsonEnvelopeForStructAndJsonL() {
+    void supportUnwrappedJsonEnvelopeForStructAndJsonL() {
         final String compression = "none";
         properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
         properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_CONFIG, "value");
@@ -608,7 +608,7 @@ final class GcsSinkTaskTest {
     }
 
     @Test
-    final void supportStructValuesForClassicJson() {
+    void supportStructValuesForClassicJson() {
         final String compression = "none";
         properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
         properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_CONFIG, "key,value");
@@ -642,7 +642,7 @@ final class GcsSinkTaskTest {
     }
 
     @Test
-    final void supportUnwrappedJsonEnvelopeForStructAndClassicJson() {
+    void supportUnwrappedJsonEnvelopeForStructAndClassicJson() {
         final String compression = "none";
         properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
         properties.put(GcsSinkConfig.FORMAT_OUTPUT_FIELDS_CONFIG, "value");
@@ -691,12 +691,12 @@ final class GcsSinkTaskTest {
     }
 
     private Iterable<Header> createHeaders() {
-        final byte[] k1 = new byte[8];
-        final byte[] k2 = new byte[8];
-        random.nextBytes(k1);
-        random.nextBytes(k2);
-        final String key1 = Utils.bytesToHex(k1);
-        final String key2 = Utils.bytesToHex(k2);
+        final byte[] bytes1 = new byte[8];
+        final byte[] bytes2 = new byte[8];
+        random.nextBytes(bytes1);
+        random.nextBytes(bytes2);
+        final String key1 = Utils.bytesToHex(bytes1);
+        final String key2 = Utils.bytesToHex(bytes2);
         final byte[] value1 = new byte[32];
         final byte[] value2 = new byte[32];
         random.nextBytes(value1);

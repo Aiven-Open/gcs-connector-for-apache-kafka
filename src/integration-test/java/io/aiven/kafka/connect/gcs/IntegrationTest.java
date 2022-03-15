@@ -92,7 +92,7 @@ final class IntegrationTest extends AbstractIntegrationTest {
     }
 
     @AfterEach
-    final void tearDown() {
+    void tearDown() {
         connectRunner.stop();
         adminClient.close();
         producer.close();
@@ -104,7 +104,7 @@ final class IntegrationTest extends AbstractIntegrationTest {
 
     @ParameterizedTest
     @ValueSource(strings = { "none", "gzip", "snappy", "zstd" })
-    final void basicTest(final String compression) throws ExecutionException, InterruptedException {
+    void basicTest(final String compression) throws ExecutionException, InterruptedException {
         final Map<String, String> connectorConfig = basicConnectorConfig();
         connectorConfig.put("format.output.fields", "key,value");
         connectorConfig.put("file.compression.type", compression);
@@ -158,7 +158,7 @@ final class IntegrationTest extends AbstractIntegrationTest {
 
     @ParameterizedTest
     @ValueSource(strings = { "none", "gzip", "snappy", "zstd" })
-    final void groupByTimestampVariable(final String compression) throws ExecutionException, InterruptedException {
+    void groupByTimestampVariable(final String compression) throws ExecutionException, InterruptedException {
         final Map<String, String> connectorConfig = basicConnectorConfig();
         connectorConfig.put("format.output.fields", "key,value");
         connectorConfig.put("file.compression.type", compression);
@@ -211,8 +211,7 @@ final class IntegrationTest extends AbstractIntegrationTest {
 
     @ParameterizedTest
     @ValueSource(strings = { "none", "gzip", "snappy", "zstd" })
-    final void oneFilePerRecordWithPlainValues(final String compression)
-            throws ExecutionException, InterruptedException {
+    void oneFilePerRecordWithPlainValues(final String compression) throws ExecutionException, InterruptedException {
         final Map<String, String> connectorConfig = basicConnectorConfig();
         connectorConfig.put("format.output.fields", "value");
         connectorConfig.put("file.compression.type", compression);
@@ -255,7 +254,7 @@ final class IntegrationTest extends AbstractIntegrationTest {
 
     @ParameterizedTest
     @ValueSource(strings = { "none", "gzip", "snappy", "zstd" })
-    final void groupByKey(final String compression) throws ExecutionException, InterruptedException {
+    void groupByKey(final String compression) throws ExecutionException, InterruptedException {
         final Map<String, String> connectorConfig = basicConnectorConfig();
         final CompressionType compressionType = CompressionType.forName(compression);
         connectorConfig.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
@@ -309,7 +308,7 @@ final class IntegrationTest extends AbstractIntegrationTest {
             final String keyInBlobName = blobName.replace(gcsPrefix, "").replace(compressionType.extension(), "");
             final String value;
             final String expectedBlobContent;
-            if (keyInBlobName.equals("null")) {
+            if ("null".equals(keyInBlobName)) {
                 value = lastValuePerKey.get(null);
                 expectedBlobContent = String.format("%s,%s", "", value);
             } else {
@@ -321,7 +320,7 @@ final class IntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    final void jsonlOutput() throws ExecutionException, InterruptedException {
+    void jsonlOutput() throws ExecutionException, InterruptedException {
         final Map<String, String> connectorConfig = basicConnectorConfig();
         final String compression = "none";
         final String contentType = "jsonl";
@@ -358,7 +357,10 @@ final class IntegrationTest extends AbstractIntegrationTest {
 
         final Map<String, List<String>> blobContents = new HashMap<>();
         for (final String blobName : expectedBlobs) {
-            final List<String> items = new ArrayList<>(testBucketAccessor.readLines(blobName, compression));
+            final List<String> items = new ArrayList<>(testBucketAccessor.readLines(blobName, compression)); // NOPMD
+                                                                                                             // instantiation
+                                                                                                             // in a
+                                                                                                             // loop
             blobContents.put(blobName, items);
         }
 
@@ -378,7 +380,7 @@ final class IntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    final void jsonOutput() throws ExecutionException, InterruptedException {
+    void jsonOutput() throws ExecutionException, InterruptedException {
         final Map<String, String> connectorConfig = basicConnectorConfig();
         final String compression = "none";
         final String contentType = "json";
@@ -415,7 +417,10 @@ final class IntegrationTest extends AbstractIntegrationTest {
 
         final Map<String, List<String>> blobContents = new HashMap<>();
         for (final String blobName : expectedBlobs) {
-            final List<String> items = new ArrayList<>(testBucketAccessor.readLines(blobName, compression));
+            final List<String> items = new ArrayList<>(testBucketAccessor.readLines(blobName, compression)); // NOPMD
+                                                                                                             // instantiation
+                                                                                                             // in a
+                                                                                                             // loop
             blobContents.put(blobName, items);
         }
 
@@ -438,8 +443,10 @@ final class IntegrationTest extends AbstractIntegrationTest {
 
                 final String blobName = getBlobName(partition, 0, compression);
                 final String actualLine = jsonContents.get(blobName).get(i);
-                String expectedLine = "{\"value\":" + value + ",\"key\":\"" + key + "\"}";
-                expectedLine = i < (jsonContents.get(blobName).size() - 1) ? expectedLine + "," : expectedLine;
+                String expectedLine = String.format("{\"value\":%s,\"key\":\"%s\"}", value, key);
+                expectedLine = i < (jsonContents.get(blobName).size() - 1)
+                        ? String.format("%s,", expectedLine)
+                        : expectedLine;
                 assertEquals(expectedLine, actualLine);
             }
         }

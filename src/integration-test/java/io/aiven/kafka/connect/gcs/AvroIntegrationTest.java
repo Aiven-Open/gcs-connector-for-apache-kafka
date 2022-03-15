@@ -19,9 +19,6 @@ package io.aiven.kafka.connect.gcs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -96,7 +93,7 @@ final class AvroIntegrationTest extends AbstractIntegrationTest {
     }
 
     @AfterEach
-    final void tearDown() {
+    void tearDown() {
         connectRunner.stop();
         adminClient.close();
         producer.close();
@@ -106,15 +103,8 @@ final class AvroIntegrationTest extends AbstractIntegrationTest {
         connectRunner.awaitStop();
     }
 
-    private String getTimestampBlobName(final int partition, final int startOffset) {
-        final ZonedDateTime time = ZonedDateTime.now(ZoneId.of("UTC"));
-        return String.format("%s%s-%d-%d-%s-%s-%s", gcsPrefix, TEST_TOPIC_0, partition, startOffset,
-                time.format(DateTimeFormatter.ofPattern("yyyy")), time.format(DateTimeFormatter.ofPattern("MM")),
-                time.format(DateTimeFormatter.ofPattern("dd")));
-    }
-
     @Test
-    final void jsonlOutput() throws ExecutionException, InterruptedException {
+    void jsonlOutput() throws ExecutionException, InterruptedException {
         final Map<String, String> connectorConfig = basicConnectorConfig();
         final String compression = "none";
         connectorConfig.put("format.output.fields", "key,value");
@@ -131,7 +121,7 @@ final class AvroIntegrationTest extends AbstractIntegrationTest {
         for (int i = 0; i < 10; i++) {
             for (int partition = 0; partition < 4; partition++) {
                 final String key = "key-" + cnt;
-                final GenericRecord value = new GenericData.Record(valueSchema);
+                final GenericRecord value = new GenericData.Record(valueSchema); // NOPMD instantiation in a loop
                 value.put("name", "user-" + cnt);
                 cnt += 1;
 
@@ -151,7 +141,10 @@ final class AvroIntegrationTest extends AbstractIntegrationTest {
 
         final Map<String, List<String>> blobContents = new HashMap<>();
         for (final String blobName : expectedBlobs) {
-            final List<String> items = new ArrayList<>(testBucketAccessor.readLines(blobName, compression));
+            final List<String> items = new ArrayList<>(testBucketAccessor.readLines(blobName, compression)); // NOPMD
+                                                                                                             // instantiation
+                                                                                                             // in a
+                                                                                                             // loop
             blobContents.put(blobName, items);
         }
 

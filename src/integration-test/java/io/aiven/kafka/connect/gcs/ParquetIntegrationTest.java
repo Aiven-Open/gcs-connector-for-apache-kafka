@@ -94,7 +94,7 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
     }
 
     @AfterEach
-    final void tearDown() {
+    void tearDown() {
         connectRunner.stop();
         adminClient.close();
         producer.close();
@@ -105,7 +105,7 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    final void allOutputFields() throws ExecutionException, InterruptedException, IOException {
+    void allOutputFields() throws ExecutionException, InterruptedException, IOException {
         final var compression = "none";
         final Map<String, String> connectorConfig = basicConnectorConfig(compression);
         connectorConfig.put("format.output.fields", "key,value,offset,timestamp,headers");
@@ -159,7 +159,7 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    final void allOutputFieldsJsonValueAsString() throws ExecutionException, InterruptedException, IOException {
+    void allOutputFieldsJsonValueAsString() throws ExecutionException, InterruptedException, IOException {
         final var compression = "none";
         final Map<String, String> connectorConfig = basicConnectorConfig(compression);
         connectorConfig.put("format.output.fields", "key,value,offset,timestamp,headers");
@@ -214,7 +214,7 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
 
     @ParameterizedTest
     @CsvSource({ "true, {\"value\": {\"name\": \"%s\"}} ", "false, {\"name\": \"%s\"}" })
-    final void jsonValue(final String envelopeEnabled, final String expectedOutput)
+    void jsonValue(final String envelopeEnabled, final String expectedOutput)
             throws ExecutionException, InterruptedException, IOException {
         final var compression = "none";
         final Map<String, String> connectorConfig = basicConnectorConfig(compression);
@@ -271,7 +271,7 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    final void schemaChanged() throws ExecutionException, InterruptedException, IOException {
+    void schemaChanged() throws ExecutionException, InterruptedException, IOException {
         final var compression = "none";
         final Map<String, String> connectorConfig = basicConnectorConfig(compression);
         connectorConfig.put("format.output.fields", "value");
@@ -294,7 +294,7 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
                 final var key = "key-" + cnt;
                 final String value;
                 final String payload;
-                if (i < 5) {
+                if (i < 5) { // NOPMD literal
                     payload = "{" + "\"name\": \"user-" + cnt + "\"}";
                     value = String.format(jsonMessagePattern, jsonMessageSchema, payload);
                 } else {

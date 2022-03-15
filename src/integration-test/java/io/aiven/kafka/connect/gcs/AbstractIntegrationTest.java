@@ -32,22 +32,25 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import org.junit.jupiter.api.BeforeAll;
 
-abstract class AbstractIntegrationTest {
+class AbstractIntegrationTest {
     protected static final String TEST_TOPIC_0 = "test-topic-0";
     protected static final String TEST_TOPIC_1 = "test-topic-1";
 
     protected static final int OFFSET_FLUSH_INTERVAL_MS = 5000;
 
-    protected static String gcsCredentialsPath;
-    protected static String gcsCredentialsJson;
+    protected static String gcsCredentialsPath; // NOPMD mutable static state
+    protected static String gcsCredentialsJson; // NOPMD mutable static state
 
-    protected static String testBucketName;
+    protected static String testBucketName; // NOPMD mutable static state
 
-    protected static String gcsPrefix;
+    protected static String gcsPrefix; // NOPMD mutable static state
 
-    protected static BucketAccessor testBucketAccessor;
+    protected static BucketAccessor testBucketAccessor; // NOPMD mutable static state
 
-    protected static File pluginDir;
+    protected static File pluginDir; // NOPMD mutable static state
+
+    protected AbstractIntegrationTest() {
+    }
 
     @BeforeAll
     static void setUpAll() throws IOException, InterruptedException {
@@ -76,8 +79,8 @@ abstract class AbstractIntegrationTest {
 
         final String cmd = String.format("tar -xf %s --strip-components=1 -C %s", distFile.toString(),
                 pluginDir.toString());
-        final Process p = Runtime.getRuntime().exec(cmd);
-        assert p.waitFor() == 0;
+        final Process process = Runtime.getRuntime().exec(cmd);
+        assert process.waitFor() == 0;
     }
 
     protected String getBlobName(final int partition, final int startOffset, final String compression) {

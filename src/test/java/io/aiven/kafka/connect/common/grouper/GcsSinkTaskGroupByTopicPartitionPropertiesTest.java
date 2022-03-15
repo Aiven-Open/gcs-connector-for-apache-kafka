@@ -60,13 +60,13 @@ import org.junit.jupiter.api.Disabled;
 final class GcsSinkTaskGroupByTopicPartitionPropertiesTest extends PbtBase {
 
     @Property
-    final void unlimited(@ForAll("recordBatches") final List<List<SinkRecord>> recordBatches) {
+    void unlimited(@ForAll("recordBatches") final List<List<SinkRecord>> recordBatches) {
         genericTry(recordBatches, null);
     }
 
     @Property
     @Disabled("See https://github.com/aiven/gcs-connector-for-apache-kafka/issues/143")
-    final void limited(@ForAll("recordBatches") final List<List<SinkRecord>> recordBatches,
+    void limited(@ForAll("recordBatches") final List<List<SinkRecord>> recordBatches,
             @ForAll @IntRange(min = 1, max = 100) final int maxRecordsPerFile) {
         genericTry(recordBatches, maxRecordsPerFile);
     }
@@ -103,7 +103,10 @@ final class GcsSinkTaskGroupByTopicPartitionPropertiesTest extends PbtBase {
 
         for (final List<SinkRecord> recordBatch : recordBatches) {
             final Map<TopicPartition, List<SinkRecord>> groupedPerTopicPartition = recordBatch.stream()
-                    .collect(Collectors.groupingBy(r -> new TopicPartition(r.topic(), r.kafkaPartition())));
+                    .collect(Collectors.groupingBy(r -> new TopicPartition(r.topic(), r.kafkaPartition()))); // NOPMD
+                                                                                                             // instantiation
+                                                                                                             // in a
+                                                                                                             // loop
 
             for (final Map.Entry<TopicPartition, List<SinkRecord>> entry : groupedPerTopicPartition.entrySet()) {
                 final List<List<SinkRecord>> chunks = Lists.partition(groupedPerTopicPartition.get(entry.getKey()),

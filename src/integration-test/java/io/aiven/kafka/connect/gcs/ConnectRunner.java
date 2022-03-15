@@ -39,7 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 final class ConnectRunner {
-    private static final Logger log = LoggerFactory.getLogger(ConnectRunner.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ConnectRunner.class);
 
     private final File pluginDir;
     private final String bootstrapServers;
@@ -93,20 +93,20 @@ final class ConnectRunner {
     void createConnector(final Map<String, String> config) throws ExecutionException, InterruptedException {
         assert herder != null;
 
-        final FutureCallback<Herder.Created<ConnectorInfo>> cb = new FutureCallback<>(
+        final FutureCallback<Herder.Created<ConnectorInfo>> callback = new FutureCallback<>(
                 new Callback<Herder.Created<ConnectorInfo>>() {
                     @Override
                     public void onCompletion(final Throwable error, final Herder.Created<ConnectorInfo> info) {
-                        if (error != null) {
-                            log.error("Failed to create job");
+                        if (error == null) {
+                            LOG.info("Created connector {}", info.result().name());
                         } else {
-                            log.info("Created connector {}", info.result().name());
+                            LOG.error("Failed to create job");
                         }
                     }
                 });
-        herder.putConnectorConfig(config.get(ConnectorConfig.NAME_CONFIG), config, false, cb);
+        herder.putConnectorConfig(config.get(ConnectorConfig.NAME_CONFIG), config, false, callback);
 
-        final Herder.Created<ConnectorInfo> connectorInfoCreated = cb.get();
+        final Herder.Created<ConnectorInfo> connectorInfoCreated = callback.get();
         assert connectorInfoCreated.created();
     }
 

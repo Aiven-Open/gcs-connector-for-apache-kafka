@@ -23,19 +23,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class Version {
-    private static final Logger log = LoggerFactory.getLogger(Version.class);
+    private static final Logger LOG = LoggerFactory.getLogger(Version.class);
 
     private static final String PROPERTIES_FILENAME = "gcs-connector-for-apache-kafka-version.properties";
 
-    static final String VERSION;
+    static final String VERSION; // NOPMD field name matches class name
 
     static {
         final Properties props = new Properties();
-        try (final InputStream resourceStream = Version.class.getClassLoader()
+        try (InputStream resourceStream = Thread.currentThread()
+                .getContextClassLoader()
                 .getResourceAsStream(PROPERTIES_FILENAME)) {
             props.load(resourceStream);
-        } catch (final Exception e) {
-            log.warn("Error while loading {}: {}", PROPERTIES_FILENAME, e.getMessage());
+        } catch (final Exception e) { // NOPMD broad exception catched
+            LOG.warn("Error while loading {}: {}", PROPERTIES_FILENAME, e.getMessage());
         }
         VERSION = props.getProperty("version", "unknown").trim();
     }

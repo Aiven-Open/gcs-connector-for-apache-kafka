@@ -26,19 +26,38 @@
     </rule>
     <rule ref="category/java/errorprone.xml/AvoidDuplicateLiterals">
         <properties>
-            <property name="maxDuplicateLiterals" value="10" />
+            <property name="maxDuplicateLiterals" value="90" />
         </properties>
     </rule>
-
 
     <rule ref="category/java/design.xml">
         <exclude name="LawOfDemeter" />
         <exclude name="LoosePackageCoupling" />
         <exclude name="DataClass" />
     </rule>
+    <rule ref="category/java/design.xml/CognitiveComplexity">
+        <properties>
+            <property name="reportLevel" value="20" />
+        </properties>
+    </rule>
     <rule ref="category/java/design.xml/CyclomaticComplexity">
         <properties>
             <property name="methodReportLevel" value="20" />
+        </properties>
+    </rule>
+    <rule ref="category/java/design.xml/GodClass">
+        <properties>
+            <property name="violationSuppressXPath" value="//ClassOrInterfaceDeclaration['GcsSinkConfigTest']"/>
+        </properties>
+    </rule>
+    <rule ref="category/java/design.xml/ExcessiveImports">
+        <properties>
+            <property name="minimum" value="50.0" />
+        </properties>
+    </rule>
+    <rule ref="category/java/design.xml/TooManyMethods">
+        <properties>
+            <property name="maxmethods" value="50" />
         </properties>
     </rule>
 

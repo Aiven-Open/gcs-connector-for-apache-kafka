@@ -39,13 +39,13 @@ final class GcsSinkConfigValidationTest {
         final Map<String, String> connectorProps = new HashMap<>();
         connectorProps.put("file.compression.type", "unknown");
 
-        final ConfigValue v = GcsSinkConfig.configDef()
+        final ConfigValue configValue = GcsSinkConfig.configDef()
                 .validate(connectorProps)
                 .stream()
-                .filter(x -> x.name().equals("file.compression.type"))
+                .filter(x -> "file.compression.type".equals(x.name()))
                 .findFirst()
                 .get();
-        assertIterableEquals(CompressionType.names(), v.recommendedValues());
+        assertIterableEquals(CompressionType.names(), configValue.recommendedValues());
     }
 
     @Test
@@ -53,12 +53,12 @@ final class GcsSinkConfigValidationTest {
         final Map<String, String> connectorProps = new HashMap<>();
         connectorProps.put("format.output.fields", "unknown");
 
-        final ConfigValue v = GcsSinkConfig.configDef()
+        final ConfigValue configValue = GcsSinkConfig.configDef()
                 .validate(connectorProps)
                 .stream()
-                .filter(x -> x.name().equals("format.output.fields"))
+                .filter(x -> "format.output.fields".equals(x.name()))
                 .findFirst()
                 .get();
-        assertIterableEquals(OutputFieldType.names(), v.recommendedValues());
+        assertIterableEquals(OutputFieldType.names(), configValue.recommendedValues());
     }
 }

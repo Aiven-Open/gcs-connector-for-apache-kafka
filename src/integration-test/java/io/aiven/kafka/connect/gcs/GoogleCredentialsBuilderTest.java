@@ -56,7 +56,10 @@ final class GoogleCredentialsBuilderTest {
 
     @Test
     void testCredentialsPathProvided() throws IOException {
-        final String credentialsPath = getClass().getClassLoader().getResource("test_gcs_credentials.json").getPath();
+        final String credentialsPath = Thread.currentThread()
+                .getContextClassLoader()
+                .getResource("test_gcs_credentials.json")
+                .getPath();
         final GoogleCredentials credentials = GoogleCredentialsBuilder.build(credentialsPath, null);
         assertTrue(credentials instanceof UserCredentials);
 
@@ -67,8 +70,9 @@ final class GoogleCredentialsBuilderTest {
 
     @Test
     void testCredentialsJsonProvided() throws IOException {
-        final String credentialsJson = Resources
-                .toString(getClass().getClassLoader().getResource("test_gcs_credentials.json"), StandardCharsets.UTF_8);
+        final String credentialsJson = Resources.toString(
+                Thread.currentThread().getContextClassLoader().getResource("test_gcs_credentials.json"),
+                StandardCharsets.UTF_8);
         final GoogleCredentials credentials = GoogleCredentialsBuilder.build(null, credentialsJson);
         assertTrue(credentials instanceof UserCredentials);
 
@@ -78,10 +82,12 @@ final class GoogleCredentialsBuilderTest {
     }
 
     @Test
-    void testBothCredentialsPathAndCredentialsJsonProvided() throws IOException {
-        final URL credentialResource = getClass().getClassLoader().getResource("test_gcs_credentials.json");
-        final Throwable t = assertThrows(IllegalArgumentException.class, () -> GoogleCredentialsBuilder
+    void testBothCredentialsPathAndCredentialsJsonProvided() {
+        final URL credentialResource = Thread.currentThread()
+                .getContextClassLoader()
+                .getResource("test_gcs_credentials.json");
+        final Throwable throwable = assertThrows(IllegalArgumentException.class, () -> GoogleCredentialsBuilder
                 .build(credentialResource.getPath(), Resources.toString(credentialResource, StandardCharsets.UTF_8)));
-        assertEquals("Both credentialsPath and credentialsJson cannot be non-null.", t.getMessage());
+        assertEquals("Both credentialsPath and credentialsJson cannot be non-null.", throwable.getMessage());
     }
 }

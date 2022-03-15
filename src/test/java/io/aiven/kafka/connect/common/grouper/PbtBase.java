@@ -35,12 +35,12 @@ import net.jqwik.api.Provide;
 import net.jqwik.api.RandomGenerator;
 import net.jqwik.engine.properties.arbitraries.randomized.RandomGenerators;
 
-abstract class PbtBase {
+class PbtBase {
     private static final int MAX_TOPICS = 6;
     private static final int MAX_PARTITIONS_PER_TOPIC = 10;
-    private static final int MAX_START_OFFSET = 20000;
+    private static final int MAX_START_OFFSET = 20_000;
     private static final int MAX_OFFSET_INCREMENT = 5;
-    private static final int MAX_RECORDS_PER_TRY = 10000;
+    private static final int MAX_RECORDS_PER_TRY = 10_000;
     private static final double PROBABILITY_OF_NEW_RECORD_BATCH = 2.0 / MAX_RECORDS_PER_TRY;
 
     static final String TEST_BUCKET = "test-bucket";
@@ -49,6 +49,9 @@ abstract class PbtBase {
     static final int FIELD_KEY = 0;
     static final int FIELD_VALUE = 1;
     static final int FIELD_OFFSET = 2;
+
+    protected PbtBase() {
+        /* prevent instantiation */ }
 
     @Provide
     final Arbitrary<List<List<SinkRecord>>> recordBatches() {
@@ -66,9 +69,10 @@ abstract class PbtBase {
                 // Randomly pick the number of partitions for a particular topic.
                 final int partitionCount = random.nextInt(MAX_PARTITIONS_PER_TOPIC - 1) + 1;
                 for (int partitionIdx = 0; partitionIdx < partitionCount; partitionIdx++) {
-                    final TopicPartition tp = new TopicPartition("topic" + topicIdx, partitionIdx);
-                    topicPartitions.add(tp);
-                    recordBuilders.put(tp, new SinkRecordBuilder(random, keyGenerator, tp.topic(), tp.partition()));
+                    final TopicPartition topicPartition = new TopicPartition("topic" + topicIdx, partitionIdx); // NOPMD
+                    topicPartitions.add(topicPartition);
+                    recordBuilders.put(topicPartition, new SinkRecordBuilder(random, keyGenerator, // NOPMD
+                            topicPartition.topic(), topicPartition.partition()));
                 }
             }
 
@@ -80,9 +84,9 @@ abstract class PbtBase {
                 if (random.nextDouble() < PROBABILITY_OF_NEW_RECORD_BATCH) {
                     result.add(new ArrayList<>());
                 }
-                final TopicPartition tp = topicPartitions.get(random.nextInt(topicPartitions.size()));
+                final TopicPartition topicPartition = topicPartitions.get(random.nextInt(topicPartitions.size()));
                 final List<SinkRecord> currentBatch = result.get(result.size() - 1);
-                currentBatch.add(recordBuilders.get(tp).build());
+                currentBatch.add(recordBuilders.get(topicPartition).build());
             }
             return result;
         });

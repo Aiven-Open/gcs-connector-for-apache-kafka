@@ -47,7 +47,7 @@ import org.slf4j.LoggerFactory;
 import org.threeten.bp.Duration;
 
 public final class GcsSinkConfig extends AivenCommonConfig {
-    private static final Logger log = LoggerFactory.getLogger(GcsSinkConfig.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GcsSinkConfig.class);
 
     private static final String GROUP_GCS = "GCS";
     public static final String GCS_CREDENTIALS_PATH_CONFIG = "gcs.credentials.path";
@@ -116,7 +116,13 @@ public final class GcsSinkConfig extends AivenCommonConfig {
 
         configDef.define(GCS_BUCKET_NAME_CONFIG, ConfigDef.Type.STRING, ConfigDef.NO_DEFAULT_VALUE,
                 new ConfigDef.NonEmptyString(), ConfigDef.Importance.HIGH,
-                "The GCS bucket name to store output files in.", GROUP_GCS, gcsGroupCounter++, ConfigDef.Width.NONE,
+                "The GCS bucket name to store output files in.", GROUP_GCS, gcsGroupCounter++, ConfigDef.Width.NONE, // NOPMD
+                                                                                                                     // the
+                                                                                                                     // gcsGroupCounter
+                                                                                                                     // updated
+                                                                                                                     // value
+                                                                                                                     // never
+                                                                                                                     // used
                 GCS_BUCKET_NAME_CONFIG);
     }
 
@@ -146,7 +152,7 @@ public final class GcsSinkConfig extends AivenCommonConfig {
         configDef.define(GCS_RETRY_BACKOFF_TOTAL_TIMEOUT_MS_CONFIG, ConfigDef.Type.LONG,
                 GCS_RETRY_BACKOFF_TOTAL_TIMEOUT_MS_DEFAULT, new ConfigDef.Validator() {
 
-                    static final long TOTAL_TIME_MAX = 86400000; // 24 hours
+                    static final long TOTAL_TIME_MAX = 86_400_000; // 24 hours
 
                     @Override
                     public void ensureValid(final String name, final Object value) {
@@ -165,7 +171,10 @@ public final class GcsSinkConfig extends AivenCommonConfig {
                 }, ConfigDef.Importance.MEDIUM,
                 "Retry total timeout in milliseconds. The default value is "
                         + GCS_RETRY_BACKOFF_TOTAL_TIMEOUT_MS_DEFAULT,
-                GROUP_GCS_RETRY_BACKOFF_POLICY, retryPolicyGroupCounter++, ConfigDef.Width.NONE,
+                GROUP_GCS_RETRY_BACKOFF_POLICY, retryPolicyGroupCounter++, ConfigDef.Width.NONE, // NOPMD
+                                                                                                 // retryPolicyGroupCounter
+                                                                                                 // updated value never
+                                                                                                 // used
                 GCS_RETRY_BACKOFF_TOTAL_TIMEOUT_MS_CONFIG);
     }
 
@@ -177,7 +186,7 @@ public final class GcsSinkConfig extends AivenCommonConfig {
                 // See https://cloud.google.com/storage/docs/naming
                 assert value instanceof String;
                 final String valueStr = (String) value;
-                if (valueStr.length() > 1024) {
+                if (valueStr.length() > 1024) { // NOPMD avoid literal
                     throw new ConfigException(GCS_BUCKET_NAME_CONFIG, value, "cannot be longer than 1024 characters");
                 }
                 if (valueStr.startsWith(".well-known/acme-challenge")) {
@@ -238,7 +247,7 @@ public final class GcsSinkConfig extends AivenCommonConfig {
                     public void ensureValid(final String name, final Object value) {
                         try {
                             ZoneId.of(value.toString());
-                        } catch (final Exception e) {
+                        } catch (final Exception e) { // NOPMD broad exception catched
                             throw new ConfigException(FILE_NAME_TIMESTAMP_TIMEZONE, value, e.getMessage());
                         }
                     }
@@ -253,7 +262,7 @@ public final class GcsSinkConfig extends AivenCommonConfig {
                     public void ensureValid(final String name, final Object value) {
                         try {
                             TimestampSource.Type.of(value.toString());
-                        } catch (final Exception e) {
+                        } catch (final Exception e) { // NOPMD broad exception catched
                             throw new ConfigException(FILE_NAME_TIMESTAMP_SOURCE, value, e.getMessage());
                         }
                     }
@@ -279,7 +288,7 @@ public final class GcsSinkConfig extends AivenCommonConfig {
                     .replaceAll(matchResult -> matchResult.group().replace("YYYY", "yyyy"));
 
             if (!template.equals(originalTemplate)) {
-                log.warn(
+                LOG.warn(
                         "{{timestamp:unit=YYYY}} is no longer supported, "
                                 + "please use {{timestamp:unit=yyyy}} instead. " + "It was automatically replaced: {}",
                         template);
@@ -304,17 +313,15 @@ public final class GcsSinkConfig extends AivenCommonConfig {
 
         // Special checks for {{key}} filename template.
         final Template filenameTemplate = getFilenameTemplate();
-        if (RecordGrouperFactory.KEY_RECORD.equals(RecordGrouperFactory.resolveRecordGrouperType(filenameTemplate))) {
-            if (getMaxRecordsPerFile() > 1) {
-                final String msg = String.format("When %s is %s, %s must be either 1 or not set",
-                        FILE_NAME_TEMPLATE_CONFIG, filenameTemplate, FILE_MAX_RECORDS);
-                throw new ConfigException(msg);
-            }
+        if (RecordGrouperFactory.KEY_RECORD.equals(RecordGrouperFactory.resolveRecordGrouperType(filenameTemplate))
+                && (getMaxRecordsPerFile() > 1)) { // NOPMD avoid literal
+            final String msg = String.format("When %s is %s, %s must be either 1 or not set", FILE_NAME_TEMPLATE_CONFIG,
+                    filenameTemplate, FILE_MAX_RECORDS);
+            throw new ConfigException(msg);
         }
-
     }
 
-    public final GoogleCredentials getCredentials() {
+    public GoogleCredentials getCredentials() {
         final String credentialsPath = getString(GCS_CREDENTIALS_PATH_CONFIG);
         final Password credentialsJsonPwd = getPassword(GCS_CREDENTIALS_JSON_CONFIG);
         try {
@@ -323,20 +330,22 @@ public final class GcsSinkConfig extends AivenCommonConfig {
                 credentialsJson = credentialsJsonPwd.value();
             }
             return GoogleCredentialsBuilder.build(credentialsPath, credentialsJson);
-        } catch (final Exception e) {
+        } catch (final Exception e) { // NOPMD broad exception catched
             throw new ConfigException("Failed to create GCS credentials: " + e.getMessage());
         }
     }
 
-    public final String getBucketName() {
+    public String getBucketName() {
         return getString(GCS_BUCKET_NAME_CONFIG);
     }
 
-    public final CompressionType getCompressionType() {
+    @Override
+    public CompressionType getCompressionType() {
         return CompressionType.forName(getString(FILE_COMPRESSION_TYPE_CONFIG));
     }
 
-    public final List<OutputField> getOutputFields() {
+    @Override
+    public List<OutputField> getOutputFields() {
         final List<OutputField> result = new ArrayList<>();
         for (final String outputFieldTypeStr : getList(FORMAT_OUTPUT_FIELDS_CONFIG)) {
             final OutputFieldType fieldType = OutputFieldType.forName(outputFieldTypeStr);
@@ -351,11 +360,11 @@ public final class GcsSinkConfig extends AivenCommonConfig {
         return result;
     }
 
-    public final String getPrefix() {
+    public String getPrefix() {
         return getString(FILE_NAME_PREFIX_CONFIG);
     }
 
-    public final String getConnectorName() {
+    public String getConnectorName() {
         return originalsStrings().get(NAME_CONFIG);
     }
 

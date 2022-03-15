@@ -31,13 +31,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class GcsSinkConnector extends SinkConnector {
-    private static final Logger log = LoggerFactory.getLogger(GcsSinkConnector.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GcsSinkConnector.class);
 
     private Map<String, String> configProps;
-    private GcsSinkConfig config;
+    private GcsSinkConfig config; // NOPMD field name same as in a method
 
     // required by Connect
-    public GcsSinkConnector() {
+    public GcsSinkConnector() { // NOPMD
+        super();
     }
 
     @Override
@@ -51,7 +52,7 @@ public final class GcsSinkConnector extends SinkConnector {
 
         this.configProps = Collections.unmodifiableMap(props);
         this.config = new GcsSinkConfig(props);
-        log.info("Starting connector {}", config.getConnectorName());
+        LOG.info("Starting connector {}", config.getConnectorName());
     }
 
     @Override
@@ -63,7 +64,7 @@ public final class GcsSinkConnector extends SinkConnector {
     public List<Map<String, String>> taskConfigs(final int maxTasks) {
         final List<Map<String, String>> configs = new ArrayList<>(maxTasks);
         for (int i = 0; i < maxTasks; i++) {
-            final Map<String, String> config = new HashMap<>(configProps);
+            final Map<String, String> config = new HashMap<>(configProps); // NOPMD instantiation in a loop
             configs.add(config);
         }
         return configs;
@@ -72,7 +73,7 @@ public final class GcsSinkConnector extends SinkConnector {
     @Override
     public void stop() {
         // Nothing to do.
-        log.info("Stopping connector {}", config.getConnectorName());
+        LOG.info("Stopping connector {}", config.getConnectorName());
     }
 
     @Override

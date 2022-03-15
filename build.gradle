@@ -24,9 +24,6 @@ plugins {
     // https://docs.gradle.org/current/userguide/distribution_plugin.html
     id "distribution"
 
-    // https://docs.gradle.org/current/userguide/checkstyle_plugin.html
-    id "checkstyle"
-
     // https://docs.gradle.org/current/userguide/idea_plugin.html
     id "idea"
 
@@ -233,11 +230,6 @@ dependencies {
     testImplementation 'org.assertj:assertj-core:3.22.0'
 }
 
-checkstyle {
-    toolVersion "9.2.1"
-    getConfigDirectory().set(rootProject.file("gradle-config/"))
-}
-
 spotless {
   format 'misc', {
     // define the files to apply `misc` to
@@ -272,7 +264,12 @@ pmdMain {
     ruleSets = [] // Clear the default rulesets
 }
 pmdTest {
-    ruleSetFiles = files("${project.rootDir}/gradle-config/aiven-pmd-ruleset.xml")
+    ruleSetFiles = files("${project.rootDir}/gradle-config/aiven-pmd-test-ruleset.xml")
+    ruleSets = [] // Clear the default rulesets
+}
+pmdIntegrationTest {
+    ruleSetFiles = files("${project.rootDir}/gradle-config/aiven-pmd-test-ruleset.xml")
+    ruleSets = [] // Clear the default rulesets
 }
 
 spotbugs {

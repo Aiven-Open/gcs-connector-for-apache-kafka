@@ -50,7 +50,7 @@ public final class BucketAccessor {
     private final String bucketName;
     private final boolean cache;
 
-    private List<String> blobNamesCache = null;
+    private List<String> blobNamesCache;
     private final Map<String, String> stringContentCache = new HashMap<>();
     private final Map<String, List<String>> linesCache = new HashMap<>();
     private final Map<String, List<List<String>>> decodedLinesCache = new HashMap<>();
@@ -68,13 +68,13 @@ public final class BucketAccessor {
         this(storage, bucketName, false);
     }
 
-    public final void ensureWorking() {
+    public void ensureWorking() {
         if (storage.get(bucketName) == null) {
-            throw new RuntimeException("Cannot access GCS bucket \"" + bucketName + "\"");
+            throw new RuntimeException("Cannot access GCS bucket \"" + bucketName + "\""); // NOPMD raw exception type
         }
     }
 
-    public final List<String> getBlobNames() {
+    public List<String> getBlobNames() {
         if (cache) {
             if (blobNamesCache == null) {
                 blobNamesCache = getBlobNames0();
@@ -98,7 +98,7 @@ public final class BucketAccessor {
      * <p>
      * Doesn't support caching.
      */
-    public final List<String> getBlobNames(final String prefix) {
+    public List<String> getBlobNames(final String prefix) {
         Objects.requireNonNull(prefix, "prefix cannot be null");
 
         final Storage.BlobListOption blobListOption = Storage.BlobListOption.prefix(prefix);
@@ -108,7 +108,7 @@ public final class BucketAccessor {
                 .collect(Collectors.toList());
     }
 
-    public final void clear(final String prefix) {
+    public void clear(final String prefix) {
         Objects.requireNonNull(prefix, "prefix cannot be null");
 
         final Storage.BlobListOption blobListOption = Storage.BlobListOption.prefix(prefix);
@@ -117,14 +117,14 @@ public final class BucketAccessor {
         }
 
         if (cache) {
-            blobNamesCache = null;
+            blobNamesCache = null; // NOPMD
             stringContentCache.clear();
             linesCache.clear();
             decodedLinesCache.clear();
         }
     }
 
-    public final String readStringContent(final String blobName, final String compression) {
+    public String readStringContent(final String blobName, final String compression) {
         Objects.requireNonNull(blobName, "blobName cannot be null");
         if (cache) {
             return stringContentCache.computeIfAbsent(blobName, k -> readStringContent0(blobName, compression));
@@ -135,17 +135,17 @@ public final class BucketAccessor {
 
     private String readStringContent0(final String blobName, final String compression) {
         final byte[] blobBytes = storage.readAllBytes(bucketName, blobName);
-        try (final ByteArrayInputStream bais = new ByteArrayInputStream(blobBytes);
-                final InputStream decompressedStream = getDecompressedStream(bais, compression);
-                final InputStreamReader reader = new InputStreamReader(decompressedStream, StandardCharsets.UTF_8);
-                final BufferedReader bufferedReader = new BufferedReader(reader)) {
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(blobBytes);
+                InputStream decompressedStream = getDecompressedStream(bais, compression);
+                InputStreamReader reader = new InputStreamReader(decompressedStream, StandardCharsets.UTF_8);
+                BufferedReader bufferedReader = new BufferedReader(reader)) {
             return bufferedReader.readLine();
         } catch (final IOException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException(e); // NOPMD
         }
     }
 
-    public final List<String> readLines(final String blobName, final String compression) {
+    public List<String> readLines(final String blobName, final String compression) {
         Objects.requireNonNull(blobName, "blobName cannot be null");
         if (cache) {
             return linesCache.computeIfAbsent(blobName, k -> readLines0(blobName, compression));
@@ -154,21 +154,21 @@ public final class BucketAccessor {
         }
     }
 
-    public final byte[] readBytes(final String blobName) {
+    public byte[] readBytes(final String blobName) {
         return storage.readAllBytes(bucketName, blobName);
     }
 
     private List<String> readLines0(final String blobName, final String compression) {
         Objects.requireNonNull(blobName, "blobName cannot be null");
         final byte[] blobBytes = storage.readAllBytes(bucketName, blobName);
-        try (final ByteArrayInputStream bais = new ByteArrayInputStream(blobBytes);
-                final InputStream decompressedStream = getDecompressedStream(bais, compression);
-                final InputStreamReader reader = new InputStreamReader(decompressedStream, StandardCharsets.UTF_8);
-                final BufferedReader bufferedReader = new BufferedReader(reader)) {
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(blobBytes);
+                InputStream decompressedStream = getDecompressedStream(bais, compression);
+                InputStreamReader reader = new InputStreamReader(decompressedStream, StandardCharsets.UTF_8);
+                BufferedReader bufferedReader = new BufferedReader(reader)) {
 
             return bufferedReader.lines().collect(Collectors.toList());
         } catch (final IOException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException(e); // NOPMD
         }
     }
 
@@ -190,7 +190,7 @@ public final class BucketAccessor {
         }
     }
 
-    public final List<List<String>> readAndDecodeLines(final String blobName, final String compression,
+    public List<List<String>> readAndDecodeLines(final String blobName, final String compression,
             final int... fieldsToDecode) {
         Objects.requireNonNull(blobName, "blobName cannot be null");
         Objects.requireNonNull(fieldsToDecode, "fieldsToDecode cannot be null");
@@ -237,15 +237,16 @@ public final class BucketAccessor {
         return Record.of(key, value, headers);
     }
 
-    public Iterable<Header> decodeHeaders(final String s) {
+    public Iterable<Header> decodeHeaders(final String headerValue) {
         final ConnectHeaders connectHeaders = new ConnectHeaders();
-        final String[] headers = s.split(";");
+        final String[] headers = headerValue.split(";");
         for (final String header : headers) {
             final String[] keyValue = header.split(":");
             final String key = b64Decode(keyValue[0]);
-            final ByteArrayConverter byteArrayConverter = new ByteArrayConverter();
+            final ByteArrayConverter byteArrayConverter = new ByteArrayConverter(); // NOPMD
             final byte[] value = Base64.getDecoder().decode(keyValue[1]);
             final SchemaAndValue schemaAndValue = byteArrayConverter.toConnectHeader("topic0", key, value);
+            byteArrayConverter.close();
             connectHeaders.add(key, schemaAndValue);
         }
         return connectHeaders;

@@ -56,31 +56,35 @@ public class Record {
         this.headers = headers;
     }
 
-    public static Record of(final String key, final String value, final Iterable<Header> headers) {
+    public static Record of(final String key, final String value, final Iterable<Header> headers) { // NOPMD short
+                                                                                                    // method name
         return new Record(key, value, headers);
     }
 
-    public static Record of(final String topic, final String key, final String value, final int partition,
+    public static Record of(final String topic, final String key, final String value, final int partition, // NOPMD
+                                                                                                           // short
+                                                                                                           // method
+                                                                                                           // name
             final int offset, final int timestamp, final Iterable<Header> headers) {
         return new Record(topic, key, value, partition, offset, timestamp, headers);
     }
 
     @Override
-    public boolean equals(final Object o) {
-        if (this == o) {
+    public boolean equals(final Object other) {
+        if (this == other) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (other == null || getClass() != other.getClass()) {
             return false;
         }
-        final Record record = (Record) o;
+        final Record record = (Record) other;
         return Objects.equals(key, record.key) && Objects.equals(value, record.value)
                 && headersEquals(headers, record.headers);
     }
 
-    private boolean headersEquals(final Iterable<Header> h1, final Iterable<Header> h2) {
-        final Iterator<Header> h1Iterator = h1.iterator();
-        final Iterator<Header> h2Iterator = h2.iterator();
+    private boolean headersEquals(final Iterable<Header> headers1, final Iterable<Header> headers2) {
+        final Iterator<Header> h1Iterator = headers1.iterator();
+        final Iterator<Header> h2Iterator = headers2.iterator();
         while (h1Iterator.hasNext() && h2Iterator.hasNext()) {
             final Header header1 = h1Iterator.next();
             final Header header2 = h2Iterator.next();
@@ -116,11 +120,11 @@ public class Record {
 
     @Override
     public String toString() {
-        final StringBuilder sb = new StringBuilder();
-        sb.append("key=").append(key).append(" ").append("value=").append(value).append("\n");
+        final StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append(String.format("key=%s value=%s%n", key, value));
         for (final Header header : headers) {
-            sb.append(header.key()).append(" ").append(Utils.bytesToHex((byte[]) header.value())).append("\n");
+            stringBuilder.append(String.format("%s %s%n", header.key(), Utils.bytesToHex((byte[]) header.value())));
         }
-        return sb.toString();
+        return stringBuilder.toString();
     }
 }

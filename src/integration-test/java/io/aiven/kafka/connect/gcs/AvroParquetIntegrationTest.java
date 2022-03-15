@@ -102,7 +102,7 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
     }
 
     @AfterEach
-    final void tearDown() {
+    void tearDown() {
         connectRunner.stop();
         adminClient.close();
         producer.close();
@@ -113,8 +113,7 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    final void allOutputFields(@TempDir final Path tmpDir)
-            throws ExecutionException, InterruptedException, IOException {
+    void allOutputFields(@TempDir final Path tmpDir) throws ExecutionException, InterruptedException, IOException {
         final var compression = "none";
         final Map<String, String> connectorConfig = basicConnectorConfig(compression);
         connectorConfig.put("format.output.fields", "key,value,offset,timestamp,headers");
@@ -138,7 +137,7 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
         for (int i = 0; i < 10; i++) {
             for (int partition = 0; partition < 4; partition++) {
                 final var key = "key-" + cnt;
-                final GenericRecord value = new GenericData.Record(valueSchema);
+                final GenericRecord value = new GenericData.Record(valueSchema); // NOPMD instantiation in a loop
                 value.put("name", "user-" + cnt);
                 value.put("value", "value-" + cnt);
                 cnt += 1;
@@ -182,8 +181,7 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    final void valueComplexType(@TempDir final Path tmpDir)
-            throws ExecutionException, InterruptedException, IOException {
+    void valueComplexType(@TempDir final Path tmpDir) throws ExecutionException, InterruptedException, IOException {
         final String compression = "none";
         final Map<String, String> connectorConfig = basicConnectorConfig(compression);
         connectorConfig.put("format.output.fields", "value");
@@ -207,7 +205,7 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
         for (int i = 0; i < 10; i++) {
             for (int partition = 0; partition < 4; partition++) {
                 final var key = "key-" + cnt;
-                final GenericRecord value = new GenericData.Record(valueSchema);
+                final GenericRecord value = new GenericData.Record(valueSchema); // NOPMD instantiation in a loop
                 value.put("name", "user-" + cnt);
                 value.put("value", "value-" + cnt);
                 cnt += 1;
@@ -247,7 +245,7 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    final void schemaChanged(@TempDir final Path tmpDir) throws ExecutionException, InterruptedException, IOException {
+    void schemaChanged(@TempDir final Path tmpDir) throws ExecutionException, InterruptedException, IOException {
         final String compression = "none";
         final Map<String, String> connectorConfig = basicConnectorConfig(compression);
         connectorConfig.put("format.output.fields", "value");
@@ -289,12 +287,12 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
             for (int partition = 0; partition < 4; partition++) {
                 final var key = "key-" + cnt;
                 final GenericRecord value;
-                if (i < 5) {
-                    value = new GenericData.Record(valueSchema);
+                if (i < 5) { // NOPMD literal
+                    value = new GenericData.Record(valueSchema); // NOPMD instantiation in a loop
                     value.put("name", "user-" + cnt);
                     value.put("value", "value-" + cnt);
                 } else {
-                    value = new GenericData.Record(newValueSchema);
+                    value = new GenericData.Record(newValueSchema); // NOPMD instantiation in a loop
                     value.put("name", "user-" + cnt);
                     value.put("value", "value-" + cnt);
                     value.put("blocked", true);
