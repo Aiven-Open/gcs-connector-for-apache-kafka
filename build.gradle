@@ -41,6 +41,8 @@ plugins {
 
     // https://plugins.gradle.org/plugin/com.diffplug.spotless
     id "com.diffplug.spotless" version "5.16.0"
+
+    id "com.github.spotbugs" version "5.0.6"
 }
 
 group = "io.aiven"
@@ -254,6 +256,27 @@ spotless {
     endWithNewline()
     trimTrailingWhitespace()
   }
+}
+
+spotbugs {
+    toolVersion = "4.4.2"
+//    excludeFilter = file("${project.rootDir}/gradle-config/spotbugs-exclude.xml")
+}
+spotbugsMain {
+    reports {
+        html {
+            enabled = true
+            stylesheet = 'fancy-hist.xsl'
+        }
+    }
+}
+spotbugsTest {
+    reports {
+        html {
+            enabled = true
+            stylesheet = 'fancy-hist.xsl'
+        }
+    }
 }
 
 task integrationTest(type: Test) {
