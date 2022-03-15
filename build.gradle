@@ -42,6 +42,8 @@ plugins {
     // https://plugins.gradle.org/plugin/com.diffplug.spotless
     id "com.diffplug.spotless" version "5.16.0"
 
+    id "pmd"
+
     id "com.github.spotbugs" version "5.0.6"
 }
 
@@ -258,6 +260,19 @@ spotless {
     endWithNewline()
     trimTrailingWhitespace()
   }
+}
+
+pmd {
+    consoleOutput = true
+    toolVersion = "6.40.0"
+    rulesMinimumPriority = 5
+}
+pmdMain {
+    ruleSetFiles = files("${project.rootDir}/gradle-config/aiven-pmd-ruleset.xml")
+    ruleSets = [] // Clear the default rulesets
+}
+pmdTest {
+    ruleSetFiles = files("${project.rootDir}/gradle-config/aiven-pmd-ruleset.xml")
 }
 
 spotbugs {
