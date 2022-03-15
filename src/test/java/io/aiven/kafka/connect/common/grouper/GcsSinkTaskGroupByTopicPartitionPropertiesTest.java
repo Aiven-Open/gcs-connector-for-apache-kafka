@@ -105,8 +105,8 @@ final class GcsSinkTaskGroupByTopicPartitionPropertiesTest extends PbtBase {
             final Map<TopicPartition, List<SinkRecord>> groupedPerTopicPartition = recordBatch.stream()
                     .collect(Collectors.groupingBy(r -> new TopicPartition(r.topic(), r.kafkaPartition())));
 
-            for (final TopicPartition tp : groupedPerTopicPartition.keySet()) {
-                final List<List<SinkRecord>> chunks = Lists.partition(groupedPerTopicPartition.get(tp),
+            for (final Map.Entry<TopicPartition, List<SinkRecord>> entry : groupedPerTopicPartition.entrySet()) {
+                final List<List<SinkRecord>> chunks = Lists.partition(groupedPerTopicPartition.get(entry.getKey()),
                         effectiveMaxRecordsPerFile(maxRecordsPerFile));
                 for (final List<SinkRecord> chunk : chunks) {
                     expectedFileNames.add(createFilename(chunk.get(0)));

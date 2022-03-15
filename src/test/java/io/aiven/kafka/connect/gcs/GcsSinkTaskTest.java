@@ -56,6 +56,7 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.contrib.nio.testing.LocalStorageHelper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.assertj.core.util.introspection.FieldSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -72,6 +73,8 @@ final class GcsSinkTaskTest {
     private static BucketAccessor testBucketAccessor;
 
     private static Map<String, String> properties;
+
+    private final Random random = new Random();
 
     private final List<SinkRecord> basicRecords = Arrays.asList(createRecord("topic0", 0, "key0", "value0", 10, 1000),
             createRecord("topic0", 1, "key1", "value1", 20, 1001),
@@ -128,6 +131,7 @@ final class GcsSinkTaskTest {
         return records.stream().map(Record::toSinkRecord).collect(Collectors.toList());
     }
 
+    @SuppressFBWarnings
     @BeforeEach
     final void setUp() {
         storage = LocalStorageHelper.getOptions().getService();
@@ -687,7 +691,6 @@ final class GcsSinkTaskTest {
     }
 
     private Iterable<Header> createHeaders() {
-        final Random random = new Random();
         final byte[] k1 = new byte[8];
         final byte[] k2 = new byte[8];
         random.nextBytes(k1);
@@ -702,13 +705,6 @@ final class GcsSinkTaskTest {
         connectHeaders.addBytes(key1, value1);
         connectHeaders.addBytes(key2, value2);
         return connectHeaders;
-    }
-
-    private SinkRecord createRecord(final String topic, final int partition, final String key, final String value,
-            final int offset, final long timestamp, final Iterable<Header> headers) {
-        return new SinkRecord(topic, partition, Schema.BYTES_SCHEMA, key.getBytes(StandardCharsets.UTF_8),
-                Schema.BYTES_SCHEMA, value.getBytes(StandardCharsets.UTF_8), offset, timestamp,
-                TimestampType.CREATE_TIME, headers);
     }
 
     private SinkRecord createRecordStringKey(final String topic, final int partition, final String key,

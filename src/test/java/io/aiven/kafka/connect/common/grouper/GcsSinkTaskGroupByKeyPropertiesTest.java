@@ -80,9 +80,9 @@ final class GcsSinkTaskGroupByKeyPropertiesTest extends PbtBase {
         assertThat(testBucketAccessor.getBlobNames(), containsInAnyOrder(expectedFileNames.toArray()));
 
         // Check file contents.
-        for (final String key : lastRecordPerKey.keySet()) {
-            final SinkRecord record = lastRecordPerKey.get(key);
-            final String filename = createFilename(key);
+        for (final Map.Entry<String, SinkRecord> entry : lastRecordPerKey.entrySet()) {
+            final SinkRecord record = lastRecordPerKey.get(entry.getKey());
+            final String filename = createFilename(entry.getKey());
 
             final List<String> lines = testBucketAccessor.readLines(filename, "none");
             assertThat(lines, hasSize(1));
@@ -92,7 +92,7 @@ final class GcsSinkTaskGroupByKeyPropertiesTest extends PbtBase {
                 expectedKeySubstring = "";
             } else {
                 final String keyStr = (String) record.key();
-                expectedKeySubstring = Base64.getEncoder().encodeToString(keyStr.getBytes());
+                expectedKeySubstring = Base64.getEncoder().encodeToString(keyStr.getBytes(StandardCharsets.UTF_8));
             }
             final String expectedValueSubstring = new String((byte[]) record.value(), StandardCharsets.UTF_8);
             final String expectedLine = String.format("%s,%s,%d", expectedKeySubstring, expectedValueSubstring,

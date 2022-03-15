@@ -20,6 +20,7 @@ import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 
 import com.google.auth.oauth2.GoogleCredentials;
 import org.slf4j.Logger;
@@ -80,7 +81,7 @@ public final class GoogleCredentialsBuilder {
     }
 
     private static GoogleCredentials getCredentialsFromJson(final String credentialsJson) throws IOException {
-        try (final InputStream stream = new ByteArrayInputStream(credentialsJson.getBytes())) {
+        try (final InputStream stream = new ByteArrayInputStream(credentialsJson.getBytes(StandardCharsets.UTF_8))) {
             return GoogleCredentials.fromStream(stream);
         } catch (final IOException e) {
             throw new IOException("Failed to read credentials from JSON string", e);

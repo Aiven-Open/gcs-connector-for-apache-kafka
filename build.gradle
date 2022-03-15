@@ -138,6 +138,8 @@ dependencies {
         exclude group: "com.google.guava", module: "guava"
     }
 
+    implementation "com.github.spotbugs:spotbugs-annotations:4.6.0"
+
     implementation "com.google.guava:guava:31.1-jre"
 
     implementation "io.aiven:commons-for-apache-kafka-connect:$aivenConnectCommonsVersion"
@@ -260,12 +262,11 @@ spotless {
 
 spotbugs {
     toolVersion = "4.4.2"
-//    excludeFilter = file("${project.rootDir}/gradle-config/spotbugs-exclude.xml")
+    excludeFilter = file("${project.rootDir}/gradle-config/spotbugs-exclude.xml")
 }
 spotbugsMain {
     reports {
         html {
-            enabled = true
             stylesheet = 'fancy-hist.xsl'
         }
     }
@@ -273,12 +274,17 @@ spotbugsMain {
 spotbugsTest {
     reports {
         html {
-            enabled = true
             stylesheet = 'fancy-hist.xsl'
         }
     }
 }
-
+spotbugsIntegrationTest {
+    reports {
+        html {
+            stylesheet = 'fancy-hist.xsl'
+        }
+    }
+}
 task integrationTest(type: Test) {
     description = 'Runs the integration tests.'
     group = 'verification'

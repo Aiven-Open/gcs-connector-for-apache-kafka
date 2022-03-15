@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -330,7 +331,8 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
     private Future<RecordMetadata> sendMessageAsync(final String topicName, final int partition, final String key,
             final String value) {
         final ProducerRecord<byte[], byte[]> msg = new ProducerRecord<>(topicName, partition,
-                key == null ? null : key.getBytes(), value == null ? null : value.getBytes());
+                key == null ? null : key.getBytes(StandardCharsets.UTF_8),
+                value == null ? null : value.getBytes(StandardCharsets.UTF_8));
         return producer.send(msg);
     }
 

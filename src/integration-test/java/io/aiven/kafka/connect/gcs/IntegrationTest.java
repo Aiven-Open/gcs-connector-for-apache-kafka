@@ -21,6 +21,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 
+import java.nio.charset.StandardCharsets;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -246,9 +247,9 @@ final class IntegrationTest extends AbstractIntegrationTest {
         awaitAllBlobsWritten(expectedBlobsNames.size());
         assertIterableEquals(expectedBlobsNames, testBucketAccessor.getBlobNames(gcsPrefix));
 
-        for (final String blobName : expectedBlobsAndContent.keySet()) {
-            assertEquals(expectedBlobsAndContent.get(blobName),
-                    testBucketAccessor.readStringContent(blobName, compression));
+        for (final Map.Entry<String, String> entry : expectedBlobsAndContent.entrySet()) {
+            assertEquals(expectedBlobsAndContent.get(entry.getKey()),
+                    testBucketAccessor.readStringContent(entry.getKey(), compression));
         }
     }
 
@@ -275,11 +276,11 @@ final class IntegrationTest extends AbstractIntegrationTest {
         final int cntMax = 1000;
         int cnt = 0;
         outer : while (true) {
-            for (final TopicPartition tp : keysPerTopicPartition.keySet()) {
-                for (final String key : keysPerTopicPartition.get(tp)) {
+            for (final Map.Entry<TopicPartition, List<String>> entry : keysPerTopicPartition.entrySet()) {
+                for (final String key : keysPerTopicPartition.get(entry.getKey())) {
                     final String value = "value-" + cnt;
                     cnt += 1;
-                    sendFutures.add(sendMessageAsync(tp.topic(), tp.partition(), key, value));
+                    sendFutures.add(sendMessageAsync(entry.getKey().topic(), entry.getKey().partition(), key, value));
                     lastValuePerKey.put(key, value);
                     if (cnt >= cntMax) {
                         break outer;
@@ -447,7 +448,8 @@ final class IntegrationTest extends AbstractIntegrationTest {
     private Future<RecordMetadata> sendMessageAsync(final String topicName, final int partition, final String key,
             final String value) {
         final ProducerRecord<byte[], byte[]> msg = new ProducerRecord<>(topicName, partition,
-                key == null ? null : key.getBytes(), value == null ? null : value.getBytes());
+                key == null ? null : key.getBytes(StandardCharsets.UTF_8),
+                value == null ? null : value.getBytes(StandardCharsets.UTF_8));
         return producer.send(msg);
     }
 
