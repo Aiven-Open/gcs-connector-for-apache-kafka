@@ -85,7 +85,7 @@ ext {
     // Compatible with Kafka version:
     // https://docs.confluent.io/current/installation/versions-interoperability.html
     confluentPlatformVersion = "4.1.4"
-    aivenConnectCommonsVersion = "0.7.1"
+    aivenConnectCommonsVersion = "0.8.2"
     testcontainersVersion = "1.16.3"
     slf4jVersion = "1.7.36"
 }
@@ -167,8 +167,12 @@ dependencies {
 
     integrationTestImplementation "org.testcontainers:junit-jupiter:$testcontainersVersion"
     integrationTestImplementation "org.testcontainers:kafka:$testcontainersVersion" // this is not Kafka version
-    integrationTestImplementation "io.confluent:kafka-avro-serializer:$confluentPlatformVersion"
-    integrationTestImplementation "io.confluent:kafka-connect-avro-converter:$confluentPlatformVersion"
+    integrationTestImplementation("io.confluent:kafka-avro-serializer:$confluentPlatformVersion") {
+        exclude group: "org.apache.kafka", module: "kafka-clients"
+    }
+    integrationTestImplementation("io.confluent:kafka-connect-avro-converter:$confluentPlatformVersion") {
+        exclude group: "org.apache.kafka", module: "kafka-clients"
+    }
     integrationTestImplementation "org.awaitility:awaitility:4.2.0"
     integrationTestImplementation "org.apache.avro:avro:1.11.0"
 

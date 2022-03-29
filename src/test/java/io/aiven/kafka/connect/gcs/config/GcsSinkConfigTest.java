@@ -802,7 +802,7 @@ final class GcsSinkConfigTest {
 
         final var expectedErrorMessage = "Invalid value {{:padding=true}}-{{partition}}-{{topic}} "
             + "for configuration file.name.template: "
-            + "Variable name has't been set for template: {{:padding=true}}-{{partition}}-{{topic}}";
+            + "Variable name hasn't been set for template: {{:padding=true}}-{{partition}}-{{topic}}";
 
         expectErrorMessageForConfigurationInConfigDefValidation(
             properties, "file.name.template", expectedErrorMessage);
