@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Aiven Oy
+ * Copyright $YEAR Aiven Oy
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +14,3 @@
  * limitations under the License.
  */
 
-package io.aiven.kafka.connect.gcs;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-import org.junit.jupiter.api.Test;
-
-class GcsSinkConnectorTest {
-
-    @Test
-    void version() {
-        final GcsSinkConnector connector = new GcsSinkConnector();
-        assertEquals("test-version", connector.version());
-    }
-}

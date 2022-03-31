@@ -39,7 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 final class ConnectRunner {
-    private static final Logger log = LoggerFactory.getLogger(ConnectRunner.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ConnectRunner.class);
 
     private final File pluginDir;
     private final String bootstrapServers;
@@ -48,9 +48,7 @@ final class ConnectRunner {
     private Herder herder;
     private Connect connect;
 
-    public ConnectRunner(final File pluginDir,
-                         final String bootstrapServers,
-                         final int offsetFlushIntervalMs) {
+    public ConnectRunner(final File pluginDir, final String bootstrapServers, final int offsetFlushIntervalMs) {
         this.pluginDir = pluginDir;
         this.bootstrapServers = bootstrapServers;
         this.offsetFlushInterval = offsetFlushIntervalMs;
@@ -82,8 +80,7 @@ final class ConnectRunner {
         final Plugins plugins = new Plugins(workerProps);
         final StandaloneConfig config = new StandaloneConfig(workerProps);
 
-        final Worker worker = new Worker(
-            workerId, time, plugins, config, new MemoryOffsetBackingStore());
+        final Worker worker = new Worker(workerId, time, plugins, config, new MemoryOffsetBackingStore());
         herder = new StandaloneHerder(worker, kafkaClusterId);
 
         final RestServer rest = new RestServer(config);
@@ -96,23 +93,20 @@ final class ConnectRunner {
     void createConnector(final Map<String, String> config) throws ExecutionException, InterruptedException {
         assert herder != null;
 
-        final FutureCallback<Herder.Created<ConnectorInfo>> cb = new FutureCallback<>(
-            new Callback<Herder.Created<ConnectorInfo>>() {
-                @Override
-                public void onCompletion(final Throwable error, final Herder.Created<ConnectorInfo> info) {
-                    if (error != null) {
-                        log.error("Failed to create job");
-                    } else {
-                        log.info("Created connector {}", info.result().name());
+        final FutureCallback<Herder.Created<ConnectorInfo>> callback = new FutureCallback<>(
+                new Callback<Herder.Created<ConnectorInfo>>() {
+                    @Override
+                    public void onCompletion(final Throwable error, final Herder.Created<ConnectorInfo> info) {
+                        if (error == null) {
+                            LOG.info("Created connector {}", info.result().name());
+                        } else {
+                            LOG.error("Failed to create job");
+                        }
                     }
-                }
-            });
-        herder.putConnectorConfig(
-            config.get(ConnectorConfig.NAME_CONFIG),
-            config, false, cb
-        );
+                });
+        herder.putConnectorConfig(config.get(ConnectorConfig.NAME_CONFIG), config, false, callback);
 
-        final Herder.Created<ConnectorInfo> connectorInfoCreated = cb.get();
+        final Herder.Created<ConnectorInfo> connectorInfoCreated = callback.get();
         assert connectorInfoCreated.created();
     }
 

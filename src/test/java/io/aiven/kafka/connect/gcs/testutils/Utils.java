@@ -16,15 +16,18 @@
 
 package io.aiven.kafka.connect.gcs.testutils;
 
-public class Utils {
+final public class Utils {
     private static final char[] HEX_CHARS = "0123456789ABCDEF".toCharArray();
+
+    private Utils() {
+        /* hide constructor */ }
 
     public static String bytesToHex(final byte[] bytes) {
         final char[] chars = new char[bytes.length * 2];
         for (int i = 0; i < bytes.length; i++) {
-            final int v = bytes[i] & 0xFF;
-            chars[i * 2] = HEX_CHARS[v >>> 4];
-            chars[i * 2 + 1] = HEX_CHARS[v & 0x0F];
+            final int value = bytes[i] & 0xFF;
+            chars[i * 2] = HEX_CHARS[value >>> 4];
+            chars[i * 2 + 1] = HEX_CHARS[value & 0x0F];
         }
         return new String(chars);
     }

@@ -16,6 +16,12 @@
 
 package io.aiven.kafka.connect.gcs;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertIterableEquals;
+
+import java.nio.charset.StandardCharsets;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -49,18 +55,12 @@ import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertIterableEquals;
-
 @Testcontainers
 final class IntegrationTest extends AbstractIntegrationTest {
     private static final String CONNECTOR_NAME = "aiven-gcs-sink-connector";
 
     @Container
-    private final KafkaContainer kafka = new KafkaContainer()
-            .withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false");
+    private final KafkaContainer kafka = new KafkaContainer().withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false");
 
     private AdminClient adminClient;
     private KafkaProducer<byte[], byte[]> producer;
@@ -92,7 +92,7 @@ final class IntegrationTest extends AbstractIntegrationTest {
     }
 
     @AfterEach
-    final void tearDown() {
+    void tearDown() {
         connectRunner.stop();
         adminClient.close();
         producer.close();
@@ -103,8 +103,8 @@ final class IntegrationTest extends AbstractIntegrationTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"none", "gzip", "snappy", "zstd"})
-    final void basicTest(final String compression) throws ExecutionException, InterruptedException {
+    @ValueSource(strings = { "none", "gzip", "snappy", "zstd" })
+    void basicTest(final String compression) throws ExecutionException, InterruptedException {
         final Map<String, String> connectorConfig = basicConnectorConfig();
         connectorConfig.put("format.output.fields", "key,value");
         connectorConfig.put("file.compression.type", compression);
@@ -126,11 +126,8 @@ final class IntegrationTest extends AbstractIntegrationTest {
             sendFuture.get();
         }
 
-        final List<String> expectedBlobs = Arrays.asList(
-                getBlobName(0, 0, compression),
-                getBlobName(1, 0, compression),
-                getBlobName(2, 0, compression),
-                getBlobName(3, 0, compression));
+        final List<String> expectedBlobs = Arrays.asList(getBlobName(0, 0, compression), getBlobName(1, 0, compression),
+                getBlobName(2, 0, compression), getBlobName(3, 0, compression));
 
         awaitAllBlobsWritten(expectedBlobs.size());
         assertIterableEquals(expectedBlobs, testBucketAccessor.getBlobNames(gcsPrefix));
@@ -138,10 +135,10 @@ final class IntegrationTest extends AbstractIntegrationTest {
         final Map<String, List<String>> blobContents = new HashMap<>();
         for (final String blobName : expectedBlobs) {
             blobContents.put(blobName,
-                    testBucketAccessor.readAndDecodeLines(blobName, compression, 0, 1).stream()
+                    testBucketAccessor.readAndDecodeLines(blobName, compression, 0, 1)
+                            .stream()
                             .map(fields -> String.join(",", fields))
-                            .collect(Collectors.toList())
-            );
+                            .collect(Collectors.toList()));
         }
 
         cnt = 0;
@@ -160,16 +157,13 @@ final class IntegrationTest extends AbstractIntegrationTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"none", "gzip", "snappy", "zstd"})
-    final void groupByTimestampVariable(final String compression) throws ExecutionException, InterruptedException {
+    @ValueSource(strings = { "none", "gzip", "snappy", "zstd" })
+    void groupByTimestampVariable(final String compression) throws ExecutionException, InterruptedException {
         final Map<String, String> connectorConfig = basicConnectorConfig();
         connectorConfig.put("format.output.fields", "key,value");
         connectorConfig.put("file.compression.type", compression);
-        connectorConfig.put(
-                "file.name.template",
-                "{{topic}}-{{partition}}-{{start_offset}}-"
-                        + "{{timestamp:unit=yyyy}}-{{timestamp:unit=MM}}-{{timestamp:unit=dd}}"
-        );
+        connectorConfig.put("file.name.template", "{{topic}}-{{partition}}-{{start_offset}}-"
+                + "{{timestamp:unit=yyyy}}-{{timestamp:unit=MM}}-{{timestamp:unit=dd}}");
         connectRunner.createConnector(connectorConfig);
 
         final List<Future<RecordMetadata>> sendFutures = new ArrayList<>();
@@ -185,28 +179,21 @@ final class IntegrationTest extends AbstractIntegrationTest {
         }
 
         final Map<String, String[]> expectedBlobsAndContent = new HashMap<>();
-        expectedBlobsAndContent.put(
-                getTimestampBlobName(0, 0),
-                new String[]{"key-0,value-0", "key-1,value-1", "key-2,value-2"}
-        );
-        expectedBlobsAndContent.put(
-                getTimestampBlobName(1, 0),
-                new String[]{"key-3,value-3"}
-        );
-        expectedBlobsAndContent.put(
-                getTimestampBlobName(3, 0),
-                new String[]{"key-4,value-4"}
-        );
+        expectedBlobsAndContent.put(getTimestampBlobName(0, 0),
+                new String[] { "key-0,value-0", "key-1,value-1", "key-2,value-2" });
+        expectedBlobsAndContent.put(getTimestampBlobName(1, 0), new String[] { "key-3,value-3" });
+        expectedBlobsAndContent.put(getTimestampBlobName(3, 0), new String[] { "key-4,value-4" });
 
-        final List<String> expectedBlobsNames =
-                expectedBlobsAndContent.keySet().stream().sorted().collect(Collectors.toList());
+        final List<String> expectedBlobsNames = expectedBlobsAndContent.keySet()
+                .stream()
+                .sorted()
+                .collect(Collectors.toList());
 
         awaitAllBlobsWritten(expectedBlobsNames.size());
         assertIterableEquals(expectedBlobsNames, testBucketAccessor.getBlobNames(gcsPrefix));
 
         for (final String expectedBlobName : expectedBlobsNames) {
-            final List<String> blobContent = testBucketAccessor
-                    .readAndDecodeLines(expectedBlobName, compression, 0, 1)
+            final List<String> blobContent = testBucketAccessor.readAndDecodeLines(expectedBlobName, compression, 0, 1)
                     .stream()
                     .map(fields -> String.join(",", fields).trim())
                     .collect(Collectors.toList());
@@ -217,23 +204,14 @@ final class IntegrationTest extends AbstractIntegrationTest {
 
     private String getTimestampBlobName(final int partition, final int startOffset) {
         final ZonedDateTime time = ZonedDateTime.now(ZoneId.of("UTC"));
-        return String.format(
-                "%s%s-%d-%d-%s-%s-%s",
-                gcsPrefix,
-                TEST_TOPIC_0,
-                partition,
-                startOffset,
-                time.format(DateTimeFormatter.ofPattern("yyyy")),
-                time.format(DateTimeFormatter.ofPattern("MM")),
-                time.format(DateTimeFormatter.ofPattern("dd"))
-        );
+        return String.format("%s%s-%d-%d-%s-%s-%s", gcsPrefix, TEST_TOPIC_0, partition, startOffset,
+                time.format(DateTimeFormatter.ofPattern("yyyy")), time.format(DateTimeFormatter.ofPattern("MM")),
+                time.format(DateTimeFormatter.ofPattern("dd")));
     }
 
-
     @ParameterizedTest
-    @ValueSource(strings = {"none", "gzip", "snappy", "zstd"})
-    final void oneFilePerRecordWithPlainValues(final String compression)
-            throws ExecutionException, InterruptedException {
+    @ValueSource(strings = { "none", "gzip", "snappy", "zstd" })
+    void oneFilePerRecordWithPlainValues(final String compression) throws ExecutionException, InterruptedException {
         final Map<String, String> connectorConfig = basicConnectorConfig();
         connectorConfig.put("format.output.fields", "value");
         connectorConfig.put("file.compression.type", compression);
@@ -260,23 +238,23 @@ final class IntegrationTest extends AbstractIntegrationTest {
         expectedBlobsAndContent.put(getBlobName(0, 2, compression), "value-2");
         expectedBlobsAndContent.put(getBlobName(1, 0, compression), "value-3");
         expectedBlobsAndContent.put(getBlobName(3, 0, compression), "value-4");
-        final List<String> expectedBlobsNames =
-                expectedBlobsAndContent.keySet().stream().sorted().collect(Collectors.toList());
+        final List<String> expectedBlobsNames = expectedBlobsAndContent.keySet()
+                .stream()
+                .sorted()
+                .collect(Collectors.toList());
 
         awaitAllBlobsWritten(expectedBlobsNames.size());
         assertIterableEquals(expectedBlobsNames, testBucketAccessor.getBlobNames(gcsPrefix));
 
-        for (final String blobName : expectedBlobsAndContent.keySet()) {
-            assertEquals(
-                    expectedBlobsAndContent.get(blobName),
-                    testBucketAccessor.readStringContent(blobName, compression)
-            );
+        for (final Map.Entry<String, String> entry : expectedBlobsAndContent.entrySet()) {
+            assertEquals(expectedBlobsAndContent.get(entry.getKey()),
+                    testBucketAccessor.readStringContent(entry.getKey(), compression));
         }
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"none", "gzip", "snappy", "zstd"})
-    final void groupByKey(final String compression) throws ExecutionException, InterruptedException {
+    @ValueSource(strings = { "none", "gzip", "snappy", "zstd" })
+    void groupByKey(final String compression) throws ExecutionException, InterruptedException {
         final Map<String, String> connectorConfig = basicConnectorConfig();
         final CompressionType compressionType = CompressionType.forName(compression);
         connectorConfig.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
@@ -286,8 +264,8 @@ final class IntegrationTest extends AbstractIntegrationTest {
         connectRunner.createConnector(connectorConfig);
 
         final Map<TopicPartition, List<String>> keysPerTopicPartition = new HashMap<>();
-        keysPerTopicPartition.put(
-                new TopicPartition(TEST_TOPIC_0, 0), Arrays.asList("key-0", "key-1", "key-2", "key-3"));
+        keysPerTopicPartition.put(new TopicPartition(TEST_TOPIC_0, 0),
+                Arrays.asList("key-0", "key-1", "key-2", "key-3"));
         keysPerTopicPartition.put(new TopicPartition(TEST_TOPIC_0, 1), Arrays.asList("key-4", "key-5", "key-6"));
         keysPerTopicPartition.put(new TopicPartition(TEST_TOPIC_1, 0), Arrays.asList(null, "key-7"));
         keysPerTopicPartition.put(new TopicPartition(TEST_TOPIC_1, 1), Arrays.asList("key-8"));
@@ -296,13 +274,12 @@ final class IntegrationTest extends AbstractIntegrationTest {
         final Map<String, String> lastValuePerKey = new HashMap<>();
         final int cntMax = 1000;
         int cnt = 0;
-        outer:
-        while (true) {
-            for (final TopicPartition tp : keysPerTopicPartition.keySet()) {
-                for (final String key : keysPerTopicPartition.get(tp)) {
+        outer : while (true) {
+            for (final Map.Entry<TopicPartition, List<String>> entry : keysPerTopicPartition.entrySet()) {
+                for (final String key : keysPerTopicPartition.get(entry.getKey())) {
                     final String value = "value-" + cnt;
                     cnt += 1;
-                    sendFutures.add(sendMessageAsync(tp.topic(), tp.partition(), key, value));
+                    sendFutures.add(sendMessageAsync(entry.getKey().topic(), entry.getKey().partition(), key, value));
                     lastValuePerKey.put(key, value);
                     if (cnt >= cntMax) {
                         break outer;
@@ -315,7 +292,8 @@ final class IntegrationTest extends AbstractIntegrationTest {
             sendFuture.get();
         }
 
-        final List<String> expectedBlobs = keysPerTopicPartition.values().stream()
+        final List<String> expectedBlobs = keysPerTopicPartition.values()
+                .stream()
                 .flatMap(keys -> keys.stream().map(k -> getBlobName(k, compression)))
                 .collect(Collectors.toList());
 
@@ -323,14 +301,14 @@ final class IntegrationTest extends AbstractIntegrationTest {
         assertThat(testBucketAccessor.getBlobNames(gcsPrefix), containsInAnyOrder(expectedBlobs.toArray()));
 
         for (final String blobName : expectedBlobs) {
-            final String blobContent = testBucketAccessor.readAndDecodeLines(blobName, compression, 0, 1).stream()
+            final String blobContent = testBucketAccessor.readAndDecodeLines(blobName, compression, 0, 1)
+                    .stream()
                     .map(fields -> String.join(",", fields))
                     .collect(Collectors.joining());
-            final String keyInBlobName = blobName.replace(gcsPrefix, "")
-                    .replace(compressionType.extension(), "");
+            final String keyInBlobName = blobName.replace(gcsPrefix, "").replace(compressionType.extension(), "");
             final String value;
             final String expectedBlobContent;
-            if (keyInBlobName.equals("null")) {
+            if ("null".equals(keyInBlobName)) {
                 value = lastValuePerKey.get(null);
                 expectedBlobContent = String.format("%s,%s", "", value);
             } else {
@@ -342,7 +320,7 @@ final class IntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    final void jsonlOutput() throws ExecutionException, InterruptedException {
+    void jsonlOutput() throws ExecutionException, InterruptedException {
         final Map<String, String> connectorConfig = basicConnectorConfig();
         final String compression = "none";
         final String contentType = "jsonl";
@@ -371,18 +349,18 @@ final class IntegrationTest extends AbstractIntegrationTest {
             sendFuture.get();
         }
 
-        final List<String> expectedBlobs = Arrays.asList(
-                getBlobName(0, 0, compression),
-                getBlobName(1, 0, compression),
-                getBlobName(2, 0, compression),
-                getBlobName(3, 0, compression));
+        final List<String> expectedBlobs = Arrays.asList(getBlobName(0, 0, compression), getBlobName(1, 0, compression),
+                getBlobName(2, 0, compression), getBlobName(3, 0, compression));
 
         awaitAllBlobsWritten(expectedBlobs.size());
         assertIterableEquals(expectedBlobs, testBucketAccessor.getBlobNames(gcsPrefix));
 
         final Map<String, List<String>> blobContents = new HashMap<>();
         for (final String blobName : expectedBlobs) {
-            final List<String> items = new ArrayList<>(testBucketAccessor.readLines(blobName, compression));
+            final List<String> items = new ArrayList<>(testBucketAccessor.readLines(blobName, compression)); // NOPMD
+                                                                                                             // instantiation
+                                                                                                             // in a
+                                                                                                             // loop
             blobContents.put(blobName, items);
         }
 
@@ -402,7 +380,7 @@ final class IntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    final void jsonOutput() throws ExecutionException, InterruptedException {
+    void jsonOutput() throws ExecutionException, InterruptedException {
         final Map<String, String> connectorConfig = basicConnectorConfig();
         final String compression = "none";
         final String contentType = "json";
@@ -431,18 +409,18 @@ final class IntegrationTest extends AbstractIntegrationTest {
             sendFuture.get();
         }
 
-        final List<String> expectedBlobs = Arrays.asList(
-            getBlobName(0, 0, compression),
-            getBlobName(1, 0, compression),
-            getBlobName(2, 0, compression),
-            getBlobName(3, 0, compression));
+        final List<String> expectedBlobs = Arrays.asList(getBlobName(0, 0, compression), getBlobName(1, 0, compression),
+                getBlobName(2, 0, compression), getBlobName(3, 0, compression));
 
         awaitAllBlobsWritten(expectedBlobs.size());
         assertIterableEquals(expectedBlobs, testBucketAccessor.getBlobNames(gcsPrefix));
 
         final Map<String, List<String>> blobContents = new HashMap<>();
         for (final String blobName : expectedBlobs) {
-            final List<String> items = new ArrayList<>(testBucketAccessor.readLines(blobName, compression));
+            final List<String> items = new ArrayList<>(testBucketAccessor.readLines(blobName, compression)); // NOPMD
+                                                                                                             // instantiation
+                                                                                                             // in a
+                                                                                                             // loop
             blobContents.put(blobName, items);
         }
 
@@ -465,24 +443,22 @@ final class IntegrationTest extends AbstractIntegrationTest {
 
                 final String blobName = getBlobName(partition, 0, compression);
                 final String actualLine = jsonContents.get(blobName).get(i);
-                String expectedLine = "{\"value\":" + value + ",\"key\":\"" + key + "\"}";
-                expectedLine = i < (jsonContents.get(blobName).size() - 1) ? expectedLine + "," : expectedLine;
+                String expectedLine = String.format("{\"value\":%s,\"key\":\"%s\"}", value, key);
+                expectedLine = i < (jsonContents.get(blobName).size() - 1)
+                        ? String.format("%s,", expectedLine)
+                        : expectedLine;
                 assertEquals(expectedLine, actualLine);
             }
         }
     }
 
-    private Future<RecordMetadata> sendMessageAsync(final String topicName,
-                                                    final int partition,
-                                                    final String key,
-                                                    final String value) {
-        final ProducerRecord<byte[], byte[]> msg = new ProducerRecord<>(
-                topicName, partition,
-                key == null ? null : key.getBytes(),
-                value == null ? null : value.getBytes());
+    private Future<RecordMetadata> sendMessageAsync(final String topicName, final int partition, final String key,
+            final String value) {
+        final ProducerRecord<byte[], byte[]> msg = new ProducerRecord<>(topicName, partition,
+                key == null ? null : key.getBytes(StandardCharsets.UTF_8),
+                value == null ? null : value.getBytes(StandardCharsets.UTF_8));
         return producer.send(msg);
     }
-
 
     private Map<String, String> basicConnectorConfig() {
         final Map<String, String> config = new HashMap<>();

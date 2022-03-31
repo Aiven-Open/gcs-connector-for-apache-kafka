@@ -40,7 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class GcsSinkTask extends SinkTask {
-    private static final Logger log = LoggerFactory.getLogger(GcsSinkConnector.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GcsSinkConnector.class);
 
     private RecordGrouper recordGrouper;
 
@@ -50,11 +50,12 @@ public final class GcsSinkTask extends SinkTask {
 
     // required by Connect
     public GcsSinkTask() {
+        super();
     }
 
     // for testing
-    public GcsSinkTask(final Map<String, String> props,
-                          final Storage storage) {
+    public GcsSinkTask(final Map<String, String> props, final Storage storage) {
+        super();
         Objects.requireNonNull(props, "props cannot be null");
         Objects.requireNonNull(storage, "storage cannot be null");
 
@@ -70,16 +71,15 @@ public final class GcsSinkTask extends SinkTask {
         this.config = new GcsSinkConfig(props);
         this.storage = StorageOptions.newBuilder()
                 .setCredentials(config.getCredentials())
-                .setRetrySettings(
-                        RetrySettings
-                                .newBuilder()
-                                .setInitialRetryDelay(config.getGcsRetryBackoffInitialDelay())
-                                .setMaxRetryDelay(config.getGcsRetryBackoffMaxDelay())
-                                .setRetryDelayMultiplier(config.getGcsRetryBackoffDelayMultiplier())
-                                .setTotalTimeout(config.getGcsRetryBackoffTotalTimeout())
-                                .setMaxAttempts(config.getGcsRetryBackoffMaxAttempts())
-                                .build()
-                ).build().getService();
+                .setRetrySettings(RetrySettings.newBuilder()
+                        .setInitialRetryDelay(config.getGcsRetryBackoffInitialDelay())
+                        .setMaxRetryDelay(config.getGcsRetryBackoffMaxDelay())
+                        .setRetryDelayMultiplier(config.getGcsRetryBackoffDelayMultiplier())
+                        .setTotalTimeout(config.getGcsRetryBackoffTotalTimeout())
+                        .setMaxAttempts(config.getGcsRetryBackoffMaxAttempts())
+                        .build())
+                .build()
+                .getService();
         initRest();
         if (Objects.nonNull(config.getKafkaRetryBackoffMs())) {
             context.timeout(config.getKafkaRetryBackoffMs());
@@ -89,7 +89,7 @@ public final class GcsSinkTask extends SinkTask {
     private void initRest() {
         try {
             this.recordGrouper = RecordGrouperFactory.newRecordGrouper(config);
-        } catch (final Exception e) {
+        } catch (final Exception e) { // NOPMD broad exception catched
             throw new ConnectException("Unsupported file name template " + config.getFilename(), e);
         }
     }
@@ -98,7 +98,7 @@ public final class GcsSinkTask extends SinkTask {
     public void put(final Collection<SinkRecord> records) {
         Objects.requireNonNull(records, "records cannot be null");
 
-        log.debug("Processing {} records", records.size());
+        LOG.debug("Processing {} records", records.size());
         for (final SinkRecord record : records) {
             recordGrouper.put(record);
         }
@@ -111,18 +111,16 @@ public final class GcsSinkTask extends SinkTask {
     }
 
     private void flushFile(final String filename, final List<SinkRecord> records) {
-        final BlobInfo blob = BlobInfo
-                .newBuilder(config.getBucketName(), config.getPrefix() + filename)
-                .build();
-        try (final var out = Channels.newOutputStream(storage.writer(blob));
-             final var writer = OutputWriter.builder()
-                     .withExternalProperties(config.originalsStrings())
-                     .withOutputFields(config.getOutputFields())
-                     .withCompressionType(config.getCompressionType())
-                     .withEnvelopeEnabled(config.envelopeEnabled())
-                     .build(out, config.getFormatType())) {
+        final BlobInfo blob = BlobInfo.newBuilder(config.getBucketName(), config.getPrefix() + filename).build();
+        try (var out = Channels.newOutputStream(storage.writer(blob));
+                var writer = OutputWriter.builder()
+                        .withExternalProperties(config.originalsStrings())
+                        .withOutputFields(config.getOutputFields())
+                        .withCompressionType(config.getCompressionType())
+                        .withEnvelopeEnabled(config.envelopeEnabled())
+                        .build(out, config.getFormatType())) {
             writer.writeRecords(records);
-        } catch (final Exception e) {
+        } catch (final Exception e) { // NOPMD broad exception catched
             throw new ConnectException(e);
         }
     }

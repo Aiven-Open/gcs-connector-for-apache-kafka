@@ -40,12 +40,12 @@ template for file names. It supports placeholders with variable names:
      - `yyyy` - year, e.g. `2020` (please note that `YYYY` is deprecated and is interpreted as `yyyy`)
      - `MM` - month, e.g. `03`
      - `dd` - day, e.g. `01`
-     - `HH` - hour, e.g. `24` 
+     - `HH` - hour, e.g. `24`
 - `key` - the Kafka key.
 
-To add zero padding to Kafka offsets, you need to add additional parameter `padding` in the `start_offset` variable, 
-which value can be `true` or `false` (the default). 
-For example: `{{topic}}-{{partition}}-{{start_offset:padding=true}}.gz` 
+To add zero padding to Kafka offsets, you need to add additional parameter `padding` in the `start_offset` variable,
+which value can be `true` or `false` (the default).
+For example: `{{topic}}-{{partition}}-{{start_offset:padding=true}}.gz`
 will produce file names like `mytopic-1-00000000000000000001.gz`.
 
 To add zero padding to partition number, you need to add additional parameter `padding` in the `partition` variable,
@@ -54,11 +54,11 @@ For example: `{{topic}}-{{partition:padding=true}}-{{start_offset}}.gz`
 will produce file names like `mytopic-0000000001-1.gz`.
 
 To add formatted timestamps, use `timestamp` variable.<br/>
-For example: `{{topic}}-{{partition}}-{{start_offset}}-{{timestamp:unit=yyyy}}{{timestamp:unit=MM}}{{timestamp:unit=dd}}.gz` 
+For example: `{{topic}}-{{partition}}-{{start_offset}}-{{timestamp:unit=yyyy}}{{timestamp:unit=MM}}{{timestamp:unit=dd}}.gz`
 will produce file names like `mytopic-2-1-20200301.gz`.
 
 To configure the time zone for the `timestamp` variable,
-use `file.name.timestamp.timezone` property. 
+use `file.name.timestamp.timezone` property.
 Please see the description of properties in the "Configuration" section.
 
 Only the certain combinations of variables and parameters are allowed in the file name
@@ -182,20 +182,20 @@ non-deterministic.
 Output files are text files that contain one record per line (i.e.,
 they're separated by `\n`) except `PARQUET` format
 
-There are four types of data format available: 
+There are four types of data format available:
  - **[Default]** Flat structure, where field values are separated by comma (`csv`)
-    
-    Configuration: ```format.output.type=csv```. 
+
+    Configuration: ```format.output.type=csv```.
     Also, this is the default if the property is not present in the configuration.
-    
- - Complex structure, where file is in format of [JSON lines](https://jsonlines.org/). 
+
+ - Complex structure, where file is in format of [JSON lines](https://jsonlines.org/).
     It contains one record per line and each line is a valid JSON object(`jsonl`)
- 
-    Configuration: ```format.output.type=jsonl```. 
-    
- - Complex structure, where file is a valid JSON array of record objects. 
-  
-     Configuration: ```format.output.type=json```. 
+
+    Configuration: ```format.output.type=jsonl```.
+
+ - Complex structure, where file is a valid JSON array of record objects.
+
+     Configuration: ```format.output.type=json```.
 
 - Complex structure, where file is in Apache [Parquet](https://parquet.apache.org/documentation/latest/) file format.
 
@@ -251,18 +251,18 @@ OR
 ```
 
 It is recommended to use
-- `org.apache.kafka.connect.storage.StringConverter`, 
+- `org.apache.kafka.connect.storage.StringConverter`,
 - `org.apache.kafka.connect.json.JsonConverter`, or
 - `io.confluent.connect.avro.AvroConverter`.
- 
+
 as `key.converter` and/or `value.converter` to make output files human-readable.
 
 **NB!**
 
  - The value of the `format.output.fields.value.encoding` property is ignored for this data format.
  - Value/Key schema will not be presented in output file, even if `value.converter.schemas.enable` property is `true`.
- But, it is still important to set this property correctly, so that connector could read records correctly. 
- 
+ But, it is still important to set this property correctly, so that connector could read records correctly.
+
 #### JSON Format example
 
 For example, if we output `key,value,offset,timestamp`, an output file might look like:
@@ -283,18 +283,18 @@ OR
 ```
 
 It is recommended to use
-- `org.apache.kafka.connect.storage.StringConverter`, 
+- `org.apache.kafka.connect.storage.StringConverter`,
 - `org.apache.kafka.connect.json.JsonConverter`, or
 - `io.confluent.connect.avro.AvroConverter`.
- 
+
 as `key.converter` and/or `value.converter` to make output files human-readable.
 
 **NB!**
 
  - The value of the `format.output.fields.value.encoding` property is ignored for this data format.
  - Value/Key schema will not be presented in output file, even if `value.converter.schemas.enable` property is `true`.
- But, it is still important to set this property correctly, so that connector could read records correctly. 
-   
+ But, it is still important to set this property correctly, so that connector could read records correctly.
+
 ##### NB!
 
 For both JSON and JSONL another example could be for a single field output e.g. `value`, a record line might look like:
@@ -337,7 +337,7 @@ For example, if we output `key,offset,timestamp,headers,value`, an output Parque
 }
 ```
 where `RecordKeySchema` - a key schema and `RecordValueSchema` - a record value schema.
-This means that in case you have the record and key schema like: 
+This means that in case you have the record and key schema like:
 
 Key schema:
 ```json
@@ -363,8 +363,8 @@ the final `Avro` schema for `Parquet` is:
       {"name": "offset", "type": "long"},
       {"name": "timestamp", "type": "long"},
       {"name": "headers", "type": "map", "values": "long"},
-      { "name": "value", 
-        "type": "record", 
+      { "name": "value",
+        "type": "record",
         "fields": [
           {"name": "foo", "type": "string"},
           {"name": "bar", "type": "long"}
@@ -395,14 +395,14 @@ Having `format.output.envelope=false` can produce the following output:
     ```json
     {
       "schema": {
-        "type": "struct", 
+        "type": "struct",
         "fields": [
           {"type":"string", "field": "name"}
         ]
       }, "payload": {"name":  "foo"}
     }
     ```
-- Connector works just fine with and without Schema Registry 
+- Connector works just fine with and without Schema Registry
 - `format.output.envelope=false` is ignored if the value is not of type `org.apache.avro.Schema.Type.RECORD` or `org.apache.avro.Schema.Type.MAP`.
 
 ## Retry strategy configuration property
@@ -411,27 +411,27 @@ There are six configuration properties to configure retry strategy exist.
 
 ### Apache Kafka connect retry strategy properties
 
-- `kafka.retry.backoff.ms` - The retry backoff in milliseconds. This config is used to notify Apache Kafka Connect to retry delivering a message batch or 
+- `kafka.retry.backoff.ms` - The retry backoff in milliseconds. This config is used to notify Apache Kafka Connect to retry delivering a message batch or
   performing recovery in case of transient exceptions. Maximum value is `24` hours.
 
 ### Google Cloud Storage retry strategy
-- `gcs.retry.backoff.initial.delay.ms` - Initial retry delay in milliseconds. 
-    This config controls the delay before the first retry. 
-    Subsequent retries will use this value adjusted 
-    according to the `gcs.retry.backoff.delay.multiplier`. 
-    The default value is `1000 ms`. 
-- `gcs.retry.backoff.delay.multiplier` - Retry delay multiplier. 
-    This config controls the change in retry delay. 
-    The retry delay of the previous call is multiplied by it to calculate 
+- `gcs.retry.backoff.initial.delay.ms` - Initial retry delay in milliseconds.
+    This config controls the delay before the first retry.
+    Subsequent retries will use this value adjusted
+    according to the `gcs.retry.backoff.delay.multiplier`.
+    The default value is `1000 ms`.
+- `gcs.retry.backoff.delay.multiplier` - Retry delay multiplier.
+    This config controls the change in retry delay.
+    The retry delay of the previous call is multiplied by it to calculate
     the retry delay for the next call. The default value is `2.0`.
-- `gcs.retry.backoff.max.delay.ms` - Maximum retry delay in milliseconds. 
-    This config puts a limit on the value of the retry delay, 
-    so that the `gcs.retry.backoff.delay.multiplier` value 
-    can't increase the retry delay higher than this amount. 
+- `gcs.retry.backoff.max.delay.ms` - Maximum retry delay in milliseconds.
+    This config puts a limit on the value of the retry delay,
+    so that the `gcs.retry.backoff.delay.multiplier` value
+    can't increase the retry delay higher than this amount.
     The default value is `32 000` ms.
 - `gcs.retry.backoff.total.timeout.ms` - Retry total timeout in milliseconds.
-    This config controls over how long the logic should keep trying the 
-    remote call until it gives up completely. The default value is `50 000` ms. 
+    This config controls over how long the logic should keep trying the
+    remote call until it gives up completely. The default value is `50 000` ms.
     The maximum value is `24` hours.
 - `gcs.retry.backoff.max.attempts` - Retry max attempts.
   This config defines the maximum number of attempts to perform.
@@ -528,7 +528,7 @@ file.compression.type=gzip
 
 # The time zone in which timestamps are represented.
 # Accepts short and long standard names like: `UTC`, `PST`, `ECT`,
-# `Europe/Berlin`, `Europe/Helsinki`, or `America/New_York`. 
+# `Europe/Berlin`, `Europe/Helsinki`, or `America/New_York`.
 # For more information please refer to https://docs.oracle.com/javase/tutorial/datetime/iso/timezones.html.
 # The default is `UTC`.
 file.name.timestamp.timezone=Europe/Berlin
@@ -599,7 +599,7 @@ and
 [the comment in GCP SDK code](https://github.com/googleapis/google-auth-library-java/blob/6698b3f6b5ab6017e28f68971406ca765807e169/oauth2_http/java/com/google/auth/oauth2/GoogleCredentials.java#L68)).
 This can be overridden either by setting the path to the GCP credentials
 file or by setting the credentials JSON string explicitly. (See
-[Configuration section](#configuration) for details). 
+[Configuration section](#configuration) for details).
 
 To specify the GCS credentials path, use `gcsCredentialsPath` property:
 

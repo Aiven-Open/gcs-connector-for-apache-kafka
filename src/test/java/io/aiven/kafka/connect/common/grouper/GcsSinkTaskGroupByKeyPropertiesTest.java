@@ -16,6 +16,11 @@
 
 package io.aiven.kafka.connect.common.grouper;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasSize;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.HashMap;
@@ -34,23 +39,19 @@ import com.google.cloud.storage.contrib.nio.testing.LocalStorageHelper;
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.hasSize;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 /**
- * This is a property-based test for {@link GcsSinkTask} (grouping records by the key)
- * using <a href="https://jqwik.net/docs/current/user-guide.html">jqwik</a>.
+ * This is a property-based test for {@link GcsSinkTask} (grouping records by the key) using
+ * <a href="https://jqwik.net/docs/current/user-guide.html">jqwik</a>.
  *
- * <p>The idea is to generate random batches of {@link SinkRecord}
- * (see {@link PbtBase#recordBatches()}, put them into a task, and check certain properties
- * of the written files afterwards. Files are written virtually using the in-memory GCS mock.
+ * <p>
+ * The idea is to generate random batches of {@link SinkRecord} (see {@link PbtBase#recordBatches()}, put them into a
+ * task, and check certain properties of the written files afterwards. Files are written virtually using the in-memory
+ * GCS mock.
  */
 final class GcsSinkTaskGroupByKeyPropertiesTest extends PbtBase {
 
     @Property
-    final void groupByKey(@ForAll("recordBatches") final List<List<SinkRecord>> recordBatches) {
+    void groupByKey(@ForAll("recordBatches") final List<List<SinkRecord>> recordBatches) {
         final Storage storage = LocalStorageHelper.getOptions().getService();
         final BucketAccessor testBucketAccessor = new BucketAccessor(storage, TEST_BUCKET, true);
 
@@ -72,15 +73,16 @@ final class GcsSinkTaskGroupByKeyPropertiesTest extends PbtBase {
         }
 
         // Check expected file names.
-        final List<String> expectedFileNames = lastRecordPerKey.keySet().stream()
-            .map(this::createFilename)
-            .collect(Collectors.toList());
+        final List<String> expectedFileNames = lastRecordPerKey.keySet()
+                .stream()
+                .map(this::createFilename)
+                .collect(Collectors.toList());
         assertThat(testBucketAccessor.getBlobNames(), containsInAnyOrder(expectedFileNames.toArray()));
 
         // Check file contents.
-        for (final String key : lastRecordPerKey.keySet()) {
-            final SinkRecord record = lastRecordPerKey.get(key);
-            final String filename = createFilename(key);
+        for (final Map.Entry<String, SinkRecord> entry : lastRecordPerKey.entrySet()) {
+            final SinkRecord record = lastRecordPerKey.get(entry.getKey());
+            final String filename = createFilename(entry.getKey());
 
             final List<String> lines = testBucketAccessor.readLines(filename, "none");
             assertThat(lines, hasSize(1));
@@ -90,11 +92,14 @@ final class GcsSinkTaskGroupByKeyPropertiesTest extends PbtBase {
                 expectedKeySubstring = "";
             } else {
                 final String keyStr = (String) record.key();
-                expectedKeySubstring = Base64.getEncoder().encodeToString(keyStr.getBytes());
+                expectedKeySubstring = Base64.getEncoder().encodeToString(keyStr.getBytes(StandardCharsets.UTF_8));
             }
-            final String expectedValueSubstring = new String((byte[]) record.value(), StandardCharsets.UTF_8);
-            final String expectedLine = String.format("%s,%s,%d",
-                expectedKeySubstring, expectedValueSubstring, record.kafkaOffset());
+            final String expectedValueSubstring = new String((byte[]) record.value(), StandardCharsets.UTF_8); // NOPMD
+                                                                                                               // instantiation
+                                                                                                               // in a
+                                                                                                               // loop
+            final String expectedLine = String.format("%s,%s,%d", expectedKeySubstring, expectedValueSubstring,
+                    record.kafkaOffset());
             assertEquals(expectedLine, lines.get(0));
         }
     }
