@@ -47,7 +47,6 @@ plugins {
 group = "io.aiven"
 
 repositories {
-    mavenLocal()
     mavenCentral()
     // For kafka-avro-serializer and kafka-connect-avro-converter
     maven {
