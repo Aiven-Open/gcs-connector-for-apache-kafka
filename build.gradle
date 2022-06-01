@@ -154,7 +154,7 @@ dependencies {
     testImplementation "org.apache.kafka:connect-api:$kafkaVersion"
     testImplementation "org.apache.kafka:connect-runtime:$kafkaVersion"
     testImplementation "org.apache.kafka:connect-json:$kafkaVersion"
-    testImplementation "com.google.cloud:google-cloud-nio:0.123.28"
+    testImplementation "com.google.cloud:google-cloud-nio:0.124.2"
     testImplementation "org.mockito:mockito-core:4.5.1"
     testImplementation "io.aiven:commons-for-apache-kafka-connect:$aivenConnectCommonsVersion"
 
