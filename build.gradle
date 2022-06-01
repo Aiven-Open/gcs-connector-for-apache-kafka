@@ -37,11 +37,11 @@ plugins {
     id "signing"
 
     // https://plugins.gradle.org/plugin/com.diffplug.spotless
-    id "com.diffplug.spotless" version "6.5.1"
+    id "com.diffplug.spotless" version "6.6.1"
 
     id "pmd"
 
-    id "com.github.spotbugs" version "5.0.6"
+    id "com.github.spotbugs" version "5.0.7"
 }
 
 group = "io.aiven"
@@ -136,7 +136,7 @@ dependencies {
         exclude group: "com.google.guava", module: "guava"
     }
 
-    implementation "com.github.spotbugs:spotbugs-annotations:4.6.0"
+    implementation "com.github.spotbugs:spotbugs-annotations:4.7.0"
 
     implementation "com.google.guava:guava:31.1-jre"
 
@@ -154,7 +154,7 @@ dependencies {
     testImplementation "org.apache.kafka:connect-api:$kafkaVersion"
     testImplementation "org.apache.kafka:connect-runtime:$kafkaVersion"
     testImplementation "org.apache.kafka:connect-json:$kafkaVersion"
-    testImplementation "com.google.cloud:google-cloud-nio:0.123.28"
+    testImplementation "com.google.cloud:google-cloud-nio:0.124.2"
     testImplementation "org.mockito:mockito-core:4.5.1"
     testImplementation "io.aiven:commons-for-apache-kafka-connect:$aivenConnectCommonsVersion"
 
@@ -226,7 +226,7 @@ dependencies {
     // Make test utils from 'test' available in 'integration-test'
     integrationTestImplementation sourceSets.test.output
 
-    testImplementation 'org.assertj:assertj-core:3.22.0'
+    testImplementation 'org.assertj:assertj-core:3.23.1'
 }
 
 spotless {
