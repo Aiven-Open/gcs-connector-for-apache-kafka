@@ -132,7 +132,7 @@ dependencies {
     compileOnly "org.apache.kafka:connect-api:$kafkaVersion"
     compileOnly "org.apache.kafka:connect-runtime:$kafkaVersion"
 
-    implementation("com.google.cloud:google-cloud-storage:2.7.2") {
+    implementation("com.google.cloud:google-cloud-storage:2.9.0") {
         exclude group: "com.google.guava", module: "guava"
     }
 
