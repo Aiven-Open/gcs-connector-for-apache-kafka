@@ -179,7 +179,7 @@ dependencies {
         exclude group: "org.apache.kafka", module: "kafka-clients"
     }
     integrationTestImplementation "org.awaitility:awaitility:4.2.0"
-    integrationTestImplementation "org.apache.avro:avro:1.11.0"
+    integrationTestImplementation "org.apache.avro:avro:1.11.1"
 
     integrationTestImplementation "io.aiven:commons-for-apache-kafka-connect:$aivenConnectCommonsVersion"
 
