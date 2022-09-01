@@ -41,7 +41,7 @@ plugins {
 
     id "pmd"
 
-    id "com.github.spotbugs" version "5.0.9"
+    id "com.github.spotbugs" version "5.0.10"
 }
 
 group = "io.aiven"
