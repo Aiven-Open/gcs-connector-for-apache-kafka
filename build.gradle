@@ -154,7 +154,7 @@ dependencies {
     testImplementation "org.apache.kafka:connect-api:$kafkaVersion"
     testImplementation "org.apache.kafka:connect-runtime:$kafkaVersion"
     testImplementation "org.apache.kafka:connect-json:$kafkaVersion"
-    testImplementation "com.google.cloud:google-cloud-nio:0.124.10"
+    testImplementation "com.google.cloud:google-cloud-nio:0.124.14"
     testImplementation "org.mockito:mockito-core:4.6.1"
     testImplementation "io.aiven:commons-for-apache-kafka-connect:$aivenConnectCommonsVersion"
 
@@ -186,7 +186,7 @@ dependencies {
     testImplementation ("org.apache.parquet:parquet-tools:1.11.2") {
         exclude group: "org.slf4j", module: "slf4j-api"
     }
-    testImplementation("org.apache.hadoop:hadoop-mapreduce-client-core:3.3.3") {
+    testImplementation("org.apache.hadoop:hadoop-mapreduce-client-core:3.3.4") {
         exclude group: "org.apache.hadoop", module: "hadoop-yarn-client"
         exclude group: "org.apache.hadoop.thirdparty", module: "hadoop-shaded-protobuf_3_7"
         exclude group: "com.google.guava", module: "guava"
