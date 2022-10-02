@@ -160,7 +160,7 @@ dependencies {
 
     testRuntimeOnly "org.slf4j:slf4j-log4j12:$slf4jVersion"
     testImplementation "org.xerial.snappy:snappy-java:1.1.8.4"
-    testImplementation "com.github.luben:zstd-jni:1.5.2-3"
+    testImplementation "com.github.luben:zstd-jni:1.5.2-4"
 
     integrationTestImplementation "org.xerial.snappy:snappy-java:1.1.7.5"
     integrationTestImplementation "com.github.luben:zstd-jni:1.5.2-3"
