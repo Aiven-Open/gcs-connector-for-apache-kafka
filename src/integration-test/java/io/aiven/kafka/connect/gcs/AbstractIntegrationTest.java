@@ -24,13 +24,17 @@ import java.nio.file.Files;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 import io.aiven.kafka.connect.common.config.CompressionType;
 import io.aiven.kafka.connect.gcs.testutils.BucketAccessor;
 
+import com.github.dockerjava.api.model.Ulimit;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import org.junit.jupiter.api.BeforeAll;
+import org.testcontainers.containers.KafkaContainer;
+import org.testcontainers.containers.Network;
 
 class AbstractIntegrationTest {
     protected static final String TEST_TOPIC_0 = "test-topic-0";
@@ -98,5 +102,13 @@ class AbstractIntegrationTest {
                 .pollInterval(Duration.ofMillis(300))
                 .until(() -> testBucketAccessor.getBlobNames(gcsPrefix).size() >= expectedBlobCount);
 
+    }
+
+    protected KafkaContainer createKafkaContainer() {
+        return new KafkaContainer("5.2.1").withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false")
+                .withNetwork(Network.newNetwork())
+                .withExposedPorts(KafkaContainer.KAFKA_PORT, 9092)
+                .withCreateContainerCmdModifier(
+                        cmd -> cmd.getHostConfig().withUlimits(List.of(new Ulimit("nofile", 30_000L, 30_000L))));
     }
 }

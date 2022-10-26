@@ -60,7 +60,7 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
     private static final String CONNECTOR_NAME = "aiven-gcs-sink-connector-parquet";
 
     @Container
-    private final KafkaContainer kafka = new KafkaContainer().withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false");
+    private final KafkaContainer kafka = createKafkaContainer();
 
     private AdminClient adminClient;
     private KafkaProducer<byte[], byte[]> producer;
