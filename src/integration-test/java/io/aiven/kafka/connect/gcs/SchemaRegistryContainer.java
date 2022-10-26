@@ -16,6 +16,9 @@
 
 package io.aiven.kafka.connect.gcs;
 
+import java.util.List;
+
+import com.github.dockerjava.api.model.Ulimit;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.utility.Base58;
@@ -39,6 +42,9 @@ final class SchemaRegistryContainer extends GenericContainer<SchemaRegistryConta
 
         withExposedPorts(SCHEMA_REGISTRY_PORT);
         withEnv("SCHEMA_REGISTRY_HOST_NAME", "localhost");
+
+        withCreateContainerCmdModifier(
+                cmd -> cmd.getHostConfig().withUlimits(List.of(new Ulimit("nofile", 30_000L, 30_000L))));
     }
 
     public String getSchemaRegistryUrl() {

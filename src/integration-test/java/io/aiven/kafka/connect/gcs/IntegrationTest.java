@@ -60,7 +60,7 @@ final class IntegrationTest extends AbstractIntegrationTest {
     private static final String CONNECTOR_NAME = "aiven-gcs-sink-connector";
 
     @Container
-    private final KafkaContainer kafka = new KafkaContainer().withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false");
+    private final KafkaContainer kafka = createKafkaContainer();
 
     private AdminClient adminClient;
     private KafkaProducer<byte[], byte[]> producer;
