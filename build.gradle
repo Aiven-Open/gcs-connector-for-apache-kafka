@@ -130,7 +130,7 @@ dependencies {
         exclude group: "com.google.guava", module: "guava"
     }
 
-    implementation "com.github.spotbugs:spotbugs-annotations:4.7.2"
+    implementation "com.github.spotbugs:spotbugs-annotations:4.7.3"
 
     implementation "com.google.guava:guava:31.1-jre"
 
