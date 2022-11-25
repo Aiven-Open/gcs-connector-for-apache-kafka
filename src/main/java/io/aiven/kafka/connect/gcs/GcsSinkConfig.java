@@ -41,7 +41,8 @@ import io.aiven.kafka.connect.common.config.validators.FilenameTemplateValidator
 import io.aiven.kafka.connect.common.grouper.RecordGrouperFactory;
 import io.aiven.kafka.connect.common.templating.Template;
 
-import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.OAuth2Credentials;
+import com.google.cloud.NoCredentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.threeten.bp.Duration;
@@ -325,9 +326,13 @@ public final class GcsSinkConfig extends AivenCommonConfig {
         }
     }
 
-    public GoogleCredentials getCredentials() {
+    public OAuth2Credentials getCredentials() {
         final String credentialsPath = getString(GCS_CREDENTIALS_PATH_CONFIG);
         final Password credentialsJsonPwd = getPassword(GCS_CREDENTIALS_JSON_CONFIG);
+        if (credentialsPath == null && credentialsJsonPwd == null) {
+            LOG.warn("No GCS credentials provided, trying to connect without credentials.");
+            return NoCredentials.getInstance();
+        }
         try {
             String credentialsJson = null;
             if (credentialsJsonPwd != null) {

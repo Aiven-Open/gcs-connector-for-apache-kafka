@@ -20,6 +20,7 @@ import static org.awaitility.Awaitility.await;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.time.ZonedDateTime;
@@ -30,12 +31,19 @@ import io.aiven.kafka.connect.common.config.CompressionType;
 import io.aiven.kafka.connect.gcs.testutils.BucketAccessor;
 
 import com.github.dockerjava.api.model.Ulimit;
+import com.google.cloud.NoCredentials;
+import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import org.junit.jupiter.api.BeforeAll;
+import org.testcontainers.containers.FixedHostPortGenericContainer;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
+@Testcontainers
 class AbstractIntegrationTest {
     protected static final String TEST_TOPIC_0 = "test-topic-0";
     protected static final String TEST_TOPIC_1 = "test-topic-1";
@@ -44,6 +52,9 @@ class AbstractIntegrationTest {
 
     protected static final String DEFAULT_GCS_ENDPOINT = "https://storage.googleapis.com";
 
+    private static final int GCS_PORT = getRandomPort();
+    public static final String DEFAULT_TEST_PROJECT_NAME = "TEST_LOCAL";
+    public static final String DEFAULT_TEST_BUCKET_NAME = "test";
     protected static String gcsCredentialsPath; // NOPMD mutable static state
     protected static String gcsCredentialsJson; // NOPMD mutable static state
 
@@ -54,6 +65,21 @@ class AbstractIntegrationTest {
     protected static BucketAccessor testBucketAccessor; // NOPMD mutable static state
 
     protected static File pluginDir; // NOPMD mutable static state
+    protected static String gcsEndpoint; // NOPMD mutable static state
+    @Container
+    private static final GenericContainer<?> FAKE_GCS_CONTAINER = new FixedHostPortGenericContainer(
+            "fsouza/fake-gcs-server:latest").withFixedExposedPort(GCS_PORT, GCS_PORT)
+                    .withCommand("-port", Integer.toString(GCS_PORT), "-scheme", "http")
+                    .withReuse(true);
+
+    static int getRandomPort() {
+        try (ServerSocket socket = new ServerSocket(0)) {
+            return socket.getLocalPort();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to allocate port for test GCS container", e); // NOPMD throwing raw
+                                                                                             // exception
+        }
+    }
 
     protected AbstractIntegrationTest() {
     }
@@ -62,13 +88,26 @@ class AbstractIntegrationTest {
     static void setUpAll() throws IOException, InterruptedException {
         gcsCredentialsPath = System.getProperty("integration-test.gcs.credentials.path");
         gcsCredentialsJson = System.getProperty("integration-test.gcs.credentials.json");
+        final String bucket = System.getProperty("integration-test.gcs.bucket");
+        testBucketName = bucket == null || bucket.isEmpty() ? DEFAULT_TEST_BUCKET_NAME : bucket;
+        final Storage storage;
+        if (useFakeGCS()) {
+            gcsEndpoint = "http://" + FAKE_GCS_CONTAINER.getHost() + ":" + GCS_PORT;
+            final StorageOptions storageOps = StorageOptions.newBuilder()
+                    .setCredentials(NoCredentials.getInstance())
+                    .setHost(gcsEndpoint)
+                    .setProjectId(DEFAULT_TEST_PROJECT_NAME)
+                    .build();
+            storage = storageOps.getService();
+            storage.create(BucketInfo.of(testBucketName));
+        } else {
+            gcsEndpoint = DEFAULT_GCS_ENDPOINT;
+            final StorageOptions storageOps = StorageOptions.newBuilder()
+                    .setCredentials(GoogleCredentialsBuilder.build(gcsCredentialsPath, gcsCredentialsJson))
+                    .build();
+            storage = storageOps.getService();
+        }
 
-        testBucketName = System.getProperty("integration-test.gcs.bucket");
-
-        final Storage storage = StorageOptions.newBuilder()
-                .setCredentials(GoogleCredentialsBuilder.build(gcsCredentialsPath, gcsCredentialsJson))
-                .build()
-                .getService();
         testBucketAccessor = new BucketAccessor(storage, testBucketName);
         testBucketAccessor.ensureWorking();
 
@@ -89,6 +128,10 @@ class AbstractIntegrationTest {
         assert process.waitFor() == 0;
     }
 
+    protected static boolean useFakeGCS() {
+        return gcsCredentialsPath == null && gcsCredentialsJson == null;
+    }
+
     protected String getBlobName(final int partition, final int startOffset, final String compression) {
         final String result = String.format("%s%s-%d-%d", gcsPrefix, TEST_TOPIC_0, partition, startOffset);
         return result + CompressionType.forName(compression).extension();
@@ -100,7 +143,7 @@ class AbstractIntegrationTest {
     }
 
     protected void awaitAllBlobsWritten(final int expectedBlobCount) {
-        await("All expected files stored on GCS").atMost(Duration.ofMillis(OFFSET_FLUSH_INTERVAL_MS * 3))
+        await("All expected files stored on GCS").atMost(Duration.ofMillis(OFFSET_FLUSH_INTERVAL_MS * 30))
                 .pollInterval(Duration.ofMillis(300))
                 .until(() -> testBucketAccessor.getBlobNames(gcsPrefix).size() >= expectedBlobCount);
 

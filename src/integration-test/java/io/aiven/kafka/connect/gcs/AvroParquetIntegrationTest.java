@@ -339,6 +339,9 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
         if (gcsCredentialsJson != null) {
             config.put("gcs.credentials.json", gcsCredentialsJson);
         }
+        if (useFakeGCS()) {
+            config.put("gcs.endpoint", gcsEndpoint);
+        }
         config.put("gcs.bucket.name", testBucketName);
         config.put("file.name.prefix", gcsPrefix);
         config.put("topics", TEST_TOPIC_0 + "," + TEST_TOPIC_1);
