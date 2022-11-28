@@ -42,6 +42,8 @@ class AbstractIntegrationTest {
 
     protected static final int OFFSET_FLUSH_INTERVAL_MS = 5000;
 
+    protected static final String DEFAULT_GCS_ENDPOINT = "https://storage.googleapis.com";
+
     protected static String gcsCredentialsPath; // NOPMD mutable static state
     protected static String gcsCredentialsJson; // NOPMD mutable static state
 

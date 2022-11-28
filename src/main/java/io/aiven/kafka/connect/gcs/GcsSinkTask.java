@@ -70,6 +70,7 @@ public final class GcsSinkTask extends SinkTask {
 
         this.config = new GcsSinkConfig(props);
         this.storage = StorageOptions.newBuilder()
+                .setHost(config.getGcsEndpoint())
                 .setCredentials(config.getCredentials())
                 .setRetrySettings(RetrySettings.newBuilder()
                         .setInitialRetryDelay(config.getGcsRetryBackoffInitialDelay())
@@ -106,8 +107,11 @@ public final class GcsSinkTask extends SinkTask {
 
     @Override
     public void flush(final Map<TopicPartition, OffsetAndMetadata> currentOffsets) {
-        recordGrouper.records().forEach(this::flushFile);
-        recordGrouper.clear();
+        try {
+            recordGrouper.records().forEach(this::flushFile);
+        } finally {
+            recordGrouper.clear();
+        }
     }
 
     private void flushFile(final String filename, final List<SinkRecord> records) {
