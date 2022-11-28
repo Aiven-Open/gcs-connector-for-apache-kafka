@@ -85,6 +85,7 @@ ext {
     aivenConnectCommonsVersion = "0.8.2"
     testcontainersVersion = "1.17.5"
     slf4jVersion = "1.7.36"
+    wireMockVersion = "2.35.0"
 }
 
 distributions {
@@ -176,6 +177,7 @@ dependencies {
     integrationTestImplementation "org.apache.avro:avro:1.11.1"
 
     integrationTestImplementation "io.aiven:commons-for-apache-kafka-connect:$aivenConnectCommonsVersion"
+    integrationTestImplementation "com.github.tomakehurst:wiremock-jre8:$wireMockVersion"
 
     testImplementation ("org.apache.parquet:parquet-tools:1.11.2") {
         exclude group: "org.slf4j", module: "slf4j-api"

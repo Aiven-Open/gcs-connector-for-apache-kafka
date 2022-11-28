@@ -16,6 +16,7 @@
 
 package io.aiven.kafka.connect.gcs;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -46,6 +47,11 @@ import org.apache.kafka.common.TopicPartition;
 
 import io.aiven.kafka.connect.common.config.CompressionType;
 
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.client.WireMock;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.http.RequestMethod;
+import com.github.tomakehurst.wiremock.matching.UrlPattern;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -381,9 +387,11 @@ final class IntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void jsonOutput() throws ExecutionException, InterruptedException {
+        final var faultyProxy = enableFaultyProxy();
         final Map<String, String> connectorConfig = basicConnectorConfig();
         final String compression = "none";
         final String contentType = "json";
+        connectorConfig.put("gcs.endpoint", faultyProxy.baseUrl());
         connectorConfig.put("format.output.fields", "key,value");
         connectorConfig.put("format.output.fields.value.encoding", "none");
         connectorConfig.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
@@ -393,9 +401,11 @@ final class IntegrationTest extends AbstractIntegrationTest {
         connectorConfig.put("format.output.type", contentType);
         connectRunner.createConnector(connectorConfig);
 
+        final int numEpochs = 10;
+
         final List<Future<RecordMetadata>> sendFutures = new ArrayList<>();
         int cnt = 0;
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < numEpochs; i++) {
             for (int partition = 0; partition < 4; partition++) {
                 final String key = "key-" + cnt;
                 final String value = "[{" + "\"name\":\"user-" + cnt + "\"}]";
@@ -421,6 +431,7 @@ final class IntegrationTest extends AbstractIntegrationTest {
                                                                                                              // instantiation
                                                                                                              // in a
                                                                                                              // loop
+            assertEquals(numEpochs + 2, items.size());
             blobContents.put(blobName, items);
         }
 
@@ -435,7 +446,7 @@ final class IntegrationTest extends AbstractIntegrationTest {
         }
 
         cnt = 0;
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < numEpochs; i++) {
             for (int partition = 0; partition < 4; partition++) {
                 final String key = "key-" + cnt;
                 final String value = "[{" + "\"name\":\"user-" + cnt + "\"}]";
@@ -477,5 +488,27 @@ final class IntegrationTest extends AbstractIntegrationTest {
         config.put("file.name.prefix", gcsPrefix);
         config.put("topics", TEST_TOPIC_0 + "," + TEST_TOPIC_1);
         return config;
+    }
+
+    private static WireMockServer enableFaultyProxy() {
+        final WireMockServer wireMockServer = new WireMockServer(WireMockConfiguration.options().dynamicPort());
+        wireMockServer.start();
+        wireMockServer.addStubMapping(WireMock.request(RequestMethod.ANY.getName(), UrlPattern.ANY)
+                .willReturn(aResponse().proxiedFrom(DEFAULT_GCS_ENDPOINT))
+                .build());
+        final String urlPathPattern = "/upload/storage/v1/b/" + testBucketName + "/o";
+        wireMockServer.addStubMapping(
+                WireMock.request(RequestMethod.POST.getName(), UrlPattern.fromOneOf(null, null, null, urlPathPattern))
+                        .inScenario("temp-error")
+                        .willSetStateTo("Error")
+                        .willReturn(aResponse().withStatus(400))
+                        .build());
+        wireMockServer.addStubMapping(
+                WireMock.request(RequestMethod.POST.getName(), UrlPattern.fromOneOf(null, null, null, urlPathPattern))
+                        .inScenario("temp-error")
+                        .whenScenarioStateIs("Error")
+                        .willReturn(aResponse().proxiedFrom(DEFAULT_GCS_ENDPOINT))
+                        .build());
+        return wireMockServer;
     }
 }

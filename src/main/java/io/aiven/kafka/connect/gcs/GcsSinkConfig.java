@@ -51,6 +51,7 @@ public final class GcsSinkConfig extends AivenCommonConfig {
 
     private static final String GROUP_GCS = "GCS";
     public static final String GCS_CREDENTIALS_PATH_CONFIG = "gcs.credentials.path";
+    public static final String GCS_ENDPOINT_CONFIG = "gcs.endpoint";
     public static final String GCS_CREDENTIALS_JSON_CONFIG = "gcs.credentials.json";
     public static final String GCS_BUCKET_NAME_CONFIG = "gcs.bucket.name";
 
@@ -102,6 +103,9 @@ public final class GcsSinkConfig extends AivenCommonConfig {
 
     private static void addGcsConfigGroup(final ConfigDef configDef) {
         int gcsGroupCounter = 0;
+        configDef.define(GCS_ENDPOINT_CONFIG, ConfigDef.Type.STRING, null, ConfigDef.Importance.LOW,
+                "Explicit GCS Endpoint Address, mainly for testing", GROUP_GCS, gcsGroupCounter++, ConfigDef.Width.NONE,
+                GCS_ENDPOINT_CONFIG);
         configDef.define(GCS_CREDENTIALS_PATH_CONFIG, ConfigDef.Type.STRING, null, ConfigDef.Importance.LOW,
                 "The path to a GCP credentials file. "
                         + "If not provided, the connector will try to detect the credentials automatically. "
@@ -388,4 +392,7 @@ public final class GcsSinkConfig extends AivenCommonConfig {
         return Duration.ofMillis(getLong(GCS_RETRY_BACKOFF_MAX_DELAY_MS_CONFIG));
     }
 
+    public String getGcsEndpoint() {
+        return getString(GCS_ENDPOINT_CONFIG);
+    }
 }
