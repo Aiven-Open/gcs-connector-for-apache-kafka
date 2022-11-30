@@ -62,9 +62,8 @@ java {
 wrapper {
     distributionType = 'ALL'
     doLast {
-        final URI sha256Uri = new URI(wrapper.getDistributionUrl() + ".sha256")
-        final String sha256Sum = new String(sha256Uri.toURL().bytes)
-        wrapper.getPropertiesFile() << "distributionSha256Sum=${sha256Sum}\n"
+        def sha256Sum = new String(new URL("${distributionUrl}.sha256").bytes)
+        propertiesFile << "distributionSha256Sum=${sha256Sum}\n"
         println "Added checksum to wrapper properties"
     }
 }
