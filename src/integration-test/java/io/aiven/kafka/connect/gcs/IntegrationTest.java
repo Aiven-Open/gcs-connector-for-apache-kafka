@@ -484,6 +484,9 @@ final class IntegrationTest extends AbstractIntegrationTest {
         if (gcsCredentialsJson != null) {
             config.put("gcs.credentials.json", gcsCredentialsJson);
         }
+        if (useFakeGCS()) {
+            config.put("gcs.endpoint", gcsEndpoint);
+        }
         config.put("gcs.bucket.name", testBucketName);
         config.put("file.name.prefix", gcsPrefix);
         config.put("topics", TEST_TOPIC_0 + "," + TEST_TOPIC_1);
@@ -494,7 +497,7 @@ final class IntegrationTest extends AbstractIntegrationTest {
         final WireMockServer wireMockServer = new WireMockServer(WireMockConfiguration.options().dynamicPort());
         wireMockServer.start();
         wireMockServer.addStubMapping(WireMock.request(RequestMethod.ANY.getName(), UrlPattern.ANY)
-                .willReturn(aResponse().proxiedFrom(DEFAULT_GCS_ENDPOINT))
+                .willReturn(aResponse().proxiedFrom(gcsEndpoint))
                 .build());
         final String urlPathPattern = "/upload/storage/v1/b/" + testBucketName + "/o";
         wireMockServer.addStubMapping(
@@ -507,7 +510,7 @@ final class IntegrationTest extends AbstractIntegrationTest {
                 WireMock.request(RequestMethod.POST.getName(), UrlPattern.fromOneOf(null, null, null, urlPathPattern))
                         .inScenario("temp-error")
                         .whenScenarioStateIs("Error")
-                        .willReturn(aResponse().proxiedFrom(DEFAULT_GCS_ENDPOINT))
+                        .willReturn(aResponse().proxiedFrom(gcsEndpoint))
                         .build());
         return wireMockServer;
     }

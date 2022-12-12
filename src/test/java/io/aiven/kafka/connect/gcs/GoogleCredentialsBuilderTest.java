@@ -17,41 +17,35 @@
 package io.aiven.kafka.connect.gcs;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 
 import java.io.IOException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.Objects;
 
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.OAuth2Credentials;
 import com.google.auth.oauth2.UserCredentials;
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageOptions;
 import com.google.common.io.Resources;
-import org.junit.jupiter.api.BeforeAll;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 final class GoogleCredentialsBuilderTest {
-    private static final String BUCKET_PROPERTY = "integration-test.gcs.bucket";
 
-    private static String testBucketName;
-
-    @BeforeAll
-    static void setUpAll() {
-        testBucketName = System.getProperty(BUCKET_PROPERTY);
-        Objects.requireNonNull(testBucketName, BUCKET_PROPERTY + " must be set");
-    }
-
+    @SuppressFBWarnings("RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE")
     @Test
     void testDefaultCredentials() throws IOException {
-        final Storage storage = StorageOptions.newBuilder()
-                .setCredentials(GoogleCredentialsBuilder.build(null, null))
-                .build()
-                .getService();
-        assertNotNull(storage.get(testBucketName));
+        try (MockedStatic<GoogleCredentials> mocked = mockStatic(GoogleCredentials.class)) {
+            final GoogleCredentials googleCredentials = mock(GoogleCredentials.class);
+            mocked.when(GoogleCredentials::getApplicationDefault).thenReturn(googleCredentials);
+            assertSame(GoogleCredentialsBuilder.build(null, null), googleCredentials);
+            mocked.verify(GoogleCredentials::getApplicationDefault);
+        }
     }
 
     @Test
@@ -60,7 +54,7 @@ final class GoogleCredentialsBuilderTest {
                 .getContextClassLoader()
                 .getResource("test_gcs_credentials.json")
                 .getPath();
-        final GoogleCredentials credentials = GoogleCredentialsBuilder.build(credentialsPath, null);
+        final OAuth2Credentials credentials = GoogleCredentialsBuilder.build(credentialsPath, null);
         assertTrue(credentials instanceof UserCredentials);
 
         final UserCredentials userCredentials = (UserCredentials) credentials;
@@ -73,7 +67,7 @@ final class GoogleCredentialsBuilderTest {
         final String credentialsJson = Resources.toString(
                 Thread.currentThread().getContextClassLoader().getResource("test_gcs_credentials.json"),
                 StandardCharsets.UTF_8);
-        final GoogleCredentials credentials = GoogleCredentialsBuilder.build(null, credentialsJson);
+        final OAuth2Credentials credentials = GoogleCredentialsBuilder.build(null, credentialsJson);
         assertTrue(credentials instanceof UserCredentials);
 
         final UserCredentials userCredentials = (UserCredentials) credentials;
