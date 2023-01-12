@@ -90,7 +90,7 @@ class AbstractIntegrationTest {
         gcsCredentialsJson = System.getProperty("integration-test.gcs.credentials.json");
         final String bucket = System.getProperty("integration-test.gcs.bucket");
         testBucketName = bucket == null || bucket.isEmpty() ? DEFAULT_TEST_BUCKET_NAME : bucket;
-        final Storage storage;
+        final Storage storage; // NOPMD
         if (useFakeGCS()) {
             gcsEndpoint = "http://" + FAKE_GCS_CONTAINER.getHost() + ":" + GCS_PORT;
             final StorageOptions storageOps = StorageOptions.newBuilder()
