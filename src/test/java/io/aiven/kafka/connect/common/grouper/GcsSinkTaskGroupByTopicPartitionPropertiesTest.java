@@ -72,7 +72,7 @@ final class GcsSinkTaskGroupByTopicPartitionPropertiesTest extends PbtBase {
     }
 
     private void genericTry(final List<List<SinkRecord>> recordBatches, final Integer maxRecordsPerFile) {
-        final Storage storage = LocalStorageHelper.getOptions().getService();
+        final Storage storage = LocalStorageHelper.getOptions().getService(); // NOPMD No need to close
         final BucketAccessor testBucketAccessor = new BucketAccessor(storage, TEST_BUCKET, true);
 
         final Map<String, String> taskProps = basicTaskProps();
