@@ -48,6 +48,8 @@ public final class GcsSinkTask extends SinkTask {
 
     private Storage storage;
 
+    private int totalRecordCount;
+
     // required by Connect
     public GcsSinkTask() {
         super();
@@ -61,6 +63,7 @@ public final class GcsSinkTask extends SinkTask {
 
         this.config = new GcsSinkConfig(props);
         this.storage = storage;
+        this.totalRecordCount = 0;
         initRest();
     }
 
@@ -102,6 +105,18 @@ public final class GcsSinkTask extends SinkTask {
         LOG.debug("Processing {} records", records.size());
         for (final SinkRecord record : records) {
             recordGrouper.put(record);
+        }
+
+        if (this.config.getGcsFlushTotalMaxRecords() > 0) {
+            totalRecordCount += records.size();
+            if (this.totalRecordCount >= this.config.getGcsFlushTotalMaxRecords()) {
+                try {
+                    recordGrouper.records().forEach(this::flushFile);
+                } finally {
+                    recordGrouper.clear();
+                    this.totalRecordCount = 0;
+                }
+            }
         }
     }
 

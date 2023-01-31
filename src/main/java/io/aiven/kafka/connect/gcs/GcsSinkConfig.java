@@ -79,6 +79,9 @@ public final class GcsSinkConfig extends AivenCommonConfig {
 
     public static final String GCS_RETRY_BACKOFF_MAX_ATTEMPTS_CONFIG = "gcs.retry.backoff.max.attempts";
 
+    private static final String GROUP_GCS_SINK_TASK = "GCS Sink Task Config";
+    public static final String GCS_FLUSH_TOTAL_MAX_RECORD = "gcs.flush.total.max.record";
+
     // All default from GCS client, hardcoded here since GCS hadn't constants
     public static final long GCS_RETRY_BACKOFF_INITIAL_DELAY_MS_DEFAULT = 1_000L;
 
@@ -96,6 +99,7 @@ public final class GcsSinkConfig extends AivenCommonConfig {
         final GcsSinkConfigDef configDef = new GcsSinkConfigDef();
         addGcsConfigGroup(configDef);
         addFileConfigGroup(configDef);
+        addGcsSinkTaskGroup(configDef);
         addOutputFieldsFormatConfigGroup(configDef, OutputFieldType.VALUE);
         addKafkaBackoffPolicy(configDef);
         addGcsRetryPolicies(configDef);
@@ -273,7 +277,24 @@ public final class GcsSinkConfig extends AivenCommonConfig {
                     }
                 }, ConfigDef.Importance.LOW, "Specifies the the timestamp variable source. Default is wall-clock.",
                 GROUP_FILE, fileGroupCounter, ConfigDef.Width.SHORT, FILE_NAME_TIMESTAMP_SOURCE);
+    }
 
+    private static void addGcsSinkTaskGroup(final ConfigDef configDef) {
+        final int sinkTaskGroupCounter = 0;
+        configDef.define(GCS_FLUSH_TOTAL_MAX_RECORD, ConfigDef.Type.INT, 0, new ConfigDef.Validator() {
+            @Override
+            public void ensureValid(final String name, final Object value) {
+                assert value instanceof Integer;
+                if ((Integer) value < 0) {
+                    throw new ConfigException(GCS_FLUSH_TOTAL_MAX_RECORD, value,
+                            "must be a non-negative integer number");
+                }
+            }
+        }, ConfigDef.Importance.MEDIUM,
+                "The maximum number of records held in memory be the sink task. "
+                        + "Must be a non-negative integer number. "
+                        + "0 is interpreted as \"unlimited\", which is the default.",
+                GROUP_GCS_SINK_TASK, sinkTaskGroupCounter, ConfigDef.Width.SHORT, FILE_MAX_RECORDS);
     }
 
     public GcsSinkConfig(final Map<String, String> properties) {
@@ -400,4 +421,9 @@ public final class GcsSinkConfig extends AivenCommonConfig {
     public String getGcsEndpoint() {
         return getString(GCS_ENDPOINT_CONFIG);
     }
+
+    public int getGcsFlushTotalMaxRecords() {
+        return getInt(GCS_FLUSH_TOTAL_MAX_RECORD);
+    }
+
 }

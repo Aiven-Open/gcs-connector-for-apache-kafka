@@ -365,6 +365,28 @@ final class GcsSinkTaskTest {
         }
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = { "gzip" })
+    void maxTotalRecordsInSinkTask(final String compression) {
+        properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
+        properties.put(GcsSinkConfig.FILE_MAX_RECORDS, "1000");
+        properties.put(GcsSinkConfig.GCS_FLUSH_TOTAL_MAX_RECORD, "60");
+        final GcsSinkTask task = new GcsSinkTask(properties, storage);
+
+        final int recordNum = 100;
+
+        // Flush should happen when record count reaches 60.
+        // Another flush done after the loop.
+        for (int i = 0; i < recordNum; i++) {
+            final SinkRecord record = createRecord("topic0", 0, "key" + i, "value" + i, i, i);
+            task.put(Collections.singletonList(record));
+        }
+        task.flush(null);
+
+        // final CompressionType compressionType = CompressionType.forName(compression);
+        assertIterableEquals(Lists.newArrayList("topic0-0-0.gz", "topic0-0-60.gz"), testBucketAccessor.getBlobNames());
+    }
+
     @Test
     void setupDefaultRetryPolicy() {
         final var mockedContext = mock(SinkTaskContext.class);
