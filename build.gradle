@@ -85,7 +85,7 @@ ext {
     testcontainersVersion = "1.17.6"
     slf4jVersion = "1.7.36"
     wireMockVersion = "2.35.0"
-    mockitoVersion = "4.11.0"
+    mockitoVersion = "5.1.1"
 }
 
 distributions {
