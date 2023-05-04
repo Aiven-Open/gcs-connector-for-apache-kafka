@@ -69,8 +69,8 @@ class AbstractIntegrationTest {
     @Container
     private static final GenericContainer<?> FAKE_GCS_CONTAINER = new FixedHostPortGenericContainer(
             "fsouza/fake-gcs-server:latest").withFixedExposedPort(GCS_PORT, GCS_PORT)
-                    .withCommand("-port", Integer.toString(GCS_PORT), "-scheme", "http")
-                    .withReuse(true);
+            .withCommand("-port", Integer.toString(GCS_PORT), "-scheme", "http")
+            .withReuse(true);
 
     static int getRandomPort() {
         try (ServerSocket socket = new ServerSocket(0)) {
