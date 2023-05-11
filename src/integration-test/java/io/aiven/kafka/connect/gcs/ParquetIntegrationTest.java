@@ -30,78 +30,39 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
-import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.AdminClientConfig;
-import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 
 import org.apache.avro.generic.GenericRecord;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.testcontainers.containers.KafkaContainer;
-import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers
-final class ParquetIntegrationTest extends AbstractIntegrationTest {
+final class ParquetIntegrationTest extends AbstractIntegrationTest<byte[], byte[]> {
 
-    private static final String CONNECTOR_NAME = "aiven-gcs-sink-connector-parquet";
+    private static final String CONNECTOR_NAME = "aiven-gcs-sink-connector-plain-parquet";
 
-    @Container
-    private final KafkaContainer kafka = createKafkaContainer();
-
-    private AdminClient adminClient;
-    private KafkaProducer<byte[], byte[]> producer;
-
-    private ConnectRunner connectRunner;
     @TempDir
     Path tmpDir;
 
     @BeforeEach
     void setUp() throws ExecutionException, InterruptedException {
         testBucketAccessor.clear(gcsPrefix);
-
-        final Properties adminClientConfig = new Properties();
-        adminClientConfig.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBootstrapServers());
-        adminClient = AdminClient.create(adminClientConfig);
-
         final Map<String, Object> producerProps = new HashMap<>();
-        producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBootstrapServers());
+        producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
         producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
                 "org.apache.kafka.common.serialization.ByteArraySerializer");
         producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
                 "org.apache.kafka.common.serialization.ByteArraySerializer");
-        producer = new KafkaProducer<>(producerProps);
-
-        final NewTopic newTopic0 = new NewTopic(TEST_TOPIC_0, 4, (short) 1);
-        final NewTopic newTopic1 = new NewTopic(TEST_TOPIC_1, 4, (short) 1);
-        adminClient.createTopics(Arrays.asList(newTopic0, newTopic1)).all().get();
-
-        connectRunner = new ConnectRunner(pluginDir, kafka.getBootstrapServers(), OFFSET_FLUSH_INTERVAL_MS);
-        connectRunner.start();
-    }
-
-    @AfterEach
-    void tearDown() {
-        connectRunner.stop();
-        adminClient.close();
-        producer.close();
-
-        testBucketAccessor.clear(gcsPrefix);
-
-        connectRunner.awaitStop();
+        startConnectRunner(producerProps);
     }
 
     @Test
@@ -112,7 +73,7 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
         connectorConfig.put("format.output.fields.value.encoding", "none");
         connectorConfig.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
         connectorConfig.put("value.converter", "org.apache.kafka.connect.storage.StringConverter");
-        connectRunner.createConnector(connectorConfig);
+        getConnectRunner().createConnector(connectorConfig);
 
         final List<Future<RecordMetadata>> sendFutures = new ArrayList<>();
         int cnt = 0;
@@ -121,10 +82,11 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
                 final String key = "key-" + cnt;
                 final String value = "value-" + cnt;
                 cnt += 1;
-                sendFutures.add(sendMessageAsync(TEST_TOPIC_0, partition, key, value));
+                sendFutures.add(sendMessageAsync(testTopic0, partition, key.getBytes(StandardCharsets.UTF_8),
+                        value.getBytes(StandardCharsets.UTF_8)));
             }
         }
-        producer.flush();
+        getProducer().flush();
         for (final Future<RecordMetadata> sendFuture : sendFutures) {
             sendFuture.get();
         }
@@ -166,7 +128,7 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
         connectorConfig.put("format.output.fields.value.encoding", "none");
         connectorConfig.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
         connectorConfig.put("value.converter", "org.apache.kafka.connect.storage.StringConverter");
-        connectRunner.createConnector(connectorConfig);
+        getConnectRunner().createConnector(connectorConfig);
 
         final List<Future<RecordMetadata>> sendFutures = new ArrayList<>();
         int cnt = 0;
@@ -175,10 +137,11 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
                 final String key = "key-" + cnt;
                 final String value = "{\"name\": \"name-" + cnt + "\", \"value\": \"value-" + cnt + "\"}";
                 cnt += 1;
-                sendFutures.add(sendMessageAsync(TEST_TOPIC_0, partition, key, value));
+                sendFutures.add(sendMessageAsync(testTopic0, partition, key.getBytes(StandardCharsets.UTF_8),
+                        value.getBytes(StandardCharsets.UTF_8)));
             }
         }
-        producer.flush();
+        getProducer().flush();
         for (final Future<RecordMetadata> sendFuture : sendFutures) {
             sendFuture.get();
         }
@@ -223,7 +186,7 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
         connectorConfig.put("format.output.fields.value.encoding", "none");
         connectorConfig.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
         connectorConfig.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
-        connectRunner.createConnector(connectorConfig);
+        getConnectRunner().createConnector(connectorConfig);
 
         final var jsonMessageSchema = "{\"type\":\"struct\",\"fields\":[{\"type\":\"string\",\"field\":\"name\"}]}";
         final var jsonMessagePattern = "{\"schema\": %s, \"payload\": %s}";
@@ -237,10 +200,11 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
                         "{" + "\"name\":\"user-" + cnt + "\"}");
                 cnt += 1;
 
-                sendFutures.add(sendMessageAsync(TEST_TOPIC_0, partition, key, value));
+                sendFutures.add(sendMessageAsync(testTopic0, partition, key.getBytes(StandardCharsets.UTF_8),
+                        value.getBytes(StandardCharsets.UTF_8)));
             }
         }
-        producer.flush();
+        getProducer().flush();
         for (final Future<RecordMetadata> sendFuture : sendFutures) {
             sendFuture.get();
         }
@@ -278,7 +242,7 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
         connectorConfig.put("format.output.fields.value.encoding", "none");
         connectorConfig.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
         connectorConfig.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
-        connectRunner.createConnector(connectorConfig);
+        getConnectRunner().createConnector(connectorConfig);
 
         final var jsonMessageSchema = "{\"type\":\"struct\",\"fields\":[{\"type\":\"string\",\"field\":\"name\"}]}";
         final var jsonMessageNewSchema = "{\"type\":\"struct\",\"fields\":"
@@ -302,11 +266,12 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
                     value = String.format(jsonMessagePattern, jsonMessageNewSchema, payload);
                 }
                 expectedRecords.add(String.format("{\"value\": %s}", payload));
-                sendFutures.add(sendMessageAsync(TEST_TOPIC_0, partition, key, value));
+                sendFutures.add(sendMessageAsync(testTopic0, partition, key.getBytes(StandardCharsets.UTF_8),
+                        value.getBytes(StandardCharsets.UTF_8)));
                 cnt += 1;
             }
         }
-        producer.flush();
+        getProducer().flush();
         for (final Future<RecordMetadata> sendFuture : sendFutures) {
             sendFuture.get();
         }
@@ -327,15 +292,6 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
         assertIterableEquals(expectedRecords.stream().sorted().collect(Collectors.toList()),
                 blobContents.stream().sorted().collect(Collectors.toList()));
     }
-
-    private Future<RecordMetadata> sendMessageAsync(final String topicName, final int partition, final String key,
-            final String value) {
-        final ProducerRecord<byte[], byte[]> msg = new ProducerRecord<>(topicName, partition,
-                key == null ? null : key.getBytes(StandardCharsets.UTF_8),
-                value == null ? null : value.getBytes(StandardCharsets.UTF_8));
-        return producer.send(msg);
-    }
-
     private Map<String, String> basicConnectorConfig(final String compression) {
         final Map<String, String> config = new HashMap<>();
         config.put("name", CONNECTOR_NAME);
@@ -354,7 +310,7 @@ final class ParquetIntegrationTest extends AbstractIntegrationTest {
         }
         config.put("gcs.bucket.name", testBucketName);
         config.put("file.name.prefix", gcsPrefix);
-        config.put("topics", TEST_TOPIC_0 + "," + TEST_TOPIC_1);
+        config.put("topics", testTopic0 + "," + testTopic1);
         config.put("file.compression.type", compression);
         config.put("format.output.type", "parquet");
         return config;

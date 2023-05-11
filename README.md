@@ -201,6 +201,11 @@ There are four types of data format available:
 
   Configuration: ```format.output.type=parquet```.
 
+- Complex structure, where file is in Apache [Avro Container File](https://avro.apache.org/docs/current/specification/#object-container-files) file format.
+
+  Configuration: ```format.output.type=avro```.
+
+
 The connector can output the following fields from records into the
 output: the key, the value, the timestamp, the offset and headers. (The set of
 these output fields is configurable.) The field values are separated by comma.
@@ -405,6 +410,83 @@ Having `format.output.envelope=false` can produce the following output:
 - Connector works just fine with and without Schema Registry
 - `format.output.envelope=false` is ignored if the value is not of type `org.apache.avro.Schema.Type.RECORD` or `org.apache.avro.Schema.Type.MAP`.
 
+#### Avro format example
+
+The output file is an [Avro Object Container File](https://avro.apache.org/docs/current/specification/#object-container-files).
+
+For example, if we output `key,offset,timestamp,headers,value`, an output Avro schema might look like this:
+```json
+{
+    "type": "record", "fields": [
+      {"name": "key", "type": "RecordKeySchema"},
+      {"name": "offset", "type": "long"},
+      {"name": "timestamp", "type": "long"},
+      {"name": "headers", "type": "map"},
+      {"name": "value", "type": "RecordValueSchema"}
+  ]
+}
+```
+where `RecordKeySchema` - a key schema and `RecordValueSchema` - a record value schema.
+This means that in case you have the record and key schema like:
+
+Key schema:
+```json
+{
+  "type": "string"
+}
+```
+
+Record schema:
+```json
+{
+    "type": "record", "fields": [
+      {"name": "foo", "type": "string"},
+      {"name": "bar", "type": "long"}
+  ]
+}
+```
+the final `Avro` schema for output is:
+```json
+{
+    "type": "record", "fields": [
+      {"name": "key", "type": "string"},
+      {"name": "offset", "type": "long"},
+      {"name": "timestamp", "type": "long"},
+      {"name": "headers", "type": "map", "values": "long"},
+      { "name": "value",
+        "type": "record",
+        "fields": [
+          {"name": "foo", "type": "string"},
+          {"name": "bar", "type": "long"}
+        ]
+      }
+  ]
+}
+```
+
+
+For a single-field output e.g. `value`, a record line might look like:
+
+```json
+{ "value": {"name": "John", "address": {"city": "London"}} }
+```
+
+In this case it sometimes make sense to get rid of additional object wrapping the actual value using `format.output.envelope`.
+Having `format.output.envelope=false` can produce the following output:
+
+```json
+{"name": "John", "address": {"city": "London"}}
+```
+
+**NB!**
+- The value of the `format.output.fields.value.encoding` property is ignored for this data format.
+- Due to Avro limitation message headers values must be the same datatype
+- Connector works just fine with and without Schema Registry
+- `format.output.envelope=false` is ignored if the value is not of type `org.apache.avro.Schema.Type.RECORD` or `org.apache.avro.Schema.Type.MAP`.
+- The Avro Object Container File requires that each value is written with the same schema in the file. When schema evolution happens for the input data, a new output file is created on every schema change. When data with previous and new schema is interleaved in the source topic multiple files will get generated in short duration.
+- The schema for output file is derived from the Connect Schema. The Connect Schema is derived from the input records Avro schema by using the Schema Registry.
+
+
 ## Retry strategy configuration property
 
 There are six configuration properties to configure retry strategy exist.
@@ -525,6 +607,11 @@ file.name.prefix=some-prefix/
 # The supported values are: `gzip`, `snappy`, `zstd`, `none`.
 # Optional, the default is `none`.
 file.compression.type=gzip
+
+# The compression used for Avro Container File blocks.
+# The supported values are: `bzip2`, `deflate`, `null`, `snappy`, `zstandard`.
+# Optional, the default is `null`.
+avro.codec=null
 
 # The time zone in which timestamps are represented.
 # Accepts short and long standard names like: `UTC`, `PST`, `ECT`,

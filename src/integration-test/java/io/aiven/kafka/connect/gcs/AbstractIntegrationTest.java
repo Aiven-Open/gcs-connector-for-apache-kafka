@@ -25,7 +25,22 @@ import java.nio.file.Files;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 
 import io.aiven.kafka.connect.common.config.CompressionType;
 import io.aiven.kafka.connect.gcs.testutils.BucketAccessor;
@@ -35,6 +50,7 @@ import com.google.cloud.NoCredentials;
 import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.testcontainers.containers.FixedHostPortGenericContainer;
 import org.testcontainers.containers.GenericContainer;
@@ -44,9 +60,13 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers
-class AbstractIntegrationTest {
-    protected static final String TEST_TOPIC_0 = "test-topic-0";
-    protected static final String TEST_TOPIC_1 = "test-topic-1";
+class AbstractIntegrationTest<K, V> {
+    protected final String testTopic0;
+    protected final String testTopic1;
+
+    private AdminClient adminClient;
+    private ConnectRunner connectRunner;
+    private KafkaProducer<K, V> producer;
 
     protected static final int OFFSET_FLUSH_INTERVAL_MS = 5000;
 
@@ -74,6 +94,13 @@ class AbstractIntegrationTest {
             .withFixedExposedPort(GCS_PORT, GCS_PORT)
             .withCommand("-port", Integer.toString(GCS_PORT), "-scheme", "http")
             .withReuse(true);
+    @Container
+    protected static final KafkaContainer KAFKA = new KafkaContainer("5.2.1")
+            .withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false")
+            .withNetwork(Network.newNetwork())
+            .withExposedPorts(KafkaContainer.KAFKA_PORT, 9092)
+            .withCreateContainerCmdModifier(
+                    cmd -> cmd.getHostConfig().withUlimits(List.of(new Ulimit("nofile", 30_000L, 30_000L))));
 
     static int getRandomPort() {
         try (ServerSocket socket = new ServerSocket(0)) {
@@ -85,6 +112,8 @@ class AbstractIntegrationTest {
     }
 
     protected AbstractIntegrationTest() {
+        testTopic0 = "test-topic-0-" + UUID.randomUUID();
+        testTopic1 = "test-topic-1-" + UUID.randomUUID();
     }
 
     @BeforeAll
@@ -131,12 +160,25 @@ class AbstractIntegrationTest {
         assert process.waitFor() == 0;
     }
 
+    @AfterEach
+    void tearDown() {
+        connectRunner.stop();
+        adminClient.close();
+        producer.close();
+        testBucketAccessor.clear(gcsPrefix);
+        connectRunner.awaitStop();
+    }
+
     protected static boolean useFakeGCS() {
         return gcsCredentialsPath == null && gcsCredentialsJson == null;
     }
 
+    protected String getBaseBlobName(final int partition, final int startOffset) {
+        return String.format("%s%s-%d-%d", gcsPrefix, testTopic0, partition, startOffset);
+    }
+
     protected String getBlobName(final int partition, final int startOffset, final String compression) {
-        final String result = String.format("%s%s-%d-%d", gcsPrefix, TEST_TOPIC_0, partition, startOffset);
+        final String result = getBaseBlobName(partition, startOffset);
         return result + CompressionType.forName(compression).extension();
     }
 
@@ -152,11 +194,37 @@ class AbstractIntegrationTest {
 
     }
 
-    protected KafkaContainer createKafkaContainer() {
-        return new KafkaContainer("5.2.1").withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false")
-                .withNetwork(Network.newNetwork())
-                .withExposedPorts(KafkaContainer.KAFKA_PORT, 9092)
-                .withCreateContainerCmdModifier(
-                        cmd -> cmd.getHostConfig().withUlimits(List.of(new Ulimit("nofile", 30_000L, 30_000L))));
+    protected KafkaProducer<K, V> getProducer() {
+        return producer;
+    }
+
+    protected Future<RecordMetadata> sendMessageAsync(final String topicName, final int partition, final K key,
+            final V value) {
+        final ProducerRecord<K, V> msg = new ProducerRecord<>(topicName, partition, key, value);
+        return producer.send(msg);
+    }
+
+    protected ConnectRunner getConnectRunner() {
+        return connectRunner;
+    }
+
+    protected void startConnectRunner(final Map<String, Object> testSpecificProducerProperties)
+            throws ExecutionException, InterruptedException {
+        testBucketAccessor.clear(gcsPrefix);
+
+        final Properties adminClientConfig = new Properties();
+        adminClientConfig.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
+        adminClient = AdminClient.create(adminClientConfig);
+
+        final Map<String, Object> producerProps = new HashMap<>(testSpecificProducerProperties);
+        producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
+        producer = new KafkaProducer<>(producerProps);
+
+        final NewTopic newTopic0 = new NewTopic(testTopic0, 4, (short) 1);
+        final NewTopic newTopic1 = new NewTopic(testTopic1, 4, (short) 1);
+        adminClient.createTopics(Arrays.asList(newTopic0, newTopic1)).all().get();
+
+        connectRunner = new ConnectRunner(pluginDir, KAFKA.getBootstrapServers(), OFFSET_FLUSH_INTERVAL_MS);
+        connectRunner.start();
     }
 }

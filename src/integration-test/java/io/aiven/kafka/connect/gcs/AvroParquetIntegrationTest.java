@@ -29,81 +29,42 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
-import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.AdminClientConfig;
-import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers
-final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
+final class AvroParquetIntegrationTest extends AbstractIntegrationTest<String, GenericRecord> {
 
     private static final String CONNECTOR_NAME = "aiven-gcs-sink-connector-parquet";
 
     @Container
-    private final KafkaContainer kafka = createKafkaContainer();
-
-    @Container
-    private final SchemaRegistryContainer schemaRegistry = new SchemaRegistryContainer(kafka);
-
-    private AdminClient adminClient;
-    private KafkaProducer<String, GenericRecord> producer;
-
-    private ConnectRunner connectRunner;
+    private final SchemaRegistryContainer schemaRegistry = new SchemaRegistryContainer(KAFKA);
 
     @BeforeEach
     void setUp() throws ExecutionException, InterruptedException {
         testBucketAccessor.clear(gcsPrefix);
-
-        final Properties adminClientConfig = new Properties();
-        adminClientConfig.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBootstrapServers());
-        adminClient = AdminClient.create(adminClientConfig);
-
         final Map<String, Object> producerProps = new HashMap<>();
-        producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBootstrapServers());
+        producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
         producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
                 "io.confluent.kafka.serializers.KafkaAvroSerializer");
         producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
                 "io.confluent.kafka.serializers.KafkaAvroSerializer");
         producerProps.put("schema.registry.url", schemaRegistry.getSchemaRegistryUrl());
-        producer = new KafkaProducer<>(producerProps);
-
-        final NewTopic newTopic0 = new NewTopic(TEST_TOPIC_0, 4, (short) 1);
-        final NewTopic newTopic1 = new NewTopic(TEST_TOPIC_1, 4, (short) 1);
-        adminClient.createTopics(Arrays.asList(newTopic0, newTopic1)).all().get();
-
-        connectRunner = new ConnectRunner(pluginDir, kafka.getBootstrapServers(), OFFSET_FLUSH_INTERVAL_MS);
-        connectRunner.start();
-    }
-
-    @AfterEach
-    void tearDown() {
-        connectRunner.stop();
-        adminClient.close();
-        producer.close();
-
-        testBucketAccessor.clear(gcsPrefix);
-
-        connectRunner.awaitStop();
+        startConnectRunner(producerProps);
     }
 
     @Test
@@ -112,7 +73,7 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
         final Map<String, String> connectorConfig = basicConnectorConfig(compression);
         connectorConfig.put("format.output.fields", "key,value,offset,timestamp,headers");
         connectorConfig.put("format.output.fields.value.encoding", "none");
-        connectRunner.createConnector(connectorConfig);
+        getConnectRunner().createConnector(connectorConfig);
 
         final Schema valueSchema = SchemaBuilder.record("value")
                 .fields()
@@ -135,10 +96,10 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
                 value.put("name", "user-" + cnt);
                 value.put("value", "value-" + cnt);
                 cnt += 1;
-                sendFutures.add(sendMessageAsync(TEST_TOPIC_0, partition, key, value));
+                sendFutures.add(sendMessageAsync(testTopic0, partition, key, value));
             }
         }
-        producer.flush();
+        getProducer().flush();
         for (final Future<RecordMetadata> sendFuture : sendFutures) {
             sendFuture.get();
         }
@@ -180,7 +141,7 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
         final Map<String, String> connectorConfig = basicConnectorConfig(compression);
         connectorConfig.put("format.output.fields", "value");
         connectorConfig.put("format.output.fields.value.encoding", "none");
-        connectRunner.createConnector(connectorConfig);
+        getConnectRunner().createConnector(connectorConfig);
 
         final Schema valueSchema = SchemaBuilder.record("value")
                 .fields()
@@ -203,10 +164,10 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
                 value.put("name", "user-" + cnt);
                 value.put("value", "value-" + cnt);
                 cnt += 1;
-                sendFutures.add(sendMessageAsync(TEST_TOPIC_0, partition, key, value));
+                sendFutures.add(sendMessageAsync(testTopic0, partition, key, value));
             }
         }
-        producer.flush();
+        getProducer().flush();
         for (final Future<RecordMetadata> sendFuture : sendFutures) {
             sendFuture.get();
         }
@@ -244,7 +205,7 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
         final Map<String, String> connectorConfig = basicConnectorConfig(compression);
         connectorConfig.put("format.output.fields", "value");
         connectorConfig.put("format.output.fields.value.encoding", "none");
-        connectRunner.createConnector(connectorConfig);
+        getConnectRunner().createConnector(connectorConfig);
 
         final Schema valueSchema = SchemaBuilder.record("value")
                 .fields()
@@ -293,10 +254,10 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
                 }
                 expectedRecords.add(value.toString());
                 cnt += 1;
-                sendFutures.add(sendMessageAsync(TEST_TOPIC_0, partition, key, value));
+                sendFutures.add(sendMessageAsync(testTopic0, partition, key, value));
             }
         }
-        producer.flush();
+        getProducer().flush();
         for (final Future<RecordMetadata> sendFuture : sendFutures) {
             sendFuture.get();
         }
@@ -316,12 +277,6 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
         }
         assertIterableEquals(expectedRecords.stream().sorted().collect(Collectors.toList()),
                 blobContents.stream().sorted().collect(Collectors.toList()));
-    }
-
-    private Future<RecordMetadata> sendMessageAsync(final String topicName, final int partition, final String key,
-            final GenericRecord value) {
-        final ProducerRecord<String, GenericRecord> msg = new ProducerRecord<>(topicName, partition, key, value);
-        return producer.send(msg);
     }
 
     private Map<String, String> basicConnectorConfig(final String compression) {
@@ -344,7 +299,7 @@ final class AvroParquetIntegrationTest extends AbstractIntegrationTest {
         }
         config.put("gcs.bucket.name", testBucketName);
         config.put("file.name.prefix", gcsPrefix);
-        config.put("topics", TEST_TOPIC_0 + "," + TEST_TOPIC_1);
+        config.put("topics", testTopic0 + "," + testTopic1);
         config.put("file.compression.type", compression);
         config.put("format.output.type", "parquet");
         return config;
