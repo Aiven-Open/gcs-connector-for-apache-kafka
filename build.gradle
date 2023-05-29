@@ -318,6 +318,7 @@ task integrationTest(type: Test) {
     systemProperty("integration-test.gcs.bucket", project.findProperty('testGcsBucket'))
     // Pass the distribution file path to the tests.
     systemProperty("integration-test.distribution.file.path", distTar.archiveFile.get().asFile.path)
+    systemProperty("fake-gcs-server-version", "1.45.2")
 }
 
 test {

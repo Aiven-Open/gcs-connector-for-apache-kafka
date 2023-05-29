@@ -66,9 +66,12 @@ class AbstractIntegrationTest {
 
     protected static File pluginDir; // NOPMD mutable static state
     protected static String gcsEndpoint; // NOPMD mutable static state
+
+    private static final String FAKE_GCS_SERVER_VERSION = System.getProperty("fake-gcs-server-version", "latest");
     @Container
     private static final GenericContainer<?> FAKE_GCS_CONTAINER = new FixedHostPortGenericContainer(
-            "fsouza/fake-gcs-server:latest").withFixedExposedPort(GCS_PORT, GCS_PORT)
+            String.format("fsouza/fake-gcs-server:%s", FAKE_GCS_SERVER_VERSION))
+            .withFixedExposedPort(GCS_PORT, GCS_PORT)
             .withCommand("-port", Integer.toString(GCS_PORT), "-scheme", "http")
             .withReuse(true);
 
