@@ -31,17 +31,11 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
-import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.AdminClientConfig;
-import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.TopicPartition;
 
@@ -52,60 +46,26 @@ import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.http.RequestMethod;
 import com.github.tomakehurst.wiremock.matching.UrlPattern;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.testcontainers.containers.KafkaContainer;
-import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers
-final class IntegrationTest extends AbstractIntegrationTest {
+final class IntegrationTest extends AbstractIntegrationTest<byte[], byte[]> {
     private static final String CONNECTOR_NAME = "aiven-gcs-sink-connector";
-
-    @Container
-    private final KafkaContainer kafka = createKafkaContainer();
-
-    private AdminClient adminClient;
-    private KafkaProducer<byte[], byte[]> producer;
-
-    private ConnectRunner connectRunner;
 
     @BeforeEach
     void setUp() throws ExecutionException, InterruptedException {
         testBucketAccessor.clear(gcsPrefix);
-
-        final Properties adminClientConfig = new Properties();
-        adminClientConfig.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBootstrapServers());
-        adminClient = AdminClient.create(adminClientConfig);
-
         final Map<String, Object> producerProps = new HashMap<>();
-        producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBootstrapServers());
+        producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
         producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
                 "org.apache.kafka.common.serialization.ByteArraySerializer");
         producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
                 "org.apache.kafka.common.serialization.ByteArraySerializer");
-        producer = new KafkaProducer<>(producerProps);
-
-        final NewTopic newTopic0 = new NewTopic(TEST_TOPIC_0, 4, (short) 1);
-        final NewTopic newTopic1 = new NewTopic(TEST_TOPIC_1, 4, (short) 1);
-        adminClient.createTopics(Arrays.asList(newTopic0, newTopic1)).all().get();
-
-        connectRunner = new ConnectRunner(pluginDir, kafka.getBootstrapServers(), OFFSET_FLUSH_INTERVAL_MS);
-        connectRunner.start();
-    }
-
-    @AfterEach
-    void tearDown() {
-        connectRunner.stop();
-        adminClient.close();
-        producer.close();
-
-        testBucketAccessor.clear(gcsPrefix);
-
-        connectRunner.awaitStop();
+        super.startConnectRunner(producerProps);
     }
 
     @ParameterizedTest
@@ -114,7 +74,7 @@ final class IntegrationTest extends AbstractIntegrationTest {
         final Map<String, String> connectorConfig = basicConnectorConfig();
         connectorConfig.put("format.output.fields", "key,value");
         connectorConfig.put("file.compression.type", compression);
-        connectRunner.createConnector(connectorConfig);
+        getConnectRunner().createConnector(connectorConfig);
 
         final List<Future<RecordMetadata>> sendFutures = new ArrayList<>();
         int cnt = 0;
@@ -124,10 +84,11 @@ final class IntegrationTest extends AbstractIntegrationTest {
                 final String value = "value-" + cnt;
                 cnt += 1;
 
-                sendFutures.add(sendMessageAsync(TEST_TOPIC_0, partition, key, value));
+                sendFutures.add(sendMessageAsync(testTopic0, partition, key.getBytes(StandardCharsets.UTF_8),
+                        value.getBytes(StandardCharsets.UTF_8)));
             }
         }
-        producer.flush();
+        getProducer().flush();
         for (final Future<RecordMetadata> sendFuture : sendFutures) {
             sendFuture.get();
         }
@@ -170,16 +131,21 @@ final class IntegrationTest extends AbstractIntegrationTest {
         connectorConfig.put("file.compression.type", compression);
         connectorConfig.put("file.name.template", "{{topic}}-{{partition}}-{{start_offset}}-"
                 + "{{timestamp:unit=yyyy}}-{{timestamp:unit=MM}}-{{timestamp:unit=dd}}");
-        connectRunner.createConnector(connectorConfig);
+        getConnectRunner().createConnector(connectorConfig);
 
         final List<Future<RecordMetadata>> sendFutures = new ArrayList<>();
-        sendFutures.add(sendMessageAsync(TEST_TOPIC_0, 0, "key-0", "value-0"));
-        sendFutures.add(sendMessageAsync(TEST_TOPIC_0, 0, "key-1", "value-1"));
-        sendFutures.add(sendMessageAsync(TEST_TOPIC_0, 0, "key-2", "value-2"));
-        sendFutures.add(sendMessageAsync(TEST_TOPIC_0, 1, "key-3", "value-3"));
-        sendFutures.add(sendMessageAsync(TEST_TOPIC_0, 3, "key-4", "value-4"));
+        sendFutures.add(sendMessageAsync(testTopic0, 0, "key-0".getBytes(StandardCharsets.UTF_8),
+                "value-0".getBytes(StandardCharsets.UTF_8)));
+        sendFutures.add(sendMessageAsync(testTopic0, 0, "key-1".getBytes(StandardCharsets.UTF_8),
+                "value-1".getBytes(StandardCharsets.UTF_8)));
+        sendFutures.add(sendMessageAsync(testTopic0, 0, "key-2".getBytes(StandardCharsets.UTF_8),
+                "value-2".getBytes(StandardCharsets.UTF_8)));
+        sendFutures.add(sendMessageAsync(testTopic0, 1, "key-3".getBytes(StandardCharsets.UTF_8),
+                "value-3".getBytes(StandardCharsets.UTF_8)));
+        sendFutures.add(sendMessageAsync(testTopic0, 3, "key-4".getBytes(StandardCharsets.UTF_8),
+                "value-4".getBytes(StandardCharsets.UTF_8)));
 
-        producer.flush();
+        getProducer().flush();
         for (final Future<RecordMetadata> sendFuture : sendFutures) {
             sendFuture.get();
         }
@@ -210,7 +176,7 @@ final class IntegrationTest extends AbstractIntegrationTest {
 
     private String getTimestampBlobName(final int partition, final int startOffset) {
         final ZonedDateTime time = ZonedDateTime.now(ZoneId.of("UTC"));
-        return String.format("%s%s-%d-%d-%s-%s-%s", gcsPrefix, TEST_TOPIC_0, partition, startOffset,
+        return String.format("%s%s-%d-%d-%s-%s-%s", gcsPrefix, testTopic0, partition, startOffset,
                 time.format(DateTimeFormatter.ofPattern("yyyy")), time.format(DateTimeFormatter.ofPattern("MM")),
                 time.format(DateTimeFormatter.ofPattern("dd")));
     }
@@ -223,17 +189,22 @@ final class IntegrationTest extends AbstractIntegrationTest {
         connectorConfig.put("file.compression.type", compression);
         connectorConfig.put("format.output.fields.value.encoding", "none");
         connectorConfig.put("file.max.records", "1");
-        connectRunner.createConnector(connectorConfig);
+        getConnectRunner().createConnector(connectorConfig);
 
         final List<Future<RecordMetadata>> sendFutures = new ArrayList<>();
 
-        sendFutures.add(sendMessageAsync(TEST_TOPIC_0, 0, "key-0", "value-0"));
-        sendFutures.add(sendMessageAsync(TEST_TOPIC_0, 0, "key-1", "value-1"));
-        sendFutures.add(sendMessageAsync(TEST_TOPIC_0, 0, "key-2", "value-2"));
-        sendFutures.add(sendMessageAsync(TEST_TOPIC_0, 1, "key-3", "value-3"));
-        sendFutures.add(sendMessageAsync(TEST_TOPIC_0, 3, "key-4", "value-4"));
+        sendFutures.add(sendMessageAsync(testTopic0, 0, "key-0".getBytes(StandardCharsets.UTF_8),
+                "value-0".getBytes(StandardCharsets.UTF_8)));
+        sendFutures.add(sendMessageAsync(testTopic0, 0, "key-1".getBytes(StandardCharsets.UTF_8),
+                "value-1".getBytes(StandardCharsets.UTF_8)));
+        sendFutures.add(sendMessageAsync(testTopic0, 0, "key-2".getBytes(StandardCharsets.UTF_8),
+                "value-2".getBytes(StandardCharsets.UTF_8)));
+        sendFutures.add(sendMessageAsync(testTopic0, 1, "key-3".getBytes(StandardCharsets.UTF_8),
+                "value-3".getBytes(StandardCharsets.UTF_8)));
+        sendFutures.add(sendMessageAsync(testTopic0, 3, "key-4".getBytes(StandardCharsets.UTF_8),
+                "value-4".getBytes(StandardCharsets.UTF_8)));
 
-        producer.flush();
+        getProducer().flush();
         for (final Future<RecordMetadata> sendFuture : sendFutures) {
             sendFuture.get();
         }
@@ -267,14 +238,13 @@ final class IntegrationTest extends AbstractIntegrationTest {
         connectorConfig.put("format.output.fields", "key,value");
         connectorConfig.put("file.compression.type", compression);
         connectorConfig.put("file.name.template", "{{key}}" + compressionType.extension());
-        connectRunner.createConnector(connectorConfig);
+        getConnectRunner().createConnector(connectorConfig);
 
         final Map<TopicPartition, List<String>> keysPerTopicPartition = new HashMap<>();
-        keysPerTopicPartition.put(new TopicPartition(TEST_TOPIC_0, 0),
-                Arrays.asList("key-0", "key-1", "key-2", "key-3"));
-        keysPerTopicPartition.put(new TopicPartition(TEST_TOPIC_0, 1), Arrays.asList("key-4", "key-5", "key-6"));
-        keysPerTopicPartition.put(new TopicPartition(TEST_TOPIC_1, 0), Arrays.asList(null, "key-7"));
-        keysPerTopicPartition.put(new TopicPartition(TEST_TOPIC_1, 1), Arrays.asList("key-8"));
+        keysPerTopicPartition.put(new TopicPartition(testTopic0, 0), Arrays.asList("key-0", "key-1", "key-2", "key-3"));
+        keysPerTopicPartition.put(new TopicPartition(testTopic0, 1), Arrays.asList("key-4", "key-5", "key-6"));
+        keysPerTopicPartition.put(new TopicPartition(testTopic0, 0), Arrays.asList(null, "key-7"));
+        keysPerTopicPartition.put(new TopicPartition(testTopic0, 1), Arrays.asList("key-8"));
 
         final List<Future<RecordMetadata>> sendFutures = new ArrayList<>();
         final Map<String, String> lastValuePerKey = new HashMap<>();
@@ -285,7 +255,9 @@ final class IntegrationTest extends AbstractIntegrationTest {
                 for (final String key : keysPerTopicPartition.get(entry.getKey())) {
                     final String value = "value-" + cnt;
                     cnt += 1;
-                    sendFutures.add(sendMessageAsync(entry.getKey().topic(), entry.getKey().partition(), key, value));
+                    final byte[] keyBytes = key == null ? null : key.getBytes(StandardCharsets.UTF_8);
+                    sendFutures.add(sendMessageAsync(entry.getKey().topic(), entry.getKey().partition(), keyBytes,
+                            value.getBytes(StandardCharsets.UTF_8)));
                     lastValuePerKey.put(key, value);
                     if (cnt >= cntMax) {
                         break outer;
@@ -293,7 +265,7 @@ final class IntegrationTest extends AbstractIntegrationTest {
                 }
             }
         }
-        producer.flush();
+        getProducer().flush();
         for (final Future<RecordMetadata> sendFuture : sendFutures) {
             sendFuture.get();
         }
@@ -337,7 +309,7 @@ final class IntegrationTest extends AbstractIntegrationTest {
         connectorConfig.put("value.converter.schemas.enable", "false");
         connectorConfig.put("file.compression.type", compression);
         connectorConfig.put("format.output.type", contentType);
-        connectRunner.createConnector(connectorConfig);
+        getConnectRunner().createConnector(connectorConfig);
 
         final List<Future<RecordMetadata>> sendFutures = new ArrayList<>();
         int cnt = 0;
@@ -347,10 +319,11 @@ final class IntegrationTest extends AbstractIntegrationTest {
                 final String value = "[{" + "\"name\":\"user-" + cnt + "\"}]";
                 cnt += 1;
 
-                sendFutures.add(sendMessageAsync(TEST_TOPIC_0, partition, key, value));
+                sendFutures.add(sendMessageAsync(testTopic0, partition, key.getBytes(StandardCharsets.UTF_8),
+                        value.getBytes(StandardCharsets.UTF_8)));
             }
         }
-        producer.flush();
+        getProducer().flush();
         for (final Future<RecordMetadata> sendFuture : sendFutures) {
             sendFuture.get();
         }
@@ -399,7 +372,7 @@ final class IntegrationTest extends AbstractIntegrationTest {
         connectorConfig.put("value.converter.schemas.enable", "false");
         connectorConfig.put("file.compression.type", compression);
         connectorConfig.put("format.output.type", contentType);
-        connectRunner.createConnector(connectorConfig);
+        getConnectRunner().createConnector(connectorConfig);
 
         final int numEpochs = 10;
 
@@ -411,10 +384,11 @@ final class IntegrationTest extends AbstractIntegrationTest {
                 final String value = "[{" + "\"name\":\"user-" + cnt + "\"}]";
                 cnt += 1;
 
-                sendFutures.add(sendMessageAsync(TEST_TOPIC_0, partition, key, value));
+                sendFutures.add(sendMessageAsync(testTopic0, partition, key.getBytes(StandardCharsets.UTF_8),
+                        value.getBytes(StandardCharsets.UTF_8)));
             }
         }
-        producer.flush();
+        getProducer().flush();
         for (final Future<RecordMetadata> sendFuture : sendFutures) {
             sendFuture.get();
         }
@@ -463,14 +437,6 @@ final class IntegrationTest extends AbstractIntegrationTest {
         }
     }
 
-    private Future<RecordMetadata> sendMessageAsync(final String topicName, final int partition, final String key,
-            final String value) {
-        final ProducerRecord<byte[], byte[]> msg = new ProducerRecord<>(topicName, partition,
-                key == null ? null : key.getBytes(StandardCharsets.UTF_8),
-                value == null ? null : value.getBytes(StandardCharsets.UTF_8));
-        return producer.send(msg);
-    }
-
     private Map<String, String> basicConnectorConfig() {
         final Map<String, String> config = new HashMap<>();
         config.put("name", CONNECTOR_NAME);
@@ -489,7 +455,7 @@ final class IntegrationTest extends AbstractIntegrationTest {
         }
         config.put("gcs.bucket.name", testBucketName);
         config.put("file.name.prefix", gcsPrefix);
-        config.put("topics", TEST_TOPIC_0 + "," + TEST_TOPIC_1);
+        config.put("topics", testTopic0 + "," + testTopic1);
         return config;
     }
 
