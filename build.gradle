@@ -82,7 +82,7 @@ ext {
     // https://docs.confluent.io/current/installation/versions-interoperability.html
     confluentPlatformVersion = "4.1.4"
     aivenConnectCommonsVersion = "0.8.2"
-    testcontainersVersion = "1.18.0"
+    testcontainersVersion = "1.18.3"
     slf4jVersion = "1.7.36"
     wireMockVersion = "2.35.0"
     mockitoVersion = "5.2.0"
