@@ -297,7 +297,8 @@ task integrationTest(type: Test) {
     testClassesDirs = sourceSets.integrationTest.output.classesDirs
     classpath = sourceSets.integrationTest.runtimeClasspath
 
-    dependsOn test, distTar
+    shouldRunAfter test
+    dependsOn distTar
 
     useJUnitPlatform()
 
