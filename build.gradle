@@ -72,10 +72,6 @@ compileJava {
     options.compilerArgs = ["-Xlint:all", "-Werror"]
 }
 
-javadoc {
-    options.addBooleanOption('html5', true)
-}
-
 ext {
     kafkaVersion = "1.1.0"
     // Compatible with Kafka version:
@@ -342,6 +338,12 @@ jar {
                 'Version': "${project.version}"
         )
     }
+}
+
+javadoc {
+    options.addBooleanOption('html5', true)
+    // disable missing javadoc lint and show only warning and error messages
+    options.addStringOption('Xdoclint:all,-missing', '-quiet')
 }
 
 publishing {
