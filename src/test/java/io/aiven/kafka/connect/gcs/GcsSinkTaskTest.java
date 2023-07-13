@@ -365,6 +365,7 @@ final class GcsSinkTaskTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     void setupDefaultRetryPolicy() {
         final var mockedContext = mock(SinkTaskContext.class);
@@ -393,6 +394,7 @@ final class GcsSinkTaskTest {
         assertThat(retrySettings.getMaxAttempts()).isEqualTo(GcsSinkConfig.GCS_RETRY_BACKOFF_MAX_ATTEMPTS_DEFAULT);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     void setupCustomRetryPolicy() {
         final var mockedContext = mock(SinkTaskContext.class);
