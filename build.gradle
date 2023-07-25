@@ -153,7 +153,7 @@ dependencies {
     testImplementation "org.apache.kafka:connect-json:$kafkaVersion"
     testImplementation "com.google.cloud:google-cloud-nio:0.126.18"
 
-    testImplementation "org.xerial.snappy:snappy-java:1.1.10.1"
+    testImplementation "org.xerial.snappy:snappy-java:1.1.10.3"
     testImplementation "com.github.luben:zstd-jni:1.5.5-4"
     testImplementation ("org.apache.parquet:parquet-tools:1.11.2") {
         exclude group: "org.slf4j", module: "slf4j-api"
