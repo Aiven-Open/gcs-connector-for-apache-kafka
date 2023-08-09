@@ -16,6 +16,7 @@
 
 package io.aiven.kafka.connect.gcs;
 
+import static java.util.Map.entry;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
@@ -52,6 +53,7 @@ import io.aiven.kafka.connect.gcs.testutils.BucketAccessor;
 import io.aiven.kafka.connect.gcs.testutils.Record;
 import io.aiven.kafka.connect.gcs.testutils.Utils;
 
+import com.google.api.gax.rpc.NoHeaderProvider;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.contrib.nio.testing.LocalStorageHelper;
 import com.google.common.collect.Lists;
@@ -71,7 +73,6 @@ final class GcsSinkTaskTest {
 
     private static Storage storage;
     private static BucketAccessor testBucketAccessor;
-
     private static Map<String, String> properties;
 
     private final Random random = new Random();
@@ -382,6 +383,11 @@ final class GcsSinkTaskTest {
 
         verify(mockedContext, never()).timeout(anyLong());
 
+        final Map<String, String> headers = storage.getOptions()
+                .getMergedHeaderProvider(new NoHeaderProvider())
+                .getHeaders();
+
+        assertThat(headers).containsExactly(entry("user-agent", "Google GCS Sink/test-version (GPN: Aiven;)"));
         assertThat(retrySettings.isJittered()).isTrue();
         assertThat(retrySettings.getInitialRetryDelay())
                 .isEqualTo(Duration.ofMillis(GcsSinkConfig.GCS_RETRY_BACKOFF_INITIAL_DELAY_MS_DEFAULT));
@@ -406,7 +412,8 @@ final class GcsSinkTaskTest {
                 Thread.currentThread().getContextClassLoader().getResource("test_gcs_credentials.json").getPath(),
                 "kafka.retry.backoff.ms", "1", "gcs.retry.backoff.initial.delay.ms", "2",
                 "gcs.retry.backoff.max.delay.ms", "3", "gcs.retry.backoff.delay.multiplier", "4",
-                "gcs.retry.backoff.total.timeout.ms", "5", "gcs.retry.backoff.max.attempts", "6");
+                "gcs.retry.backoff.total.timeout.ms", "5", "gcs.retry.backoff.max.attempts", "6", "gcs.user.agent",
+                "foo");
 
         task.start(props);
 
@@ -415,6 +422,11 @@ final class GcsSinkTaskTest {
 
         verify(mockedContext).timeout(kafkaBackoffMsCaptor.capture());
 
+        final Map<String, String> headers = storage.getOptions()
+                .getMergedHeaderProvider(new NoHeaderProvider())
+                .getHeaders();
+
+        assertThat(headers).containsExactly(entry("user-agent", "foo"));
         assertThat(retrySettings.isJittered()).isTrue();
         assertThat(kafkaBackoffMsCaptor.getValue()).isEqualTo(1L);
         assertThat(retrySettings.getInitialRetryDelay()).isEqualTo(Duration.ofMillis(2L));

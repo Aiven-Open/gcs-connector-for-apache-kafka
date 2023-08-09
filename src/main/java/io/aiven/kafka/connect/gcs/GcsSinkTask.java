@@ -33,6 +33,7 @@ import io.aiven.kafka.connect.common.grouper.RecordGrouperFactory;
 import io.aiven.kafka.connect.common.output.OutputWriter;
 
 import com.google.api.gax.retrying.RetrySettings;
+import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
@@ -41,6 +42,7 @@ import org.slf4j.LoggerFactory;
 
 public final class GcsSinkTask extends SinkTask {
     private static final Logger LOG = LoggerFactory.getLogger(GcsSinkConnector.class);
+    private static final String USER_AGENT_HEADER_KEY = "user-agent";
 
     private RecordGrouper recordGrouper;
 
@@ -72,6 +74,7 @@ public final class GcsSinkTask extends SinkTask {
         this.storage = StorageOptions.newBuilder()
                 .setHost(config.getGcsEndpoint())
                 .setCredentials(config.getCredentials())
+                .setHeaderProvider(FixedHeaderProvider.create(USER_AGENT_HEADER_KEY, config.getUserAgent()))
                 .setRetrySettings(RetrySettings.newBuilder()
                         .setInitialRetryDelay(config.getGcsRetryBackoffInitialDelay())
                         .setMaxRetryDelay(config.getGcsRetryBackoffMaxDelay())

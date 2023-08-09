@@ -49,13 +49,14 @@ import org.threeten.bp.Duration;
 
 public final class GcsSinkConfig extends AivenCommonConfig {
     private static final Logger LOG = LoggerFactory.getLogger(GcsSinkConfig.class);
-
+    private static final String USER_AGENT_HEADER_FORMAT = "Google GCS Sink/%s (GPN: Aiven;)";
+    public static final String USER_AGENT_HEADER_VALUE = String.format(USER_AGENT_HEADER_FORMAT, Version.VERSION);
     private static final String GROUP_GCS = "GCS";
     public static final String GCS_CREDENTIALS_PATH_CONFIG = "gcs.credentials.path";
     public static final String GCS_ENDPOINT_CONFIG = "gcs.endpoint";
     public static final String GCS_CREDENTIALS_JSON_CONFIG = "gcs.credentials.json";
     public static final String GCS_BUCKET_NAME_CONFIG = "gcs.bucket.name";
-
+    public static final String GCS_USER_AGENT = "gcs.user.agent";
     private static final String GROUP_FILE = "File";
     public static final String FILE_NAME_PREFIX_CONFIG = "file.name.prefix";
     public static final String FILE_NAME_TEMPLATE_CONFIG = "file.name.template";
@@ -99,7 +100,13 @@ public final class GcsSinkConfig extends AivenCommonConfig {
         addOutputFieldsFormatConfigGroup(configDef, OutputFieldType.VALUE);
         addKafkaBackoffPolicy(configDef);
         addGcsRetryPolicies(configDef);
+        addUserAgentConfig(configDef);
         return configDef;
+    }
+
+    private static void addUserAgentConfig(final ConfigDef configDef) {
+        configDef.define(GCS_USER_AGENT, ConfigDef.Type.STRING, USER_AGENT_HEADER_VALUE, ConfigDef.Importance.LOW,
+                "A custom user agent used while contacting google");
     }
 
     private static void addGcsConfigGroup(final ConfigDef configDef) {
@@ -399,5 +406,9 @@ public final class GcsSinkConfig extends AivenCommonConfig {
 
     public String getGcsEndpoint() {
         return getString(GCS_ENDPOINT_CONFIG);
+    }
+
+    public String getUserAgent() {
+        return getString(GCS_USER_AGENT);
     }
 }
