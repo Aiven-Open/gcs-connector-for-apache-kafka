@@ -59,6 +59,7 @@ import org.testcontainers.containers.Network;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+@SuppressWarnings("deprecation")
 @Testcontainers
 class AbstractIntegrationTest<K, V> {
     protected final String testTopic0;
