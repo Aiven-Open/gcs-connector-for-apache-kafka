@@ -64,10 +64,11 @@ import org.threeten.bp.Duration;
  */
 final class GcsSinkConfigTest {
 
+    static final String TEMPLATE_VARIABLES = "topic,partition,start_offset,timestamp; key; key,topic,partition";
+
     @ParameterizedTest
     @ValueSource(strings = { "", "{{topic}}", "{{partition}}", "{{start_offset}}", "{{topic}}-{{partition}}",
             "{{topic}}-{{start_offset}}", "{{partition}}-{{start_offset}}",
-            "{{topic}}-{{partition}}-{{start_offset}}-{{key}}",
             "{{topic}}-{{partition}}-{{start_offset}}-{{unknown}}" })
     void incorrectFilenameTemplates(final String template) {
         final Map<String, String> properties = Map.of("file.name.template", template, "gcs.bucket.name", "some-bucket");
@@ -569,8 +570,7 @@ final class GcsSinkConfigTest {
         final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "file.name.template", "");
 
         final var expectedErrorMessage = "Invalid value  for configuration file.name.template: "
-                + "unsupported set of template variables, "
-                + "supported sets are: topic,partition,start_offset,timestamp; key";
+                + "unsupported set of template variables, supported sets are: " + TEMPLATE_VARIABLES;
 
         expectErrorMessageForConfigurationInConfigDefValidation(properties, "file.name.template", expectedErrorMessage);
 
@@ -584,8 +584,8 @@ final class GcsSinkConfigTest {
                 "{{ aaa }}{{ topic }}{{ partition }}{{ start_offset }}");
 
         final var expectedErrorMessage = "Invalid value {{ aaa }}{{ topic }}{{ partition }}{{ start_offset }} "
-                + "for configuration file.name.template: " + "unsupported set of template variables, "
-                + "supported sets are: topic,partition,start_offset,timestamp; key";
+                + "for configuration file.name.template: unsupported set of template variables, "
+                + "supported sets are: " + TEMPLATE_VARIABLES;
 
         expectErrorMessageForConfigurationInConfigDefValidation(properties, "file.name.template", expectedErrorMessage);
 
@@ -599,8 +599,7 @@ final class GcsSinkConfigTest {
                 "{{ partition }}{{ start_offset }}");
 
         final var expectedErrorMessage = "Invalid value {{ partition }}{{ start_offset }} for configuration file.name.template: "
-                + "unsupported set of template variables, "
-                + "supported sets are: topic,partition,start_offset,timestamp; key";
+                + "unsupported set of template variables, supported sets are: " + TEMPLATE_VARIABLES;
 
         expectErrorMessageForConfigurationInConfigDefValidation(properties, "file.name.template", expectedErrorMessage);
 
@@ -704,8 +703,7 @@ final class GcsSinkConfigTest {
                 "{{ topic }}{{ start_offset }}");
 
         final var expectedErrorMessage = "Invalid value {{ topic }}{{ start_offset }} for configuration file.name.template: "
-                + "unsupported set of template variables, "
-                + "supported sets are: topic,partition,start_offset,timestamp; key";
+                + "unsupported set of template variables, supported sets are: " + TEMPLATE_VARIABLES;
 
         expectErrorMessageForConfigurationInConfigDefValidation(properties, "file.name.template", expectedErrorMessage);
 
@@ -719,8 +717,7 @@ final class GcsSinkConfigTest {
                 "{{ topic }}{{ partition }}");
 
         final var expectedErrorMessage = "Invalid value {{ topic }}{{ partition }} for configuration file.name.template: "
-                + "unsupported set of template variables, "
-                + "supported sets are: topic,partition,start_offset,timestamp; key";
+                + "unsupported set of template variables, supported sets are: " + TEMPLATE_VARIABLES;
 
         expectErrorMessageForConfigurationInConfigDefValidation(properties, "file.name.template", expectedErrorMessage);
 

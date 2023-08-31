@@ -80,7 +80,7 @@ ext {
     confluentPlatformVersion = "4.1.4"
     // Align with version used by commons
     avroConverterVersion = "7.2.2"
-    aivenConnectCommonsVersion = "0.10.1"
+    aivenConnectCommonsVersion = "0.11.0"
 
     slf4jVersion = "1.7.36"
 
@@ -139,7 +139,7 @@ dependencies {
     implementation "com.github.spotbugs:spotbugs-annotations:4.7.3"
     implementation "org.slf4j:slf4j-api:$slf4jVersion"
 
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.9.2'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
     testImplementation 'org.hamcrest:hamcrest:2.2'
     testImplementation 'org.assertj:assertj-core:3.24.2'
     testImplementation "org.mockito:mockito-core:$mockitoVersion"
