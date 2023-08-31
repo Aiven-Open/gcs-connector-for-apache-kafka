@@ -38,8 +38,6 @@ import io.aiven.kafka.connect.common.config.OutputFieldEncodingType;
 import io.aiven.kafka.connect.common.config.OutputFieldType;
 import io.aiven.kafka.connect.common.config.TimestampSource;
 import io.aiven.kafka.connect.common.config.validators.FilenameTemplateValidator;
-import io.aiven.kafka.connect.common.grouper.RecordGrouperFactory;
-import io.aiven.kafka.connect.common.templating.Template;
 
 import com.google.auth.oauth2.OAuth2Credentials;
 import com.google.cloud.NoCredentials;
@@ -320,15 +318,6 @@ public final class GcsSinkConfig extends AivenCommonConfig {
         if (credentialsPath != null && credentialsJson != null) {
             final String msg = String.format("\"%s\" and \"%s\" are mutually exclusive options, but both are set.",
                     GCS_CREDENTIALS_PATH_CONFIG, GCS_CREDENTIALS_JSON_CONFIG);
-            throw new ConfigException(msg);
-        }
-
-        // Special checks for {{key}} filename template.
-        final Template filenameTemplate = getFilenameTemplate();
-        if (RecordGrouperFactory.KEY_RECORD.equals(RecordGrouperFactory.resolveRecordGrouperType(filenameTemplate))
-                && (getMaxRecordsPerFile() > 1)) { // NOPMD avoid literal
-            final String msg = String.format("When %s is %s, %s must be either 1 or not set", FILE_NAME_TEMPLATE_CONFIG,
-                    filenameTemplate, FILE_MAX_RECORDS);
             throw new ConfigException(msg);
         }
     }
