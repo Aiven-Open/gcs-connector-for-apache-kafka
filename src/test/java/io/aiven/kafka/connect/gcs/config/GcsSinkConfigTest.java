@@ -64,7 +64,8 @@ import org.threeten.bp.Duration;
  */
 final class GcsSinkConfigTest {
 
-    static final String TEMPLATE_VARIABLES = "topic,partition,start_offset,timestamp; key; key,topic,partition";
+    static final String TEMPLATE_VARIABLES = "topic,partition,start_offset,timestamp; "
+            + "topic,partition,key,start_offset,timestamp; key; key,topic,partition";
 
     @ParameterizedTest
     @ValueSource(strings = { "", "{{topic}}", "{{partition}}", "{{start_offset}}", "{{topic}}-{{partition}}",
