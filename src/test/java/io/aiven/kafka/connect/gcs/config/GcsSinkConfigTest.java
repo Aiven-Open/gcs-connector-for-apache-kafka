@@ -836,6 +836,15 @@ final class GcsSinkConfigTest {
         assertEquals(expectedErrorMessage, throwable.getMessage());
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = { "{{key}}", "{{topic}}/{{partition}}/{{key}}" })
+    void notSupportedFileMaxRecords(final String fileNameTemplate) {
+        final Map<String, String> properties = Map.of(GcsSinkConfig.FILE_NAME_TEMPLATE_CONFIG, fileNameTemplate,
+                GcsSinkConfig.FILE_MAX_RECORDS, "2", GcsSinkConfig.GCS_BUCKET_NAME_CONFIG, "any_bucket");
+        assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties), String.format(
+                "When file.name.template is %s, file.max.records must be either 1 or not set", fileNameTemplate));
+    }
+
     private void assertConfigDefValidationPasses(final Map<String, String> properties) {
         for (final ConfigValue configValue : GcsSinkConfig.configDef().validate(properties)) {
             assertTrue(configValue.errorMessages().isEmpty());
