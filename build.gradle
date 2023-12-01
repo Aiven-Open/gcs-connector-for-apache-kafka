@@ -146,7 +146,7 @@ dependencies {
     testImplementation "org.mockito:mockito-inline:$mockitoVersion"
     testImplementation "net.jqwik:jqwik:1.8.0"
     // is provided by "jqwik", but need this in testImplementation scope
-    testImplementation "net.jqwik:jqwik-engine:1.8.1"
+    testImplementation "net.jqwik:jqwik-engine:1.8.2"
 
     testImplementation "org.apache.kafka:connect-api:$kafkaVersion"
     testImplementation "org.apache.kafka:connect-runtime:$kafkaVersion"
