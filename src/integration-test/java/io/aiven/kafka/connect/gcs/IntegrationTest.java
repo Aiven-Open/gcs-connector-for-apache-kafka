@@ -466,18 +466,18 @@ final class IntegrationTest extends AbstractIntegrationTest<byte[], byte[]> {
                 .willReturn(aResponse().proxiedFrom(gcsEndpoint))
                 .build());
         final String urlPathPattern = "/upload/storage/v1/b/" + testBucketName + "/o";
-        wireMockServer.addStubMapping(
-                WireMock.request(RequestMethod.POST.getName(), UrlPattern.fromOneOf(null, null, null, urlPathPattern))
-                        .inScenario("temp-error")
-                        .willSetStateTo("Error")
-                        .willReturn(aResponse().withStatus(400))
-                        .build());
-        wireMockServer.addStubMapping(
-                WireMock.request(RequestMethod.POST.getName(), UrlPattern.fromOneOf(null, null, null, urlPathPattern))
-                        .inScenario("temp-error")
-                        .whenScenarioStateIs("Error")
-                        .willReturn(aResponse().proxiedFrom(gcsEndpoint))
-                        .build());
+        wireMockServer.addStubMapping(WireMock
+                .request(RequestMethod.POST.getName(), UrlPattern.fromOneOf(null, null, null, urlPathPattern, null))
+                .inScenario("temp-error")
+                .willSetStateTo("Error")
+                .willReturn(aResponse().withStatus(400))
+                .build());
+        wireMockServer.addStubMapping(WireMock
+                .request(RequestMethod.POST.getName(), UrlPattern.fromOneOf(null, null, null, urlPathPattern, null))
+                .inScenario("temp-error")
+                .whenScenarioStateIs("Error")
+                .willReturn(aResponse().proxiedFrom(gcsEndpoint))
+                .build());
         return wireMockServer;
     }
 }
