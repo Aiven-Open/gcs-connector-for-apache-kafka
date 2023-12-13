@@ -85,8 +85,8 @@ ext {
     slf4jVersion = "1.7.36"
 
     testcontainersVersion = "1.19.1"
-    wireMockVersion = "2.35.0"
-    mockitoVersion = "5.2.0"
+    wireMockVersion = "3.3.1"
+    mockitoVersion = "5.8.0"
 }
 
 distributions {
@@ -136,14 +136,17 @@ dependencies {
     // TODO: document why specific version of guava is required
     implementation "com.google.guava:guava:32.1.3-jre"
 
-    implementation "com.github.spotbugs:spotbugs-annotations:4.7.3"
+    implementation "org.ow2.asm:asm:9.6"
+    implementation("com.github.spotbugs:spotbugs-annotations:4.8.2") {
+        exclude group: "org.ow2.asm", module: "asm"
+    }
+
     implementation "org.slf4j:slf4j-api:$slf4jVersion"
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
     testImplementation 'org.hamcrest:hamcrest:2.2'
     testImplementation 'org.assertj:assertj-core:3.24.2'
     testImplementation "org.mockito:mockito-core:$mockitoVersion"
-    testImplementation "org.mockito:mockito-inline:$mockitoVersion"
     testImplementation "net.jqwik:jqwik:1.8.2"
     // is provided by "jqwik", but need this in testImplementation scope
     testImplementation "net.jqwik:jqwik-engine:1.8.2"
@@ -198,7 +201,7 @@ dependencies {
 
     testRuntimeOnly "org.slf4j:slf4j-log4j12:$slf4jVersion"
 
-    integrationTestImplementation "com.github.tomakehurst:wiremock-jre8:$wireMockVersion"
+    integrationTestImplementation "org.wiremock:wiremock:$wireMockVersion"
     integrationTestImplementation "org.testcontainers:junit-jupiter:$testcontainersVersion"
     integrationTestImplementation "org.testcontainers:kafka:$testcontainersVersion" // this is not Kafka version
     integrationTestImplementation "org.awaitility:awaitility:4.2.0"
@@ -256,7 +259,7 @@ pmdIntegrationTest {
 }
 
 spotbugs {
-    toolVersion = "4.7.3"
+    toolVersion = "4.8.2"
     excludeFilter = file("${project.rootDir}/gradle-config/spotbugs-exclude.xml")
 }
 spotbugsMain {
@@ -319,7 +322,7 @@ test {
 }
 
 jacoco {
-    toolVersion = "0.8.7"
+    toolVersion = "0.8.11"
 }
 
 processResources {
