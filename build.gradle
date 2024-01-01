@@ -130,7 +130,7 @@ dependencies {
 
     implementation "io.aiven:commons-for-apache-kafka-connect:$aivenConnectCommonsVersion"
 
-    implementation("com.google.cloud:google-cloud-storage:2.27.1") {
+    implementation("com.google.cloud:google-cloud-storage:2.30.1") {
         exclude group: "com.google.guava", module: "guava"
     }
     // TODO: document why specific version of guava is required
