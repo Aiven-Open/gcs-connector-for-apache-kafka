@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigException;
@@ -39,6 +40,7 @@ import io.aiven.kafka.connect.common.config.OutputFieldType;
 import io.aiven.kafka.connect.common.config.TimestampSource;
 import io.aiven.kafka.connect.common.config.validators.FilenameTemplateValidator;
 
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.OAuth2Credentials;
 import com.google.cloud.NoCredentials;
 import org.slf4j.Logger;
@@ -53,6 +55,7 @@ public final class GcsSinkConfig extends AivenCommonConfig {
     public static final String GCS_CREDENTIALS_PATH_CONFIG = "gcs.credentials.path";
     public static final String GCS_ENDPOINT_CONFIG = "gcs.endpoint";
     public static final String GCS_CREDENTIALS_JSON_CONFIG = "gcs.credentials.json";
+    public static final String GCS_CREDENTIALS_DEFAULT_CONFIG = "gcs.credentials.default";
     public static final String GCS_BUCKET_NAME_CONFIG = "gcs.bucket.name";
     public static final String GCS_USER_AGENT = "gcs.user.agent";
     private static final String GROUP_FILE = "File";
@@ -91,6 +94,9 @@ public final class GcsSinkConfig extends AivenCommonConfig {
 
     public static final String NAME_CONFIG = "name";
 
+    // the maximum number of allowable credential configurations that can be defined at a single time.
+    private static final int MAX_ALLOWED_CREDENTIAL_CONFIGS = 1;
+
     public static ConfigDef configDef() {
         final GcsSinkConfigDef configDef = new GcsSinkConfigDef();
         addGcsConfigGroup(configDef);
@@ -113,16 +119,21 @@ public final class GcsSinkConfig extends AivenCommonConfig {
                 "Explicit GCS Endpoint Address, mainly for testing", GROUP_GCS, gcsGroupCounter++, ConfigDef.Width.NONE,
                 GCS_ENDPOINT_CONFIG);
         configDef.define(GCS_CREDENTIALS_PATH_CONFIG, ConfigDef.Type.STRING, null, ConfigDef.Importance.LOW,
-                "The path to a GCP credentials file. "
-                        + "If not provided, the connector will try to detect the credentials automatically. "
-                        + "Cannot be set together with \"" + GCS_CREDENTIALS_JSON_CONFIG + "\"",
+                "The path to a GCP credentials file. Cannot be set together with \"" + GCS_CREDENTIALS_JSON_CONFIG
+                        + " or \"" + GCS_CREDENTIALS_DEFAULT_CONFIG + "\"",
                 GROUP_GCS, gcsGroupCounter++, ConfigDef.Width.NONE, GCS_CREDENTIALS_PATH_CONFIG);
 
         configDef.define(GCS_CREDENTIALS_JSON_CONFIG, ConfigDef.Type.PASSWORD, null, ConfigDef.Importance.LOW,
-                "GCP credentials as a JSON string. "
-                        + "If not provided, the connector will try to detect the credentials automatically. "
-                        + "Cannot be set together with \"" + GCS_CREDENTIALS_PATH_CONFIG + "\"",
+                "GCP credentials as a JSON string. Cannot be set together with \"" + GCS_CREDENTIALS_PATH_CONFIG
+                        + " or \"" + GCS_CREDENTIALS_DEFAULT_CONFIG + "\"",
                 GROUP_GCS, gcsGroupCounter++, ConfigDef.Width.NONE, GCS_CREDENTIALS_JSON_CONFIG);
+
+        configDef.define(GCS_CREDENTIALS_DEFAULT_CONFIG, ConfigDef.Type.BOOLEAN, null, ConfigDef.Importance.LOW,
+                "Whether to connect using default the GCP SDK default credential discovery. When set to"
+                        + "null (the default) or false, will fall back to connecting with No Credentials."
+                        + "Cannot be set together with \"" + GCS_CREDENTIALS_JSON_CONFIG + "\" or \""
+                        + GCS_CREDENTIALS_PATH_CONFIG + "\"",
+                GROUP_GCS, gcsGroupCounter++, ConfigDef.Width.NONE, GCS_CREDENTIALS_DEFAULT_CONFIG);
 
         configDef.define(GCS_BUCKET_NAME_CONFIG, ConfigDef.Type.STRING, ConfigDef.NO_DEFAULT_VALUE,
                 new ConfigDef.NonEmptyString(), ConfigDef.Importance.HIGH,
@@ -315,21 +326,37 @@ public final class GcsSinkConfig extends AivenCommonConfig {
     private void validate() {
         final String credentialsPath = getString(GCS_CREDENTIALS_PATH_CONFIG);
         final Password credentialsJson = getPassword(GCS_CREDENTIALS_JSON_CONFIG);
-        if (credentialsPath != null && credentialsJson != null) {
-            final String msg = String.format("\"%s\" and \"%s\" are mutually exclusive options, but both are set.",
-                    GCS_CREDENTIALS_PATH_CONFIG, GCS_CREDENTIALS_JSON_CONFIG);
-            throw new ConfigException(msg);
+        final Boolean defaultCredentials = getBoolean(GCS_CREDENTIALS_DEFAULT_CONFIG);
+
+        final long nonNulls = Stream.of(defaultCredentials, credentialsJson, credentialsPath)
+                .filter(Objects::nonNull)
+                .count();
+
+        // only validate non nulls here, since all nulls means falling back to the default "no credential" behavour.
+        if (nonNulls > MAX_ALLOWED_CREDENTIAL_CONFIGS) {
+            throw new ConfigException(String.format("Only one of %s, %s, and %s can be non-null.",
+                    GCS_CREDENTIALS_DEFAULT_CONFIG, GCS_CREDENTIALS_JSON_CONFIG, GCS_CREDENTIALS_PATH_CONFIG));
         }
     }
 
     public OAuth2Credentials getCredentials() {
         final String credentialsPath = getString(GCS_CREDENTIALS_PATH_CONFIG);
         final Password credentialsJsonPwd = getPassword(GCS_CREDENTIALS_JSON_CONFIG);
-        if (credentialsPath == null && credentialsJsonPwd == null) {
+        final Boolean defaultCredentials = getBoolean(GCS_CREDENTIALS_DEFAULT_CONFIG);
+
+        // if we've got no path, json and not configured to use default credentials, fall back to connecting without
+        // any credentials at all.
+        if (credentialsPath == null && credentialsJsonPwd == null
+                && (defaultCredentials == null || !defaultCredentials)) {
             LOG.warn("No GCS credentials provided, trying to connect without credentials.");
             return NoCredentials.getInstance();
         }
+
         try {
+            if (Boolean.TRUE.equals(defaultCredentials)) {
+                return GoogleCredentials.getApplicationDefault();
+            }
+
             String credentialsJson = null;
             if (credentialsJsonPwd != null) {
                 credentialsJson = credentialsJsonPwd.value();

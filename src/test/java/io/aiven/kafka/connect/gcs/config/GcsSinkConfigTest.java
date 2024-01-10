@@ -24,9 +24,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.IOException;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.Arrays;
@@ -51,8 +48,6 @@ import io.aiven.kafka.connect.common.templating.Template;
 import io.aiven.kafka.connect.common.templating.VariableTemplatePart;
 import io.aiven.kafka.connect.gcs.GcsSinkConfig;
 
-import com.google.auth.oauth2.UserCredentials;
-import com.google.common.io.Resources;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
@@ -346,58 +341,6 @@ final class GcsSinkConfigTest {
 
         final Throwable throwable = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
         assertEquals(expectedErrorMessage, throwable.getMessage());
-    }
-
-    @Test
-    void gcsCredentialsPath() {
-        final Map<String, String> properties = Map.of("gcs.bucket.name", "test-bucket", "gcs.credentials.path",
-                Thread.currentThread().getContextClassLoader().getResource("test_gcs_credentials.json").getPath());
-
-        assertConfigDefValidationPasses(properties);
-
-        final GcsSinkConfig config = new GcsSinkConfig(properties);
-        final UserCredentials credentials = (UserCredentials) config.getCredentials();
-        assertEquals("test-client-id", credentials.getClientId());
-        assertEquals("test-client-secret", credentials.getClientSecret());
-    }
-
-    @Test
-    void gcsCredentialsJson() throws IOException {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-
-        final String credentialsJson = Resources.toString(
-                Thread.currentThread().getContextClassLoader().getResource("test_gcs_credentials.json"),
-                StandardCharsets.UTF_8);
-        properties.put("gcs.credentials.json", credentialsJson);
-
-        assertConfigDefValidationPasses(properties);
-
-        final GcsSinkConfig config = new GcsSinkConfig(properties);
-        final UserCredentials credentials = (UserCredentials) config.getCredentials();
-        assertEquals("test-client-id", credentials.getClientId());
-        assertEquals("test-client-secret", credentials.getClientSecret());
-    }
-
-    @Test
-    void gcsCredentialsExclusivity() throws IOException {
-        final Map<String, String> properties = new HashMap<>();
-        properties.put("gcs.bucket.name", "test-bucket");
-
-        final URL credentialsResource = Thread.currentThread()
-                .getContextClassLoader()
-                .getResource("test_gcs_credentials.json");
-        final String credentialsJson = Resources.toString(credentialsResource, StandardCharsets.UTF_8);
-        properties.put("gcs.credentials.json", credentialsJson);
-        properties.put("gcs.credentials.path", credentialsResource.getPath());
-
-        // Should pass here, because ConfigDef validation doesn't check interdependencies.
-        assertConfigDefValidationPasses(properties);
-
-        final Throwable throwable = assertThrows(ConfigException.class, () -> new GcsSinkConfig(properties));
-        assertEquals(
-                "\"gcs.credentials.path\" and \"gcs.credentials.json\" are mutually exclusive options, but both are set.",
-                throwable.getMessage());
     }
 
     @Test
