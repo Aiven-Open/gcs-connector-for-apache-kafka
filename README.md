@@ -569,14 +569,13 @@ topics=topic1,topic2
 # Required.
 gcs.bucket.name=my-gcs-bucket
 
-## The following two options are used to specify GCP credentials.
+## The following three options are used to specify GCP credentials.
 ## See the overview of GCP authentication:
 ##  - https://cloud.google.com/docs/authentication/
 ##  - https://cloud.google.com/docs/authentication/production
-## If they both are not present, the connector will try to detect
-## the credentials automatically.
+## If none are present, the connector will default to trying to connect without credentials.
 ## If only one is present, the connector will use it to get the credentials.
-## If both are present, this is an error.
+## If more than one is present, this is an error.
 
 # The path to a GCP credentials file.
 # Optional, the default is null.
@@ -586,6 +585,8 @@ gcs.credentials.path=/some/path/google_credentials.json
 # Optional, the default is null.
 gcs.credentials.json={"type":"...", ...}
 
+# Autodiscover GCP Credentials from the execution environment
+gcs.credentials.default=true
 ##
 
 
