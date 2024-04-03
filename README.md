@@ -589,6 +589,10 @@ gcs.credentials.json={"type":"...", ...}
 gcs.credentials.default=true
 ##
 
+# The value of object metadata Content-Encoding.
+# This can be used for leveraging storage-side de-compression before download.
+# Optional, the default is null.
+gcs.object.content.encoding=gzip
 
 # The set of the fields that are to be output, comma separated.
 # Supported values are: `key`, `value`, `offset`, `timestamp`, and `headers`.

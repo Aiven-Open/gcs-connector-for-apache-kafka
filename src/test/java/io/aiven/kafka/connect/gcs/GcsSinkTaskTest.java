@@ -63,6 +63,7 @@ import org.assertj.core.util.introspection.FieldSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.threeten.bp.Duration;
@@ -250,6 +251,45 @@ final class GcsSinkTaskTest {
         assertIterableEquals(
                 Lists.newArrayList(Collections.singletonList("value3"), Collections.singletonList("value8")),
                 readSplittedAndDecodedLinesFromBlob("topic1-1-40" + compressionType.extension(), compression, 0));
+    }
+
+    @ParameterizedTest
+    @CsvSource({ "none,none", "gzip,none", "none,gzip", "gzip,gzip" })
+    void contentEncodingAwareDownload(final String compression, final String encoding) {
+        properties.put(GcsSinkConfig.FILE_COMPRESSION_TYPE_CONFIG, compression);
+        properties.put(GcsSinkConfig.GCS_OBJECT_CONTENT_ENCODING_CONFIG, encoding);
+        final GcsSinkTask task = new GcsSinkTask(properties, storage);
+
+        task.put(basicRecords);
+        task.flush(null);
+
+        final CompressionType compressionType = CompressionType.forName(compression);
+
+        final List<String> names = Lists.newArrayList("topic0-0-10", "topic0-1-20", "topic0-2-50", "topic1-0-30",
+                "topic1-1-40");
+        final List<String> blobNames = names.stream()
+                .map(n -> n + compressionType.extension())
+                .collect(Collectors.toList());
+
+        assertIterableEquals(blobNames, testBucketAccessor.getBlobNames());
+        // given a blob with metadata Content-Encoding equal to its byte compression,
+        // the result of its GS-downloaded bytes is automatically un-compressed (gzip support only)
+        // see https://cloud.google.com/storage/docs/metadata#content-encoding
+        assertIterableEquals(
+                Lists.newArrayList(Collections.singletonList("value0"), Collections.singletonList("value5")),
+                readDecodedFieldsFromDownload("topic0-0-10" + compressionType.extension(), compression, 0));
+        assertIterableEquals(
+                Lists.newArrayList(Collections.singletonList("value1"), Collections.singletonList("value6")),
+                readDecodedFieldsFromDownload("topic0-1-20" + compressionType.extension(), compression, 0));
+        assertIterableEquals(
+                Lists.newArrayList(Collections.singletonList("value4"), Collections.singletonList("value9")),
+                readDecodedFieldsFromDownload("topic0-2-50" + compressionType.extension(), compression, 0));
+        assertIterableEquals(
+                Lists.newArrayList(Collections.singletonList("value2"), Collections.singletonList("value7")),
+                readDecodedFieldsFromDownload("topic1-0-30" + compressionType.extension(), compression, 0));
+        assertIterableEquals(
+                Lists.newArrayList(Collections.singletonList("value3"), Collections.singletonList("value8")),
+                readDecodedFieldsFromDownload("topic1-1-40" + compressionType.extension(), compression, 0));
     }
 
     @ParameterizedTest
@@ -743,6 +783,11 @@ final class GcsSinkTaskTest {
     private Collection<List<String>> readSplittedAndDecodedLinesFromBlob(final String blobName,
             final String compression, final int... fieldsToDecode) {
         return testBucketAccessor.readAndDecodeLines(blobName, compression, fieldsToDecode);
+    }
+
+    private Collection<List<String>> readDecodedFieldsFromDownload(final String blobName, final String compression,
+            final int... fieldsToDecode) {
+        return testBucketAccessor.downloadBlobAndDecodeFields(blobName, compression, fieldsToDecode);
     }
 
     private Map<String, Collection<List<String>>> buildBlobNameValuesMap(final String compression) {

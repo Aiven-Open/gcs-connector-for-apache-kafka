@@ -118,7 +118,9 @@ public final class GcsSinkTask extends SinkTask {
     }
 
     private void flushFile(final String filename, final List<SinkRecord> records) {
-        final BlobInfo blob = BlobInfo.newBuilder(config.getBucketName(), config.getPrefix() + filename).build();
+        final BlobInfo blob = BlobInfo.newBuilder(config.getBucketName(), config.getPrefix() + filename)
+                .setContentEncoding(config.getObjectContentEncoding())
+                .build();
         try (var out = Channels.newOutputStream(storage.writer(blob));
                 var writer = OutputWriter.builder()
                         .withExternalProperties(config.originalsStrings())
