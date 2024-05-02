@@ -136,7 +136,7 @@ dependencies {
     // TODO: document why specific version of guava is required
     implementation "com.google.guava:guava:33.0.0-jre"
 
-    implementation "com.github.spotbugs:spotbugs-annotations:4.8.3"
+    implementation "com.github.spotbugs:spotbugs-annotations:4.8.4"
     implementation "org.slf4j:slf4j-api:$slf4jVersion"
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.1'
