@@ -18,10 +18,14 @@ package io.aiven.kafka.connect.gcs.testutils;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
@@ -41,6 +45,7 @@ import io.aiven.kafka.connect.common.config.CompressionType;
 
 import com.github.luben.zstd.ZstdInputStream;
 import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import org.xerial.snappy.SnappyInputStream;
@@ -53,6 +58,7 @@ public final class BucketAccessor {
     private List<String> blobNamesCache;
     private final Map<String, String> stringContentCache = new HashMap<>();
     private final Map<String, List<String>> linesCache = new HashMap<>();
+    private final Map<String, List<String>> downloadedLinesCache = new HashMap<>();
     private final Map<String, List<List<String>>> decodedLinesCache = new HashMap<>();
 
     public BucketAccessor(final Storage storage, final String bucketName, final boolean cache) {
@@ -121,6 +127,7 @@ public final class BucketAccessor {
             stringContentCache.clear();
             linesCache.clear();
             decodedLinesCache.clear();
+            downloadedLinesCache.clear();
         }
     }
 
@@ -165,8 +172,44 @@ public final class BucketAccessor {
                 InputStream decompressedStream = getDecompressedStream(bais, compression);
                 InputStreamReader reader = new InputStreamReader(decompressedStream, StandardCharsets.UTF_8);
                 BufferedReader bufferedReader = new BufferedReader(reader)) {
-
             return bufferedReader.lines().collect(Collectors.toList());
+        } catch (final IOException e) {
+            throw new RuntimeException(e); // NOPMD
+        }
+    }
+
+    public List<String> downloadBlobAndReadLines(final String blobName, final String compression) {
+        Objects.requireNonNull(blobName, "blobName cannot be null");
+        Objects.requireNonNull(compression, "compression cannot be null");
+        if (cache) {
+            return downloadedLinesCache.computeIfAbsent(blobName,
+                    k -> downloadBlobAndReadLines0(blobName, compression));
+        } else {
+            return downloadBlobAndReadLines0(blobName, compression);
+        }
+    }
+
+    private List<String> downloadBlobAndReadLines0(final String blobName, final String compression) {
+        final String filePath = downloadBlobToTempFile(blobName);
+        try {
+            final byte[] bytes = Files.readAllBytes(Path.of(filePath));
+            try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
+                    InputStream decompressedStream = getDecompressedStream(bais, compression);
+                    InputStreamReader reader = new InputStreamReader(decompressedStream, StandardCharsets.UTF_8);
+                    BufferedReader bufferedReader = new BufferedReader(reader)) {
+                return bufferedReader.lines().collect(Collectors.toList());
+            }
+        } catch (IOException exception) {
+            throw new RuntimeException(exception); // NOPMD
+        }
+    }
+
+    private String downloadBlobToTempFile(final String blobName) {
+        try {
+            final File file = File.createTempFile("tmp", null);
+            final String filePath = file.getAbsolutePath();
+            storage.downloadTo(BlobId.fromGsUtilUri("gs://" + bucketName + "/" + blobName), Paths.get(filePath));
+            return filePath;
         } catch (final IOException e) {
             throw new RuntimeException(e); // NOPMD
         }
@@ -206,6 +249,27 @@ public final class BucketAccessor {
     private List<List<String>> readAndDecodeLines0(final String blobName, final String compression,
             final int[] fieldsToDecode) {
         return readLines(blobName, compression).stream()
+                .map(l -> l.split(","))
+                .map(fields -> decodeRequiredFields(fields, fieldsToDecode))
+                .collect(Collectors.toList());
+    }
+
+    public List<List<String>> downloadBlobAndDecodeFields(final String blobName, final String compression,
+            final int... fieldsToDecode) {
+        Objects.requireNonNull(blobName, "blobName cannot be null");
+        Objects.requireNonNull(fieldsToDecode, "fieldsToDecode cannot be null");
+
+        if (cache) {
+            return decodedLinesCache.computeIfAbsent(blobName,
+                    k -> downloadBlobAndDecodeFields0(blobName, compression, fieldsToDecode));
+        } else {
+            return downloadBlobAndDecodeFields0(blobName, compression, fieldsToDecode);
+        }
+    }
+
+    private List<List<String>> downloadBlobAndDecodeFields0(final String blobName, final String compression,
+            final int... fieldsToDecode) {
+        return downloadBlobAndReadLines(blobName, compression).stream()
                 .map(l -> l.split(","))
                 .map(fields -> decodeRequiredFields(fields, fieldsToDecode))
                 .collect(Collectors.toList());

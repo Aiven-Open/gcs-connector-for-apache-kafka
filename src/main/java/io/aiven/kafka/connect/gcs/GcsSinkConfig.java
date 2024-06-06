@@ -57,11 +57,13 @@ public final class GcsSinkConfig extends AivenCommonConfig {
     public static final String GCS_CREDENTIALS_JSON_CONFIG = "gcs.credentials.json";
     public static final String GCS_CREDENTIALS_DEFAULT_CONFIG = "gcs.credentials.default";
     public static final String GCS_BUCKET_NAME_CONFIG = "gcs.bucket.name";
+    public static final String GCS_OBJECT_CONTENT_ENCODING_CONFIG = "gcs.object.content.encoding";
     public static final String GCS_USER_AGENT = "gcs.user.agent";
     private static final String GROUP_FILE = "File";
     public static final String FILE_NAME_PREFIX_CONFIG = "file.name.prefix";
     public static final String FILE_NAME_TEMPLATE_CONFIG = "file.name.template";
     public static final String FILE_COMPRESSION_TYPE_CONFIG = "file.compression.type";
+
     public static final String FILE_MAX_RECORDS = "file.max.records";
     public static final String FILE_NAME_TIMESTAMP_TIMEZONE = "file.name.timestamp.timezone";
     public static final String FILE_NAME_TIMESTAMP_SOURCE = "file.name.timestamp.source";
@@ -134,6 +136,11 @@ public final class GcsSinkConfig extends AivenCommonConfig {
                         + "Cannot be set together with \"" + GCS_CREDENTIALS_JSON_CONFIG + "\" or \""
                         + GCS_CREDENTIALS_PATH_CONFIG + "\"",
                 GROUP_GCS, gcsGroupCounter++, ConfigDef.Width.NONE, GCS_CREDENTIALS_DEFAULT_CONFIG);
+
+        configDef.define(GCS_OBJECT_CONTENT_ENCODING_CONFIG, ConfigDef.Type.STRING, null,
+                new ConfigDef.NonEmptyString(), ConfigDef.Importance.LOW,
+                "The GCS object metadata value of Content-Encoding.", GROUP_GCS, gcsGroupCounter++,
+                ConfigDef.Width.NONE, GCS_OBJECT_CONTENT_ENCODING_CONFIG);
 
         configDef.define(GCS_BUCKET_NAME_CONFIG, ConfigDef.Type.STRING, ConfigDef.NO_DEFAULT_VALUE,
                 new ConfigDef.NonEmptyString(), ConfigDef.Importance.HIGH,
@@ -332,7 +339,7 @@ public final class GcsSinkConfig extends AivenCommonConfig {
                 .filter(Objects::nonNull)
                 .count();
 
-        // only validate non nulls here, since all nulls means falling back to the default "no credential" behavour.
+        // only validate non nulls here, since all nulls means falling back to the default "no credential" behaviour.
         if (nonNulls > MAX_ALLOWED_CREDENTIAL_CONFIGS) {
             throw new ConfigException(String.format("Only one of %s, %s, and %s can be non-null.",
                     GCS_CREDENTIALS_DEFAULT_CONFIG, GCS_CREDENTIALS_JSON_CONFIG, GCS_CREDENTIALS_PATH_CONFIG));
@@ -369,6 +376,10 @@ public final class GcsSinkConfig extends AivenCommonConfig {
 
     public String getBucketName() {
         return getString(GCS_BUCKET_NAME_CONFIG);
+    }
+
+    public String getObjectContentEncoding() {
+        return getString(GCS_OBJECT_CONTENT_ENCODING_CONFIG);
     }
 
     @Override
