@@ -1,5 +1,8 @@
 # Aiven's GCS Sink Connector for Apache Kafka®
 
+> [!IMPORTANT]  
+> The Aiven GCS Connector for Apache Kafka development has been moved to https://github.com/Aiven-Open/commons-for-apache-kafka-connect/
+
 ![Pull Request Workflow](https://github.com/aiven/gcs-connector-for-apache-kafka/workflows/Pull%20Request%20Workflow/badge.svg)
 
 This is a sink
